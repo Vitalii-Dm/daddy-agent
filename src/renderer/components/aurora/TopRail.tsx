@@ -14,12 +14,18 @@ export const TopRail = (): React.JSX.Element => {
   const [shrunk, setShrunk] = useState(false);
 
   useEffect(() => {
+    let raf = 0;
     const onScroll = (): void => {
-      setShrunk(window.scrollY > SHRINK_AT);
+      // Coalesce to a single rAF so Lenis-driven smooth scroll doesn't churn state.
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setShrunk(window.scrollY > SHRINK_AT));
     };
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', onScroll);
+    };
   }, []);
 
   const breadcrumb = teamName ? `Home · ${teamName}` : 'Home · Agents';

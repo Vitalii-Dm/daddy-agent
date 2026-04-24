@@ -1,5 +1,7 @@
-import React, { useMemo } from 'react';
-import { motion, useReducedMotion } from 'motion/react';
+import React, { useMemo, useRef } from 'react';
+import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react';
+
+import { scrollToAnchor } from '@renderer/lib/lenis';
 
 import { LiquidGlass } from '../LiquidGlass';
 import { LivePreviewStrip } from '../LivePreviewStrip';
@@ -12,10 +14,24 @@ const APPLE_EASE = [0.22, 1, 0.36, 1] as const;
 // in commit 7 and is mounted at the bottom of the section.
 export const HeroSection = (): React.JSX.Element => {
   const reduceMotion = useReducedMotion();
+  const sectionRef = useRef<HTMLElement | null>(null);
   const sheenId = useMemo(() => `aurora-sheen-${Math.random().toString(36).slice(2, 8)}`, []);
+
+  // Scroll-linked transforms — title scales down, body fades, preview strip
+  // parallaxes upward as the hero leaves the viewport. All driven by the
+  // section's own scroll progress so the math stays local.
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ['start start', 'end start'],
+  });
+  const titleScale = useTransform(scrollYProgress, [0, 0.5], [1, 0.92]);
+  const titleY = useTransform(scrollYProgress, [0, 0.5], [0, -60]);
+  const bodyOpacity = useTransform(scrollYProgress, [0, 0.45], [1, 0.2]);
+  const stripY = useTransform(scrollYProgress, [0, 1], [0, -160]);
 
   return (
     <section
+      ref={sectionRef}
       id="home"
       className="relative isolate flex min-h-screen flex-col px-6 pb-24 pt-32 sm:px-10 lg:px-16"
       style={{ scrollMarginTop: '88px' }}
@@ -40,6 +56,9 @@ export const HeroSection = (): React.JSX.Element => {
             lineHeight: 0.92,
             letterSpacing: '-0.04em',
             maxWidth: '14ch',
+            scale: reduceMotion ? 1 : titleScale,
+            y: reduceMotion ? 0 : titleY,
+            transformOrigin: 'left top',
           }}
         >
           <span className="block">Orchestrate an</span>
@@ -55,6 +74,7 @@ export const HeroSection = (): React.JSX.Element => {
           initial={reduceMotion ? false : { opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: APPLE_EASE, delay: 0.25 }}
+          style={{ opacity: reduceMotion ? 1 : bodyOpacity }}
           className="mt-10 max-w-[560px] text-[18px] leading-[1.55] text-[color:var(--ink-2)]"
         >
           A CTO-shaped control surface for parallel Claude Code and Codex workers. Tmux beneath.
@@ -75,6 +95,7 @@ export const HeroSection = (): React.JSX.Element => {
           initial={reduceMotion ? false : { opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.9, ease: APPLE_EASE, delay: 0.55 }}
+          style={{ y: reduceMotion ? 0 : stripY }}
           className="mt-16 min-h-[180px] flex-1"
         >
           <LivePreviewStrip />
@@ -197,8 +218,7 @@ const ScrollCaret = (): React.JSX.Element => {
       href="#dashboard"
       onClick={(e) => {
         e.preventDefault();
-        const target = document.getElementById('dashboard');
-        target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        scrollToAnchor('#dashboard');
       }}
       className="mt-10 inline-flex items-center gap-2 self-start font-mono text-[11px] uppercase tracking-[0.18em] text-[color:var(--ink-3)] transition-colors hover:text-[color:var(--ink-1)]"
     >

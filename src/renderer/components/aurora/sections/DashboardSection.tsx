@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { motion } from 'motion/react';
+import React, { useRef, useState } from 'react';
+import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react';
 
 import { ActivityStream } from '../dashboard/ActivityStream';
 import { AgentRoster } from '../dashboard/AgentRoster';
@@ -23,14 +23,32 @@ export const DashboardSection = (): React.JSX.Element => {
   const { teamName, runningCount, totalCount } = useAuroraTeam();
   const [view, setView] = useState<ViewTab>('Kanban');
   const [filter, setFilter] = useState<FilterChip>('All');
+  const reduceMotion = useReducedMotion();
+  const sectionRef = useRef<HTMLElement | null>(null);
+
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ['start end', 'start center'],
+  });
+  const riseY = useTransform(scrollYProgress, [0, 1], [40, 0]);
+  const riseScale = useTransform(scrollYProgress, [0, 1], [0.96, 1]);
+  const riseOpacity = useTransform(scrollYProgress, [0, 1], [0.4, 1]);
 
   return (
     <section
+      ref={sectionRef}
       id="dashboard"
       className="relative px-6 pb-32 pt-24 sm:px-10 lg:px-16"
       style={{ scrollMarginTop: '88px' }}
     >
-      <div className="mx-auto w-full max-w-[1480px]">
+      <motion.div
+        className="mx-auto w-full max-w-[1480px]"
+        style={
+          reduceMotion
+            ? undefined
+            : { y: riseY, scale: riseScale, opacity: riseOpacity, transformOrigin: 'top center' }
+        }
+      >
         <DashboardHeader
           teamName={teamName}
           runningCount={runningCount}
@@ -60,7 +78,7 @@ export const DashboardSection = (): React.JSX.Element => {
             <ActivityStream />
           </div>
         </motion.div>
-      </div>
+      </motion.div>
     </section>
   );
 };

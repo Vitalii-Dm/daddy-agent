@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
 
+import { destroyLenis, initLenis } from '@renderer/lib/lenis';
+
 import { GlobalBackground } from './GlobalBackground';
 import { RefractFilter } from './RefractFilter';
 import { TopRail } from './TopRail';
@@ -8,14 +10,18 @@ import { GraphSectionPlaceholder } from './sections/GraphSectionPlaceholder';
 import { HeroSection } from './sections/HeroSection';
 
 // Top-level Liquid Glass shell. Owns the aurora theme attribute, the SVG
-// refraction filter, the global background, the floating top rail, and the
-// vertical document of sections. Subsequent commits flesh out each section
-// and add Lenis smooth scroll + the command bar.
+// refraction filter, the global background, the floating top rail, the
+// Lenis smooth-scroll instance, and the vertical document of sections.
 export const AuroraShell = (): React.JSX.Element => {
   useEffect(() => {
     const previous = document.documentElement.dataset.theme;
     document.documentElement.dataset.theme = 'aurora';
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!reduceMotion) {
+      initLenis();
+    }
     return () => {
+      destroyLenis();
       if (previous) {
         document.documentElement.dataset.theme = previous;
       } else {
