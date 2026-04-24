@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from daddy_agent.session_memory.lifecycle import (
     FakeMemoryBackend,
@@ -12,7 +12,7 @@ from daddy_agent.session_memory.lifecycle import (
 
 def test_cross_agent_query_excludes_caller_and_respects_since() -> None:
     backend = FakeMemoryBackend()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     old = now - timedelta(days=30)
     recent = now - timedelta(hours=1)
 

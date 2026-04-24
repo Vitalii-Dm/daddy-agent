@@ -6,7 +6,7 @@ actually sleeping. We read a bounded number of bytes to assert shape.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 from fastapi.testclient import TestClient
 
@@ -20,7 +20,7 @@ def _make_app(counts):
 
     idx = {"i": 0}
 
-    def handler(cypher: str, params: Dict[str, Any]) -> List[FakeRecord]:
+    def handler(cypher: str, params: dict[str, Any]) -> list[FakeRecord]:
         assert "count" in cypher.lower()
         i = idx["i"]
         idx["i"] += 1

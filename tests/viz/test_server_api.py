@@ -5,7 +5,7 @@ All Neo4j access is mocked — the tests are offline-safe.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 from fastapi.testclient import TestClient
 
@@ -13,7 +13,7 @@ from tests.viz.conftest import FakeRecord
 
 
 def _build_app(handler, **kwargs):
-    from daddy_agent.viz.server import create_app, DriverFactory
+    from daddy_agent.viz.server import DriverFactory, create_app
     from tests.viz.conftest import FakeDriver
 
     factory = DriverFactory()
@@ -22,7 +22,7 @@ def _build_app(handler, **kwargs):
 
 
 def test_graph_endpoint_shape(sample_graph):
-    def handler(cypher: str, params: Dict[str, Any]) -> List[FakeRecord]:
+    def handler(cypher: str, params: dict[str, Any]) -> list[FakeRecord]:
         assert "MATCH (n)" in cypher
         # collect(DISTINCT n), collect(DISTINCT r), collect(DISTINCT m)
         return [FakeRecord({
@@ -46,9 +46,9 @@ def test_graph_endpoint_shape(sample_graph):
 
 
 def test_graph_community_filter_adds_param():
-    seen: List[Dict[str, Any]] = []
+    seen: list[dict[str, Any]] = []
 
-    def handler(cypher: str, params: Dict[str, Any]) -> List[FakeRecord]:
+    def handler(cypher: str, params: dict[str, Any]) -> list[FakeRecord]:
         seen.append({"cypher": cypher, "params": params})
         return [FakeRecord({"nodes": [], "rels": [], "others": []})]
 
@@ -82,7 +82,7 @@ def test_graph_db_unreachable_is_503():
 
 
 def test_search_endpoint_uses_params(sample_graph):
-    seen: List[Dict[str, Any]] = []
+    seen: list[dict[str, Any]] = []
 
     def handler(c, p):
         seen.append({"cypher": c, "params": p})

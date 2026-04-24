@@ -421,9 +421,7 @@ def _ts_visit_toplevel(node: Any, source: bytes, parsed: ParsedFile) -> None:
         _ts_collect_import(node, source, parsed)
     elif node.type in ts_q.FUNCTION_NODES:
         parsed.functions.append(_ts_function(node, source))
-    elif node.type == ts_q.CLASS_NODE:
-        parsed.classes.append(_ts_class(node, source))
-    elif node.type == "interface_declaration":
+    elif node.type == ts_q.CLASS_NODE or node.type == "interface_declaration":
         parsed.classes.append(_ts_class(node, source))
     elif node.type == "lexical_declaration":
         # ``const foo = () => {}`` / ``const x = function() {}``

@@ -20,9 +20,10 @@ import argparse
 import json
 import os
 import re
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Graph model
@@ -34,8 +35,8 @@ class GraphNode:
     """Minimal node representation used by the exporter."""
 
     id: str
-    labels: List[str]
-    properties: Dict[str, Any]
+    labels: list[str]
+    properties: dict[str, Any]
 
     @property
     def name(self) -> str:
@@ -61,13 +62,13 @@ class GraphEdge:
     source: str
     target: str
     type: str
-    properties: Dict[str, Any] = field(default_factory=dict)
+    properties: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class Graph:
-    nodes: List[GraphNode]
-    edges: List[GraphEdge]
+    nodes: list[GraphNode]
+    edges: list[GraphEdge]
 
 
 # ---------------------------------------------------------------------------
@@ -81,8 +82,8 @@ def fetch_graph(driver: Any, database: str) -> Graph:
     ``driver`` must expose ``.session(database=...)`` — i.e. a real
     :class:`neo4j.Driver` or a test double.
     """
-    nodes: Dict[str, GraphNode] = {}
-    edges: List[GraphEdge] = []
+    nodes: dict[str, GraphNode] = {}
+    edges: list[GraphEdge] = []
     with driver.session(database=database) as session:
         for rec in session.run("MATCH (n) RETURN n"):
             n = rec["n"]
@@ -132,7 +133,7 @@ def slugify(text: str) -> str:
     return s or "node"
 
 
-def _yaml_frontmatter(data: Dict[str, Any]) -> str:
+def _yaml_frontmatter(data: dict[str, Any]) -> str:
     """Tiny, deterministic YAML serialiser for our flat frontmatter."""
     lines = ["---"]
     for key in sorted(data):
@@ -157,11 +158,11 @@ def _yaml_value(value: Any) -> str:
     return json.dumps(str(value))
 
 
-def _index_nodes(nodes: Sequence[GraphNode]) -> Tuple[Dict[str, GraphNode], Dict[str, str]]:
+def _index_nodes(nodes: Sequence[GraphNode]) -> tuple[dict[str, GraphNode], dict[str, str]]:
     """Build id->node and id->relative-wikilink maps."""
-    by_id: Dict[str, GraphNode] = {}
-    slug_counts: Dict[Tuple[str, str], int] = {}
-    link: Dict[str, str] = {}
+    by_id: dict[str, GraphNode] = {}
+    slug_counts: dict[tuple[str, str], int] = {}
+    link: dict[str, str] = {}
     for node in sorted(nodes, key=lambda n: n.id):
         by_id[node.id] = node
         community = slugify(node.community)
@@ -176,10 +177,10 @@ def _index_nodes(nodes: Sequence[GraphNode]) -> Tuple[Dict[str, GraphNode], Dict
 
 def _render_node(
     node: GraphNode,
-    link_map: Dict[str, str],
-    by_id: Dict[str, GraphNode],
-    outgoing: Dict[str, List[GraphEdge]],
-    incoming: Dict[str, List[GraphEdge]],
+    link_map: dict[str, str],
+    by_id: dict[str, GraphNode],
+    outgoing: dict[str, list[GraphEdge]],
+    incoming: dict[str, list[GraphEdge]],
 ) -> str:
     frontmatter = _yaml_frontmatter({
         "id": node.id,
@@ -188,13 +189,13 @@ def _render_node(
         "community": node.community,
         "properties": node.properties,
     })
-    parts: List[str] = [frontmatter, "", f"# {node.name}", ""]
+    parts: list[str] = [frontmatter, "", f"# {node.name}", ""]
     parts.append(f"**Type:** {node.primary_label}")
     parts.append(f"**Community:** {node.community}")
     parts.append("")
 
-    def fmt_edges(edges: List[GraphEdge], direction: str) -> List[str]:
-        rows: List[str] = []
+    def fmt_edges(edges: list[GraphEdge], direction: str) -> list[str]:
+        rows: list[str] = []
         for e in sorted(edges, key=lambda x: (x.type, x.target, x.source)):
             other = e.target if direction == "out" else e.source
             other_node = by_id.get(other)
@@ -224,11 +225,11 @@ def _render_node(
     return "\n".join(parts).rstrip() + "\n"
 
 
-def _render_readme(graph: Graph, link_map: Dict[str, str]) -> str:
-    by_community: Dict[str, List[GraphNode]] = {}
+def _render_readme(graph: Graph, link_map: dict[str, str]) -> str:
+    by_community: dict[str, list[GraphNode]] = {}
     for node in graph.nodes:
         by_community.setdefault(node.community, []).append(node)
-    lines: List[str] = ["# Knowledge Graph Vault", "",
+    lines: list[str] = ["# Knowledge Graph Vault", "",
                         f"Nodes: {len(graph.nodes)}  ",
                         f"Edges: {len(graph.edges)}", ""]
     for community in sorted(by_community):
@@ -241,7 +242,7 @@ def _render_readme(graph: Graph, link_map: Dict[str, str]) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def export_vault(graph: Graph, output: Path) -> List[Path]:
+def export_vault(graph: Graph, output: Path) -> list[Path]:
     """Write the graph to ``output`` as an Obsidian vault.
 
     Returns the list of files written (for tests / CLI reporting).
@@ -249,14 +250,14 @@ def export_vault(graph: Graph, output: Path) -> List[Path]:
     output.mkdir(parents=True, exist_ok=True)
 
     by_id, link_map = _index_nodes(graph.nodes)
-    outgoing: Dict[str, List[GraphEdge]] = {}
-    incoming: Dict[str, List[GraphEdge]] = {}
+    outgoing: dict[str, list[GraphEdge]] = {}
+    incoming: dict[str, list[GraphEdge]] = {}
     for edge in graph.edges:
         outgoing.setdefault(edge.source, []).append(edge)
         incoming.setdefault(edge.target, []).append(edge)
 
     # Compute the set of files we *will* write so we can prune stale ones.
-    desired_files: Dict[Path, str] = {}
+    desired_files: dict[Path, str] = {}
     for node_id in sorted(by_id):
         node = by_id[node_id]
         community_dir = output / slugify(node.community)
@@ -265,7 +266,7 @@ def export_vault(graph: Graph, output: Path) -> List[Path]:
         desired_files[path] = _render_node(node, link_map, by_id, outgoing, incoming)
     desired_files[output / "README.md"] = _render_readme(graph, link_map)
 
-    written: List[Path] = []
+    written: list[Path] = []
     for path in sorted(desired_files):
         content = desired_files[path]
         if path.exists():
@@ -314,7 +315,7 @@ def _resolve_db_name(alias: str) -> str:
     return alias
 
 
-def main(argv: Optional[Sequence[str]] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="export-graph", description="Export a Neo4j graph.")
     parser.add_argument("--format", choices=["obsidian"], default="obsidian")
     parser.add_argument("--output", required=True, type=Path)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from daddy_agent.session_memory.lifecycle import (
     ContextBundle,
@@ -74,7 +74,7 @@ def test_log_message_records_payload_async() -> None:
     assert msg["role"] == "assistant"
     assert msg["content"] == "hello"
     assert isinstance(msg["timestamp"], datetime)
-    assert msg["timestamp"].tzinfo is timezone.utc
+    assert msg["timestamp"].tzinfo is UTC
 
 
 def test_log_reasoning_serialises_tool_calls() -> None:

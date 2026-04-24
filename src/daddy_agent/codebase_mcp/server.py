@@ -13,8 +13,9 @@ MCP SDK is only touched at import time and at ``serve()`` time.
 from __future__ import annotations
 
 import os
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Iterable, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -425,7 +426,7 @@ class ServerConfig:
     database: str
 
     @classmethod
-    def from_env(cls, env: dict[str, str] | None = None) -> "ServerConfig":
+    def from_env(cls, env: dict[str, str] | None = None) -> ServerConfig:
         src = env if env is not None else os.environ
         return cls(
             uri=src.get("NEO4J_URI", "bolt://localhost:7687"),

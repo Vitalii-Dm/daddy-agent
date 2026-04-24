@@ -9,9 +9,10 @@ mocked via small stand-in classes that mimic the slice of the interface
 from __future__ import annotations
 
 import sys
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import Any
 
 import pytest
 

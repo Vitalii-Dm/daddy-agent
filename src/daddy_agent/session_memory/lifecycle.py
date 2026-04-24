@@ -20,7 +20,7 @@ from __future__ import annotations
 import threading
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Protocol, runtime_checkable
 
 __all__ = [
@@ -56,7 +56,7 @@ class SessionHandle:
     pane_id: str
     task: str
     started_at: datetime
-    backend: "MemoryBackend"
+    backend: MemoryBackend
     closed: bool = False
 
 
@@ -244,7 +244,7 @@ class FakeMemoryBackend:
 
 
 def _now() -> datetime:
-    return datetime.now(tz=timezone.utc)
+    return datetime.now(tz=UTC)
 
 
 def _fire_and_forget(target: Any, /, **kwargs: Any) -> None:

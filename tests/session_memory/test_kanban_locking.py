@@ -7,7 +7,6 @@ from pathlib import Path
 
 from daddy_agent.session_memory.kanban import move_card, read_board
 
-
 _SEED = """## Todo
 - [ ] A: first card
 - [ ] B: second card

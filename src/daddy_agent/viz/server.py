@@ -21,9 +21,10 @@ import json
 import logging
 import os
 import time
+from collections.abc import AsyncIterator, Callable, Iterable
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, AsyncIterator, Callable, Dict, Iterable, List, Optional
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
@@ -36,11 +37,11 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 # Mapping of logical DB name -> env variable that overrides the database name.
-DB_ENV_MAP: Dict[str, str] = {
+DB_ENV_MAP: dict[str, str] = {
     "codebase": "NEO4J_CODEBASE_DB",
     "memory": "NEO4J_MEMORY_DB",
 }
-DB_DEFAULTS: Dict[str, str] = {
+DB_DEFAULTS: dict[str, str] = {
     "codebase": "codebase",
     "memory": "agent_memory",
 }
@@ -62,7 +63,7 @@ class DriverFactory:
 
     def __init__(self) -> None:
         self._driver: Any = None
-        self._last_error: Optional[str] = None
+        self._last_error: str | None = None
 
     def _create_driver(self) -> Any:
         from neo4j import GraphDatabase  # imported lazily for test-friendliness
@@ -95,7 +96,7 @@ class DriverFactory:
 # ---------------------------------------------------------------------------
 
 
-def _node_to_sigma(node: Any) -> Dict[str, Any]:
+def _node_to_sigma(node: Any) -> dict[str, Any]:
     """Convert a neo4j Node-like object into a Sigma.js node dict."""
     # Neo4j Node exposes ``.id``, ``.labels`` and supports dict iteration.
     nid = getattr(node, "element_id", None) or str(getattr(node, "id", ""))
@@ -112,7 +113,7 @@ def _node_to_sigma(node: Any) -> Dict[str, Any]:
     }
 
 
-def _rel_to_sigma(rel: Any) -> Dict[str, Any]:
+def _rel_to_sigma(rel: Any) -> dict[str, Any]:
     rid = getattr(rel, "element_id", None) or str(getattr(rel, "id", ""))
     start = getattr(rel, "start_node", None)
     end = getattr(rel, "end_node", None)
@@ -138,13 +139,13 @@ def _jsonable(value: Any) -> Any:
     return str(value)
 
 
-def _run(driver: Any, db: str, cypher: str, **params: Any) -> List[Dict[str, Any]]:
+def _run(driver: Any, db: str, cypher: str, **params: Any) -> list[dict[str, Any]]:
     """Execute a Cypher query and return the records as dicts.
 
     ``db`` is the *resolved* database name (not the ``codebase``/``memory``
     alias) so the caller has already mapped it.
     """
-    session_kwargs: Dict[str, Any] = {"database": db} if db else {}
+    session_kwargs: dict[str, Any] = {"database": db} if db else {}
     with driver.session(**session_kwargs) as session:
         result = session.run(cypher, **params)
         return [dict(record) for record in result]
@@ -158,10 +159,10 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 def create_app(
-    driver_factory: Optional[DriverFactory] = None,
+    driver_factory: DriverFactory | None = None,
     *,
     tick_interval: float = 5.0,
-    ticker: Optional[Callable[[], Iterable[None]]] = None,
+    ticker: Callable[[], Iterable[None]] | None = None,
 ) -> FastAPI:
     """Build a FastAPI app.
 
@@ -226,12 +227,12 @@ def create_app(
     def api_graph(
         db: str = Query("codebase"),
         limit: int = Query(1000, ge=1, le=20000),
-        community: Optional[str] = Query(None),
-        type: Optional[str] = Query(None, alias="type"),
+        community: str | None = Query(None),
+        type: str | None = Query(None, alias="type"),
     ) -> Any:
         database = _resolve_db(db)
-        where: List[str] = []
-        params: Dict[str, Any] = {"limit": limit}
+        where: list[str] = []
+        params: dict[str, Any] = {"limit": limit}
         if community is not None:
             where.append("n.community = $community")
             params["community"] = community
@@ -254,8 +255,8 @@ def create_app(
         except Exception as exc:
             return JSONResponse(status_code=503, content={"error": str(exc)})
 
-        nodes: Dict[str, Dict[str, Any]] = {}
-        edges: List[Dict[str, Any]] = []
+        nodes: dict[str, dict[str, Any]] = {}
+        edges: list[dict[str, Any]] = []
         for rec in records:
             for n in rec.get("nodes") or []:
                 sn = _node_to_sigma(n)
@@ -312,8 +313,8 @@ def create_app(
             records = _run(factory.get(), database, cypher, id=node_id)
         except Exception as exc:
             return JSONResponse(status_code=503, content={"error": str(exc)})
-        nodes: Dict[str, Dict[str, Any]] = {}
-        edges: List[Dict[str, Any]] = []
+        nodes: dict[str, dict[str, Any]] = {}
+        edges: list[dict[str, Any]] = []
         for rec in records:
             root = rec.get("n")
             if root is not None:
@@ -337,7 +338,7 @@ def create_app(
     @app.get("/events")
     async def events(request: Request) -> StreamingResponse:
         async def stream() -> AsyncIterator[bytes]:
-            last_sig: Optional[str] = None
+            last_sig: str | None = None
             hb = 0
             iterator = _ticker_iter(app.state.ticker, app.state.tick_interval)
             async for _ in iterator:
@@ -345,17 +346,17 @@ def create_app(
                     return
                 hb += 1
                 # heartbeat every tick
-                yield f": heartbeat {hb}\n\n".encode("utf-8")
+                yield f": heartbeat {hb}\n\n".encode()
                 try:
                     sig = _signature(factory)
                 except Exception as exc:  # noqa: BLE001
                     msg = json.dumps({"error": str(exc)})
-                    yield f"event: error\ndata: {msg}\n\n".encode("utf-8")
+                    yield f"event: error\ndata: {msg}\n\n".encode()
                     continue
                 if sig != last_sig:
                     last_sig = sig
                     payload = json.dumps({"signature": sig, "ts": time.time()})
-                    yield f"event: graph-updated\ndata: {payload}\n\n".encode("utf-8")
+                    yield f"event: graph-updated\ndata: {payload}\n\n".encode()
 
         headers = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
         return StreamingResponse(stream(), media_type="text/event-stream", headers=headers)
@@ -369,7 +370,7 @@ def create_app(
 
 
 async def _ticker_iter(
-    ticker: Optional[Callable[[], Iterable[None]]],
+    ticker: Callable[[], Iterable[None]] | None,
     interval: float,
 ) -> AsyncIterator[None]:
     """Yield ``None`` on each tick.
@@ -390,7 +391,7 @@ async def _ticker_iter(
 
 def _signature(factory: DriverFactory) -> str:
     """Return a tiny signature reflecting DB state across both graphs."""
-    parts: List[str] = []
+    parts: list[str] = []
     for alias in ("codebase", "memory"):
         db = os.environ.get(DB_ENV_MAP[alias], DB_DEFAULTS[alias])
         try:

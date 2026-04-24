@@ -10,7 +10,6 @@ from daddy_agent.codebase_mcp.safety import (
     validate_read_only_cypher,
 )
 
-
 # --------------------------------------------------------------------------- #
 # Positive cases — queries that MUST pass
 # --------------------------------------------------------------------------- #

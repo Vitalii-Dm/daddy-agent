@@ -23,13 +23,13 @@ log = logging.getLogger(__name__)
 HOOK_SENTINEL_START = "# >>> daddy-agent codebase graph >>>"
 HOOK_SENTINEL_END = "# <<< daddy-agent codebase graph <<<"
 
-HOOK_BODY = """#!/usr/bin/env bash
-{start}
+HOOK_BODY = f"""#!/usr/bin/env bash
+{HOOK_SENTINEL_START}
 # Runs after every commit; updates the codebase knowledge graph in the
 # background so commit latency stays below 50ms even on big repos.
 (daddy-index --incremental >/dev/null 2>&1 &) >/dev/null 2>&1 || true
-{end}
-""".format(start=HOOK_SENTINEL_START, end=HOOK_SENTINEL_END)
+{HOOK_SENTINEL_END}
+"""
 
 
 class HookInstallError(RuntimeError):

@@ -22,7 +22,6 @@ from daddy_agent.viz.obsidian_export import (
     main,
     slugify,
 )
-
 from tests.viz.conftest import FakeDriver, FakeNode, FakeRecord, FakeRel
 
 

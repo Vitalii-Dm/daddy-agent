@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from daddy_agent.session_memory.facts import (
     InMemoryFactStore,
@@ -14,7 +14,7 @@ from daddy_agent.session_memory.facts import (
 
 def test_fact_history_returns_both_versions_in_order() -> None:
     store = InMemoryFactStore()
-    t0 = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    t0 = datetime(2024, 1, 1, tzinfo=UTC)
     t1 = t0 + timedelta(days=30)
     t2 = t1 + timedelta(days=1)
 
@@ -47,9 +47,9 @@ def test_fact_history_returns_both_versions_in_order() -> None:
 
 def test_store_fact_uses_now_when_valid_from_missing() -> None:
     store = InMemoryFactStore()
-    before = datetime.now(timezone.utc)
+    before = datetime.now(UTC)
     fact = store_fact("svc", "version", "1.0", store=store)
-    after = datetime.now(timezone.utc)
+    after = datetime.now(UTC)
     assert before <= fact.valid_from <= after
 
 
