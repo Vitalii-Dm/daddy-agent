@@ -138,3 +138,66 @@ def test_cross_agent_query_filters_caller() -> None:
     assert backend.search_queries == [
         {"query": "question", "agent_id": "a", "since": None}
     ]
+
+
+# --------------------------------------------------------------------------- #
+# Regression pins for round-2 flush / exception-logging fixes
+# --------------------------------------------------------------------------- #
+
+import logging
+
+
+class _SlowBackend(FakeMemoryBackend):
+    """FakeMemoryBackend whose add_message sleeps before recording.
+
+    Used to catch regressions where end_session forgets to call flush() —
+    without flush, the final log_message's daemon thread is still sleeping
+    when end_session returns, and the message never lands.
+    """
+
+    def __init__(self, delay: float = 0.05) -> None:
+        super().__init__()
+        self.delay = delay
+
+    def add_message(self, *, session_id, role, content, timestamp) -> None:  # type: ignore[override]
+        time.sleep(self.delay)
+        super().add_message(
+            session_id=session_id,
+            role=role,
+            content=content,
+            timestamp=timestamp,
+        )
+
+
+def test_end_session_drains_pending_async_writes() -> None:
+    """Pin: end_session must flush before returning; otherwise a write
+    scheduled in the final ms of the session would be lost at exit."""
+
+    backend = _SlowBackend(delay=0.05)
+    handle = start_session("w1", "p0", "task", backend=backend)
+    log_message(handle, "user", "last words")
+    end_session(handle)
+    # flush inside end_session must have joined the daemon thread already.
+    assert len(backend.messages) == 1, (
+        "end_session returned before the async write landed — flush() missing?"
+    )
+
+
+def test_fire_and_forget_logs_exceptions(caplog) -> None:
+    """Pin: exceptions in async writes must be logged via stdlib logging,
+    not silently swallowed (round-2 fix requirement)."""
+
+    class ExplodingBackend(FakeMemoryBackend):
+        def add_message(self, **_: object) -> None:  # type: ignore[override]
+            raise RuntimeError("neo4j down")
+
+    backend = ExplodingBackend()
+    handle = start_session("w1", "p0", "task", backend=backend)
+    with caplog.at_level(logging.ERROR, logger="daddy_agent.session_memory.lifecycle"):
+        log_message(handle, "user", "hello")
+        # Drain: end_session calls flush internally; without waiting here
+        # caplog may race the daemon thread.
+        end_session(handle)
+    assert any(
+        "async memory write failed" in rec.message for rec in caplog.records
+    ), f"expected async-write error in log; saw {[r.message for r in caplog.records]!r}"

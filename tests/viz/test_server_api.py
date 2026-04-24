@@ -70,6 +70,38 @@ def test_graph_unknown_db_is_400():
     assert r.status_code == 400
 
 
+def test_graph_rejects_label_outside_whitelist():
+    """Pin: the round-1 fix hardened ``type=`` from an char-allowlist into
+    a closed label whitelist. A regression to the allowlist would silently
+    let a crafted label slip into the Cypher ``WHERE`` clause; this test
+    catches that the moment the whitelist is bypassed.
+    """
+
+    app, _ = _build_app(lambda c, p: [])
+    client = TestClient(app)
+    # Bogus label + injection-shaped string — both must 400, not 200.
+    r = client.get("/api/graph?db=codebase&type=NotARealLabel")
+    assert r.status_code == 400
+    assert "unknown node label" in r.json()["error"]
+    r2 = client.get("/api/graph?db=codebase&type=File;DROP")
+    assert r2.status_code == 400
+
+
+def test_graph_accepts_whitelisted_label():
+    """Sanity partner to the negative test above."""
+
+    seen: list[dict[str, Any]] = []
+
+    def handler(cypher: str, params: dict[str, Any]) -> list[FakeRecord]:
+        seen.append({"cypher": cypher, "params": params})
+        return [FakeRecord({"nodes": [], "rels": [], "others": []})]
+
+    app, _ = _build_app(handler)
+    r = TestClient(app).get("/api/graph?db=codebase&type=Function")
+    assert r.status_code == 200
+    assert "'Function' IN labels(n)" in seen[0]["cypher"]
+
+
 def test_graph_db_unreachable_is_503():
     def boom(c, p):
         raise RuntimeError("connection refused")

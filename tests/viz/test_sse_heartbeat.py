@@ -66,3 +66,34 @@ def test_sse_no_event_when_signature_unchanged():
     assert text.count("event: graph-updated") == 1
     # But heartbeats for every tick
     assert text.count(": heartbeat") >= 3
+
+
+def test_sse_emits_error_event_when_db_down():
+    """Pin: round-2 fix lets _signature raise so the SSE loop emits
+    `event: error`. Without this, a dead Neo4j looked identical to a
+    quiet graph (stale -1/-1 sentinel, no feedback to clients)."""
+
+    from daddy_agent.viz.server import DriverFactory, create_app
+    from tests.viz.conftest import FakeDriver
+
+    def boom_handler(cypher: str, params: dict[str, Any]) -> list[FakeRecord]:
+        raise RuntimeError("neo4j unreachable")
+
+    factory = DriverFactory()
+    factory._driver = FakeDriver(boom_handler)  # type: ignore[attr-defined]
+
+    def ticker():
+        for _ in range(2):
+            yield None
+
+    app = create_app(factory, ticker=ticker)
+    client = TestClient(app)
+    with client.stream("GET", "/events") as resp:
+        assert resp.status_code == 200
+        body = b"".join(resp.iter_bytes())
+    text = body.decode("utf-8")
+    assert "event: error" in text, "expected an SSE error event when DB raises"
+    assert "neo4j unreachable" in text, "error reason should be surfaced to client"
+    # Heartbeats keep flowing — the stream must stay open so the client can
+    # observe recovery on a later tick.
+    assert ": heartbeat" in text

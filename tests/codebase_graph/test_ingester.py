@@ -125,3 +125,58 @@ def test_ingest_many_handles_multiple_files(fake_session):
     assert total > 0
     # both files got their own File MERGE
     assert len(fake_session.queries_containing("MERGE (f:File")) == 2
+
+
+# --------------------------------------------------------------------------- #
+# Regression pins for review-round-2 fixes
+# --------------------------------------------------------------------------- #
+
+import pytest
+
+from daddy_agent.codebase_graph.ingester import _flush_batch
+
+
+class _ExecuteWriteSession:
+    """Fake session that exposes ``execute_write`` so we exercise the
+    atomic-batch path (not the fallback path hit by plain ``FakeSession``)."""
+
+    def __init__(self, *, raise_on_write: Exception | None = None) -> None:
+        self.raise_on_write = raise_on_write
+        self.work_called = 0
+        self.tx_runs: list[tuple[str, dict]] = []
+
+    class _Tx:
+        def __init__(self, outer: "_ExecuteWriteSession") -> None:
+            self._outer = outer
+
+        def run(self, query: str, **params) -> None:
+            self._outer.tx_runs.append((query, params))
+
+    def execute_write(self, work):
+        if self.raise_on_write is not None:
+            raise self.raise_on_write
+        self.work_called += 1
+        return work(self._Tx(self))
+
+
+def test_flush_batch_uses_execute_write_when_available():
+    """Pin: when the session has ``execute_write`` we use it — no fallback."""
+
+    session = _ExecuteWriteSession()
+    _flush_batch(session, [_sample_file()])
+    assert session.work_called == 1
+    # MERGE (f:File ...) ran inside the transaction, not on the session.
+    assert any("MERGE (f:File" in q for q, _ in session.tx_runs)
+
+
+def test_flush_batch_raises_on_write_tx_failure():
+    """Pin: transaction errors must propagate — no silent per-file fallback.
+
+    Falling back on tx failure would erase atomicity and leave the caller
+    thinking the batch succeeded; round-2 fix required this contract.
+    """
+
+    boom = RuntimeError("tx rollback")
+    session = _ExecuteWriteSession(raise_on_write=boom)
+    with pytest.raises(RuntimeError, match="tx rollback"):
+        _flush_batch(session, [_sample_file()])

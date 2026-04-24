@@ -121,6 +121,16 @@ MUTATING_QUERIES: list[tuple[str, str]] = [
     ("CALL    apoc.create.node(['X'], {})", "apoc.create"),
     # Bare procedure reference (no CALL) — still rejected
     ("RETURN apoc.create.uuid()", "apoc.create"),
+    # Backticked procedure name — round-1 bypass: `CALL \`apoc.create.node\``
+    # was previously stripped to `ident` before the procedure check ran.
+    ("CALL `apoc.create.node`(['X'], {})", "apoc.create"),
+    ("CALL `apoc.periodic.iterate`('x', 'y', {})", "apoc.periodic"),
+    # dbms.security.* reference — round-1 bypass: the bare-reference pass
+    # did not include `dbms.` in its prefix filter, so listing/creating
+    # users was accepted. Must now be rejected.
+    ("CALL dbms.security.createUser('x', 'y', false)", "dbms.security"),
+    ("RETURN dbms.security.listUsers()", "dbms.security"),
+    ("CALL `dbms.security.listUsers`()", "dbms.security"),
     # Empty / whitespace queries
     ("", "empty"),
     ("   \n\t  ", "empty"),
