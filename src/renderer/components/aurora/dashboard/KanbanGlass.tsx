@@ -197,11 +197,15 @@ const Column = ({ def, cards, activeId }: ColumnProps): React.JSX.Element => {
       <div
         className={
           'flex min-h-[140px] flex-col gap-2 rounded-[14px] p-1 transition-colors duration-200 ' +
-          (isOver ? 'ring-[color:var(--a-violet)]/40 bg-white/55 ring-1' : 'bg-transparent')
+          (isOver ? 'bg-white/55' : 'bg-transparent')
         }
+        style={isOver ? { boxShadow: '0 0 0 1px rgba(124, 92, 255, 0.4)' } : undefined}
       >
         {cards.length === 0 ? (
-          <div className="border-[color:var(--ink-4)]/40 flex flex-1 items-center justify-center rounded-[12px] border border-dashed px-3 py-6 text-center font-mono text-[10.5px] uppercase tracking-[0.14em] text-[color:var(--ink-3)]">
+          <div
+            className="flex flex-1 items-center justify-center rounded-[12px] border border-dashed px-3 py-6 text-center font-mono text-[10.5px] uppercase tracking-[0.14em] text-[color:var(--ink-3)]"
+            style={{ borderColor: 'rgba(20, 19, 26, 0.18)' }}
+          >
             Drop here
           </div>
         ) : (

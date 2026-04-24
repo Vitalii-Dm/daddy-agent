@@ -26,7 +26,7 @@ export const CommandBar = (): React.JSX.Element => {
   const reduceMotion = useReducedMotion();
   const { members } = useAuroraTeam();
 
-  // Hotkey
+  // Hotkey + custom-event open trigger (used by the hero secondary CTA)
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -37,8 +37,13 @@ export const CommandBar = (): React.JSX.Element => {
         setOpen(false);
       }
     };
+    const onOpenEvent = (): void => setOpen(true);
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('aurora:open-command-bar', onOpenEvent);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('aurora:open-command-bar', onOpenEvent);
+    };
   }, [open]);
 
   // Visible only after scrolling past the hero

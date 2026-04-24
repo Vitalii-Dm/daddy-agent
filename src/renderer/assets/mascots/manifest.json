@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "$schema": "Place per-role 512x512 (and optional 128x128) PNGs alongside this file and list them here. The Mascot component will switch from the procedural SVG variant to the PNG once both files exist.",
+  "roles": {
+    "lead": {
+      "png512": null,
+      "png128": null,
+      "sha256": null,
+      "descriptor": "violet-hooded conductor with a tiny glowing baton-pen"
+    },
+    "coder": {
+      "png512": null,
+      "png128": null,
+      "sha256": null,
+      "descriptor": "cyan-scarfed engineer with round wire glasses and a subtle circuit-pattern cheek tattoo"
+    },
+    "reviewer": {
+      "png512": null,
+      "png128": null,
+      "sha256": null,
+      "descriptor": "peach-jacket auditor with a magnifying monocle"
+    },
+    "researcher": {
+      "png512": null,
+      "png128": null,
+      "sha256": null,
+      "descriptor": "lime-beret explorer with a tiny folded map tucked behind one ear"
+    },
+    "designer": {
+      "png512": null,
+      "png128": null,
+      "sha256": null,
+      "descriptor": "lavender beanie with paintbrush bristles peeking out the top"
+    },
+    "ops": {
+      "png512": null,
+      "png128": null,
+      "sha256": null,
+      "descriptor": "grey-overalls mechanic with a single glowing wrench earring"
+    }
+  }
+}

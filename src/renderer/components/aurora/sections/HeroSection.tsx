@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useRef } from 'react';
 import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react';
 
 import { scrollToAnchor } from '@renderer/lib/lenis';
@@ -15,7 +15,6 @@ const APPLE_EASE = [0.22, 1, 0.36, 1] as const;
 export const HeroSection = (): React.JSX.Element => {
   const reduceMotion = useReducedMotion();
   const sectionRef = useRef<HTMLElement | null>(null);
-  const sheenId = useMemo(() => `aurora-sheen-${Math.random().toString(36).slice(2, 8)}`, []);
 
   // Scroll-linked transforms — title scales down, body fades, preview strip
   // parallaxes upward as the hero leaves the viewport. All driven by the
@@ -52,10 +51,10 @@ export const HeroSection = (): React.JSX.Element => {
           transition={{ duration: 0.85, ease: APPLE_EASE, delay: 0.05 }}
           className="mt-8 font-serif font-normal text-[color:var(--ink-1)]"
           style={{
-            fontSize: 'clamp(56px, 9vw, 152px)',
+            fontSize: 'clamp(48px, 8.5vw, 144px)',
             lineHeight: 0.92,
             letterSpacing: '-0.04em',
-            maxWidth: '14ch',
+            maxWidth: 'min(13ch, 100%)',
             scale: reduceMotion ? 1 : titleScale,
             y: reduceMotion ? 0 : titleY,
             transformOrigin: 'left top',
@@ -63,10 +62,10 @@ export const HeroSection = (): React.JSX.Element => {
         >
           <span className="block">Orchestrate an</span>
           <span className="block">
-            <SheenWord word="army" sheenId={sheenId} /> <span className="font-serif">of</span>
+            <SheenWord word="army" /> <span className="font-serif">of</span>
           </span>
           <span className="block">
-            <SheenWord word="agents." sheenId={`${sheenId}-2`} delay={0.4} />
+            <SheenWord word="agents." delay={0.4} />
           </span>
         </motion.h1>
 
@@ -109,16 +108,15 @@ export const HeroSection = (): React.JSX.Element => {
 
 interface SheenWordProps {
   word: string;
-  sheenId: string;
   delay?: number;
 }
 
 // Italic serif word with a one-shot specular sheen. The sheen is a moving
-// linear-gradient masked over the SVG <text>. Falls back to a flat italic
-// for prefers-reduced-motion users.
-const SheenWord = ({ word, sheenId, delay = 0 }: SheenWordProps): React.JSX.Element => {
+// linear gradient clipped to the text via background-clip — works at every
+// font size, no SVG sizing math required. Falls back to a flat italic for
+// prefers-reduced-motion users.
+const SheenWord = ({ word, delay = 0 }: SheenWordProps): React.JSX.Element => {
   const reduceMotion = useReducedMotion();
-  const width = `${Math.max(word.length * 0.6, 3)}em`;
 
   if (reduceMotion) {
     return <em className="font-serif italic">{word}</em>;
@@ -127,44 +125,24 @@ const SheenWord = ({ word, sheenId, delay = 0 }: SheenWordProps): React.JSX.Elem
   return (
     <span className="relative inline-block align-baseline">
       <em className="font-serif italic">{word}</em>
-      <svg
+      <motion.span
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 h-full w-full"
-        style={{ mixBlendMode: 'overlay' }}
+        className="pointer-events-none absolute inset-0 font-serif italic"
+        style={{
+          backgroundImage:
+            'linear-gradient(115deg, transparent 30%, rgba(180,200,255,0.85) 45%, rgba(255,210,225,0.95) 50%, rgba(184,242,123,0.75) 55%, transparent 70%)',
+          backgroundSize: '220% 100%',
+          WebkitBackgroundClip: 'text',
+          backgroundClip: 'text',
+          color: 'transparent',
+          mixBlendMode: 'screen',
+        }}
+        initial={{ backgroundPositionX: '120%' }}
+        animate={{ backgroundPositionX: '-120%' }}
+        transition={{ duration: 1.2, ease: APPLE_EASE, delay: 0.6 + delay }}
       >
-        <defs>
-          <linearGradient id={sheenId} x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="rgba(255,255,255,0)" />
-            <stop offset="45%" stopColor="rgba(255,255,255,0.85)" />
-            <stop offset="50%" stopColor="rgba(180,200,255,0.95)" />
-            <stop offset="55%" stopColor="rgba(255,180,210,0.85)" />
-            <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-          </linearGradient>
-          <mask id={`${sheenId}-mask`}>
-            <text
-              x="0"
-              y="0.85em"
-              fontFamily="Instrument Serif, serif"
-              fontStyle="italic"
-              fontSize="1em"
-              fill="white"
-            >
-              {word}
-            </text>
-          </mask>
-        </defs>
-        <motion.rect
-          x="0"
-          y="0"
-          width={width}
-          height="100%"
-          fill={`url(#${sheenId})`}
-          mask={`url(#${sheenId}-mask)`}
-          initial={{ x: '-110%' }}
-          animate={{ x: '110%' }}
-          transition={{ duration: 1.2, ease: APPLE_EASE, delay: 0.6 + delay }}
-        />
-      </svg>
+        {word}
+      </motion.span>
     </span>
   );
 };
@@ -202,6 +180,7 @@ const SecondaryCta = (): React.JSX.Element => (
     as="button"
     radius={999}
     refract={false}
+    onClick={() => window.dispatchEvent(new CustomEvent('aurora:open-command-bar'))}
     className="inline-flex h-12 items-center gap-2.5 px-5 text-[13px] font-medium text-[color:var(--ink-1)] transition-transform duration-300 hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ink-2)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bg-base)]"
   >
     <kbd className="inline-flex h-6 items-center rounded-md border border-[color:var(--glass-shade)] bg-white/60 px-1.5 font-mono text-[11px] text-[color:var(--ink-2)] shadow-[inset_0_-1px_0_rgba(20,19,26,0.06)]">

@@ -80,7 +80,17 @@ export const Mascot = ({
           }}
         />
       )}
-      <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden="true">
+      {pngUrlFor(role) !== null ? (
+        <img
+          src={pngUrlFor(role) ?? undefined}
+          alt=""
+          width={size}
+          height={size}
+          className="block"
+          draggable={false}
+        />
+      ) : (
+        <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden="true">
         <defs>
           <radialGradient id={`${id}-body`} cx="42%" cy="36%" r="72%">
             <stop offset="0%" stopColor={palette.body[0]} />
@@ -129,6 +139,7 @@ export const Mascot = ({
           strokeLinecap="round"
         />
       </svg>
+      )}
 
       {status && (
         <span
@@ -349,4 +360,18 @@ export function inferMascotStatus(input?: string | null): MascotStatus | undefin
   if (!input) return undefined;
   const key = input.toLowerCase();
   return STATUS_MAP[key];
+}
+
+// PNG art for each role lives at src/renderer/assets/mascots/<role>.png. When
+// a file is dropped in, Vite resolves it eagerly here as a static URL and the
+// component renders an <img>; otherwise it falls back to the procedural SVG.
+// See src/renderer/assets/mascots/README.md for the swap path.
+const PNG_BY_ROLE: Record<string, string> = import.meta.glob(
+  '../../assets/mascots/*.png',
+  { eager: true, query: '?url', import: 'default' }
+);
+
+function pngUrlFor(role: MascotRole): string | null {
+  const key = Object.keys(PNG_BY_ROLE).find((k) => k.endsWith('/' + role + '.png'));
+  return key ? PNG_BY_ROLE[key] : null;
 }
