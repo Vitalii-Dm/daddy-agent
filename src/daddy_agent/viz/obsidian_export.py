@@ -25,6 +25,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from daddy_agent.viz.server import DB_DEFAULTS, DB_ENV_MAP, _env_driver
+
 # ---------------------------------------------------------------------------
 # Graph model
 # ---------------------------------------------------------------------------
@@ -299,20 +301,15 @@ def _prune_stale(output: Path, keep: Iterable[Path]) -> None:
 
 
 def _cli_driver() -> Any:
-    from neo4j import GraphDatabase
-
-    uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
-    user = os.environ.get("NEO4J_USER", "neo4j")
-    pwd = os.environ.get("NEO4J_PASSWORD", "neo4j")
-    return GraphDatabase.driver(uri, auth=(user, pwd))
+    # Kept as a named module attribute so tests can monkey-patch it.
+    return _env_driver()
 
 
 def _resolve_db_name(alias: str) -> str:
-    if alias == "codebase":
-        return os.environ.get("NEO4J_CODEBASE_DB", "codebase")
-    if alias == "memory":
-        return os.environ.get("NEO4J_MEMORY_DB", "agent_memory")
-    return alias
+    env_key = DB_ENV_MAP.get(alias)
+    if env_key is None:
+        return alias
+    return os.environ.get(env_key, DB_DEFAULTS[alias])
 
 
 def main(argv: Sequence[str] | None = None) -> int:

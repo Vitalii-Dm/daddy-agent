@@ -46,6 +46,21 @@ DB_DEFAULTS: dict[str, str] = {
     "memory": "agent_memory",
 }
 
+
+def _env_driver() -> Any:
+    """Build a Neo4j driver from ``NEO4J_{URI,USER,PASSWORD}`` env vars.
+
+    Centralised so the viz server and the Obsidian CLI use identical
+    defaults. The ``neo4j`` package is imported lazily to keep this module
+    importable in test envs that don't install the driver.
+    """
+    from neo4j import GraphDatabase
+
+    uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
+    user = os.environ.get("NEO4J_USER", "neo4j")
+    pwd = os.environ.get("NEO4J_PASSWORD", "neo4j")
+    return GraphDatabase.driver(uri, auth=(user, pwd))
+
 # Closed whitelist of Cypher labels accepted by the /api/graph `type` filter.
 # Mirrors the labels defined in PLAN-neo4j-knowledge-graphs.md for both
 # databases; anything outside this set is a 400 — see api_graph.
@@ -89,12 +104,8 @@ class DriverFactory:
         self._last_error: str | None = None
 
     def _create_driver(self) -> Any:
-        from neo4j import GraphDatabase  # imported lazily for test-friendliness
-
-        uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
-        user = os.environ.get("NEO4J_USER", "neo4j")
-        pwd = os.environ.get("NEO4J_PASSWORD", "neo4j")
-        return GraphDatabase.driver(uri, auth=(user, pwd))
+        # Kept as a method so tests can monkey-patch it per-instance.
+        return _env_driver()
 
     def get(self) -> Any:
         if self._driver is None:
