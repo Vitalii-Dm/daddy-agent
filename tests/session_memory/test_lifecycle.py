@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from datetime import UTC, datetime
 
@@ -143,8 +144,6 @@ def test_cross_agent_query_filters_caller() -> None:
 # --------------------------------------------------------------------------- #
 # Regression pins for round-2 flush / exception-logging fixes
 # --------------------------------------------------------------------------- #
-
-import logging
 
 
 class _SlowBackend(FakeMemoryBackend):

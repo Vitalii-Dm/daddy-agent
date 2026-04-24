@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from daddy_agent.codebase_graph.ingester import ingest_file, ingest_many
+import pytest
+
+from daddy_agent.codebase_graph.ingester import _flush_batch, ingest_file, ingest_many
 from daddy_agent.codebase_graph.parser import (
     ParsedClass,
     ParsedFile,
@@ -131,10 +133,6 @@ def test_ingest_many_handles_multiple_files(fake_session):
 # Regression pins for review-round-2 fixes
 # --------------------------------------------------------------------------- #
 
-import pytest
-
-from daddy_agent.codebase_graph.ingester import _flush_batch
-
 
 class _ExecuteWriteSession:
     """Fake session that exposes ``execute_write`` so we exercise the
@@ -146,17 +144,17 @@ class _ExecuteWriteSession:
         self.tx_runs: list[tuple[str, dict]] = []
 
     class _Tx:
-        def __init__(self, outer: "_ExecuteWriteSession") -> None:
+        def __init__(self, outer: _ExecuteWriteSession) -> None:
             self._outer = outer
 
-        def run(self, query: str, **params) -> None:
+        def run(self, query: str, **params: object) -> None:
             self._outer.tx_runs.append((query, params))
 
-    def execute_write(self, work):
+    def execute_write(self, work: object) -> object:
         if self.raise_on_write is not None:
             raise self.raise_on_write
         self.work_called += 1
-        return work(self._Tx(self))
+        return work(self._Tx(self))  # type: ignore[operator]
 
 
 def test_flush_batch_uses_execute_write_when_available():
