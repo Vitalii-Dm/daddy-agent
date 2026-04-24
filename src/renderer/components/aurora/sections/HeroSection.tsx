@@ -1,14 +1,225 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 
-// Placeholder — replaced in commit 5.
-export const HeroSection = (): React.JSX.Element => (
-  <section
-    id="home"
-    className="relative flex min-h-screen items-center justify-center px-8 pb-32 pt-40 text-[color:var(--ink-1)]"
-    style={{ scrollMarginTop: '88px' }}
+import { LiquidGlass } from '../LiquidGlass';
+import { LivePreviewStrip } from '../LivePreviewStrip';
+
+const APPLE_EASE = [0.22, 1, 0.36, 1] as const;
+
+// Hero — full viewport, displays the Instrument Serif headline and the
+// two CTA buttons. The italic emphasis word ("agents") receives a brief
+// rainbow-sheen sweep on mount via an SVG mask. Live preview strip lives
+// in commit 7 and is mounted at the bottom of the section.
+export const HeroSection = (): React.JSX.Element => {
+  const reduceMotion = useReducedMotion();
+  const sheenId = useMemo(() => `aurora-sheen-${Math.random().toString(36).slice(2, 8)}`, []);
+
+  return (
+    <section
+      id="home"
+      className="relative isolate flex min-h-screen flex-col px-6 pb-24 pt-32 sm:px-10 lg:px-16"
+      style={{ scrollMarginTop: '88px' }}
+    >
+      <div className="mx-auto flex w-full max-w-[1240px] flex-1 flex-col">
+        <motion.p
+          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: APPLE_EASE }}
+          className="font-mono text-[12px] uppercase tracking-[0.32em] text-[color:var(--ink-3)]"
+        >
+          daddy.agent
+        </motion.p>
+
+        <motion.h1
+          initial={reduceMotion ? false : { opacity: 0, y: 24, filter: 'blur(8px)' }}
+          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          transition={{ duration: 0.85, ease: APPLE_EASE, delay: 0.05 }}
+          className="mt-8 font-serif font-normal text-[color:var(--ink-1)]"
+          style={{
+            fontSize: 'clamp(56px, 9vw, 152px)',
+            lineHeight: 0.92,
+            letterSpacing: '-0.04em',
+            maxWidth: '14ch',
+          }}
+        >
+          <span className="block">Orchestrate an</span>
+          <span className="block">
+            <SheenWord word="army" sheenId={sheenId} /> <span className="font-serif">of</span>
+          </span>
+          <span className="block">
+            <SheenWord word="agents." sheenId={`${sheenId}-2`} delay={0.4} />
+          </span>
+        </motion.h1>
+
+        <motion.p
+          initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: APPLE_EASE, delay: 0.25 }}
+          className="mt-10 max-w-[560px] text-[18px] leading-[1.55] text-[color:var(--ink-2)]"
+        >
+          A CTO-shaped control surface for parallel Claude Code and Codex workers. Tmux beneath.
+          Glass on top.
+        </motion.p>
+
+        <motion.div
+          initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: APPLE_EASE, delay: 0.4 }}
+          className="mt-10 flex flex-wrap items-center gap-3"
+        >
+          <PrimaryCta />
+          <SecondaryCta />
+        </motion.div>
+
+        <motion.div
+          initial={reduceMotion ? false : { opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.9, ease: APPLE_EASE, delay: 0.55 }}
+          className="mt-16 min-h-[180px] flex-1"
+        >
+          <LivePreviewStrip />
+        </motion.div>
+
+        <ScrollCaret />
+      </div>
+    </section>
+  );
+};
+
+interface SheenWordProps {
+  word: string;
+  sheenId: string;
+  delay?: number;
+}
+
+// Italic serif word with a one-shot specular sheen. The sheen is a moving
+// linear-gradient masked over the SVG <text>. Falls back to a flat italic
+// for prefers-reduced-motion users.
+const SheenWord = ({ word, sheenId, delay = 0 }: SheenWordProps): React.JSX.Element => {
+  const reduceMotion = useReducedMotion();
+  const width = `${Math.max(word.length * 0.6, 3)}em`;
+
+  if (reduceMotion) {
+    return <em className="font-serif italic">{word}</em>;
+  }
+
+  return (
+    <span className="relative inline-block align-baseline">
+      <em className="font-serif italic">{word}</em>
+      <svg
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 h-full w-full"
+        style={{ mixBlendMode: 'overlay' }}
+      >
+        <defs>
+          <linearGradient id={sheenId} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="rgba(255,255,255,0)" />
+            <stop offset="45%" stopColor="rgba(255,255,255,0.85)" />
+            <stop offset="50%" stopColor="rgba(180,200,255,0.95)" />
+            <stop offset="55%" stopColor="rgba(255,180,210,0.85)" />
+            <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+          </linearGradient>
+          <mask id={`${sheenId}-mask`}>
+            <text
+              x="0"
+              y="0.85em"
+              fontFamily="Instrument Serif, serif"
+              fontStyle="italic"
+              fontSize="1em"
+              fill="white"
+            >
+              {word}
+            </text>
+          </mask>
+        </defs>
+        <motion.rect
+          x="0"
+          y="0"
+          width={width}
+          height="100%"
+          fill={`url(#${sheenId})`}
+          mask={`url(#${sheenId}-mask)`}
+          initial={{ x: '-110%' }}
+          animate={{ x: '110%' }}
+          transition={{ duration: 1.2, ease: APPLE_EASE, delay: 0.6 + delay }}
+        />
+      </svg>
+    </span>
+  );
+};
+
+const PrimaryCta = (): React.JSX.Element => (
+  <button
+    type="button"
+    className="group relative inline-flex h-12 items-center gap-2 overflow-hidden rounded-full px-6 text-[14px] font-medium text-white transition-transform duration-300 will-change-transform hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bg-base)]"
+    style={{
+      background: 'linear-gradient(135deg, var(--a-violet) 0%, var(--a-cyan) 100%)',
+      boxShadow:
+        '0 14px 38px -14px rgba(124, 92, 255, 0.55), 0 4px 12px -4px rgba(61, 198, 255, 0.35), inset 0 1px 0 rgba(255,255,255,0.4)',
+    }}
   >
-    <div className="text-center font-mono text-[12px] uppercase tracking-[0.18em] text-[color:var(--ink-3)]">
-      Hero — coming up next
-    </div>
-  </section>
+    <span className="relative z-10">Get started</span>
+    <span
+      aria-hidden="true"
+      className="relative z-10 text-white/80 transition-transform duration-300 group-hover:translate-x-[2px]"
+    >
+      →
+    </span>
+    <span
+      aria-hidden="true"
+      className="absolute inset-0 -translate-x-full transition-transform duration-700 ease-out group-hover:translate-x-full"
+      style={{
+        background:
+          'linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.45) 50%, transparent 70%)',
+      }}
+    />
+  </button>
 );
+
+const SecondaryCta = (): React.JSX.Element => (
+  <LiquidGlass
+    as="button"
+    radius={999}
+    refract={false}
+    className="inline-flex h-12 items-center gap-2.5 px-5 text-[13px] font-medium text-[color:var(--ink-1)] transition-transform duration-300 hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ink-2)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bg-base)]"
+  >
+    <kbd className="inline-flex h-6 items-center rounded-md border border-[color:var(--glass-shade)] bg-white/60 px-1.5 font-mono text-[11px] text-[color:var(--ink-2)] shadow-[inset_0_-1px_0_rgba(20,19,26,0.06)]">
+      ⌘K
+    </kbd>
+    <span>Open the command bar</span>
+  </LiquidGlass>
+);
+
+const ScrollCaret = (): React.JSX.Element => {
+  const reduceMotion = useReducedMotion();
+  return (
+    <a
+      href="#dashboard"
+      onClick={(e) => {
+        e.preventDefault();
+        const target = document.getElementById('dashboard');
+        target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }}
+      className="mt-10 inline-flex items-center gap-2 self-start font-mono text-[11px] uppercase tracking-[0.18em] text-[color:var(--ink-3)] transition-colors hover:text-[color:var(--ink-1)]"
+    >
+      <span>Scroll to open</span>
+      <motion.svg
+        width="14"
+        height="14"
+        viewBox="0 0 14 14"
+        fill="none"
+        animate={reduceMotion ? undefined : { y: [0, 4, 0] }}
+        transition={{ duration: 1.6, ease: 'easeInOut', repeat: Infinity }}
+        aria-hidden="true"
+      >
+        <path
+          d="M3 5l4 4 4-4"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </motion.svg>
+    </a>
+  );
+};
