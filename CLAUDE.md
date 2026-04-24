@@ -23,6 +23,14 @@ Key capabilities:
 ## Tech Stack
 Electron 40.x, React 19.x, TypeScript 5.x, Tailwind CSS 3.x, Zustand 4.x
 
+## Renderer Shells
+The renderer ships two shells. The default is the **Aurora** Liquid Glass shell
+(`src/renderer/components/aurora/AuroraShell.tsx`); the legacy TabbedLayout is
+still mounted under a feature flag for A/B comparison.
+
+- `pnpm dev` — Aurora shell (default)
+- `VITE_SHELL=classic pnpm dev` — original TabbedLayout
+
 ## Commands
 Always use pnpm (not npm/yarn) for this project.
 Do NOT run `pnpm lint:fix` unless the user explicitly asks for it — it interferes with agents running in parallel.
