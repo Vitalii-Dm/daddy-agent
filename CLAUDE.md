@@ -30,6 +30,7 @@ still mounted under a feature flag for A/B comparison.
 
 - `pnpm dev` — Aurora shell (default)
 - `VITE_SHELL=classic pnpm dev` — original TabbedLayout
+- `VITE_GRAPH=off pnpm dev` — collapse the reserved knowledge-graph section
 
 ## Commands
 Always use pnpm (not npm/yarn) for this project.
