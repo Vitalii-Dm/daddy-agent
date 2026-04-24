@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { localKv } from '@renderer/services/storage';
+
 const STORAGE_PREFIX = 'kanban-column-widths:';
 const MIN_COLUMN_WIDTH = 180;
 const DEFAULT_COLUMN_WIDTH = 256; // w-64
@@ -22,30 +24,23 @@ interface UseResizableColumnsResult {
   };
 }
 
+function isWidthRecord(v: unknown): v is Record<string, number> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
 function loadWidths(key: string): Record<string, number> {
-  try {
-    const raw = localStorage.getItem(STORAGE_PREFIX + key);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as unknown;
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {};
-    const result: Record<string, number> = {};
-    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
-      if (typeof v === 'number' && v >= MIN_COLUMN_WIDTH) {
-        result[k] = v;
-      }
+  const parsed = localKv.getJson<Record<string, number>>(STORAGE_PREFIX + key, isWidthRecord, {});
+  const result: Record<string, number> = {};
+  for (const [k, v] of Object.entries(parsed)) {
+    if (typeof v === 'number' && v >= MIN_COLUMN_WIDTH) {
+      result[k] = v;
     }
-    return result;
-  } catch {
-    return {};
   }
+  return result;
 }
 
 function saveWidths(key: string, widths: Record<string, number>): void {
-  try {
-    localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(widths));
-  } catch {
-    // Quota exceeded — ignore
-  }
+  localKv.setJson(STORAGE_PREFIX + key, widths);
 }
 
 export function useResizableColumns({

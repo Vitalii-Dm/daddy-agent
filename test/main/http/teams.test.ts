@@ -36,7 +36,6 @@ describe('HTTP team runtime routes', () => {
       subagentResolver: {} as HttpServices['subagentResolver'],
       chunkBuilder: {} as HttpServices['chunkBuilder'],
       dataCache: {} as HttpServices['dataCache'],
-      updaterService: {} as HttpServices['updaterService'],
       sshConnectionManager: {} as HttpServices['sshConnectionManager'],
       teamProvisioningService,
     } satisfies HttpServices;
@@ -221,8 +220,7 @@ describe('HTTP team runtime routes', () => {
         subagentResolver: {} as HttpServices['subagentResolver'],
         chunkBuilder: {} as HttpServices['chunkBuilder'],
         dataCache: {} as HttpServices['dataCache'],
-        updaterService: {} as HttpServices['updaterService'],
-        sshConnectionManager: {} as HttpServices['sshConnectionManager'],
+          sshConnectionManager: {} as HttpServices['sshConnectionManager'],
       } satisfies HttpServices
     );
     await app.ready();

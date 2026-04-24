@@ -1,19 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { localKv } from '@renderer/services/storage';
 import { useStore } from '@renderer/store';
 
+// Legacy key predates the `daddy:<feature>:<suffix>` convention. Kept as-is
+// so existing installs don't lose their toggle state.
 const GRAPH_SIDEBAR_VISIBILITY_STORAGE_KEY = 'team-graph-sidebar-visible';
 
 function readInitialVisibility(): boolean {
-  if (typeof window === 'undefined') {
-    return true;
-  }
-
-  try {
-    return window.localStorage.getItem(GRAPH_SIDEBAR_VISIBILITY_STORAGE_KEY) !== 'false';
-  } catch {
-    return true;
-  }
+  return localKv.getString(GRAPH_SIDEBAR_VISIBILITY_STORAGE_KEY) !== 'false';
 }
 
 export function useGraphSidebarVisibility(): {
@@ -26,11 +21,7 @@ export function useGraphSidebarVisibility(): {
   const sidebarVisible = sidebarEnabled && messagesPanelMode === 'sidebar';
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(GRAPH_SIDEBAR_VISIBILITY_STORAGE_KEY, String(sidebarEnabled));
-    } catch {
-      // Ignore storage failures and keep UI responsive.
-    }
+    localKv.setString(GRAPH_SIDEBAR_VISIBILITY_STORAGE_KEY, String(sidebarEnabled));
   }, [sidebarEnabled]);
 
   const toggleSidebarVisible = useCallback(() => {

@@ -26,7 +26,6 @@ import {
 import { coercePageLimit, validateProjectId, validateSessionId } from './guards';
 
 import type { ServiceContextRegistry } from '../services';
-import type { WaterfallData } from '@shared/types';
 
 const logger = createLogger('IPC:sessions');
 
@@ -50,7 +49,6 @@ export function registerSessionHandlers(ipcMain: IpcMain): void {
   ipcMain.handle('get-session-detail', handleGetSessionDetail);
   ipcMain.handle('get-session-groups', handleGetSessionGroups);
   ipcMain.handle('get-session-metrics', handleGetSessionMetrics);
-  ipcMain.handle('get-waterfall-data', handleGetWaterfallData);
 
   logger.info('Session handlers registered');
 }
@@ -65,7 +63,6 @@ export function removeSessionHandlers(ipcMain: IpcMain): void {
   ipcMain.removeHandler('get-session-detail');
   ipcMain.removeHandler('get-session-groups');
   ipcMain.removeHandler('get-session-metrics');
-  ipcMain.removeHandler('get-waterfall-data');
 
   logger.info('Session handlers removed');
 }
@@ -336,29 +333,6 @@ async function handleGetSessionMetrics(
     return parsedSession.metrics;
   } catch (error) {
     logger.error(`Error in get-session-metrics for ${projectId}/${sessionId}:`, error);
-    return null;
-  }
-}
-
-/**
- * Handler for 'get-waterfall-data' IPC call.
- * Builds waterfall chart data for a session.
- */
-async function handleGetWaterfallData(
-  _event: IpcMainInvokeEvent,
-  projectId: string,
-  sessionId: string
-): Promise<WaterfallData | null> {
-  try {
-    const detail = await handleGetSessionDetail(_event, projectId, sessionId);
-    if (!detail) {
-      return null;
-    }
-
-    const { chunkBuilder } = registry.getActive();
-    return chunkBuilder.buildWaterfallData(detail.chunks, detail.processes);
-  } catch (error) {
-    logger.error(`Error in get-waterfall-data for ${projectId}/${sessionId}:`, error);
     return null;
   }
 }

@@ -185,10 +185,6 @@ import {
   TERMINAL_RESIZE,
   TERMINAL_SPAWN,
   TERMINAL_WRITE,
-  UPDATER_CHECK,
-  UPDATER_DOWNLOAD,
-  UPDATER_INSTALL,
-  UPDATER_STATUS,
   WINDOW_CLOSE,
   WINDOW_FULLSCREEN_CHANGED,
   WINDOW_IS_FULLSCREEN,
@@ -465,8 +461,6 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.invoke('get-session-detail', projectId, sessionId, options),
   getSessionMetrics: (projectId: string, sessionId: string) =>
     ipcRenderer.invoke('get-session-metrics', projectId, sessionId),
-  getWaterfallData: (projectId: string, sessionId: string) =>
-    ipcRenderer.invoke('get-waterfall-data', projectId, sessionId),
   getSubagentDetail: (
     projectId: string,
     sessionId: string,
@@ -716,25 +710,6 @@ const electronAPI: ElectronAPI = {
     return (): void => {
       ipcRenderer.removeListener('todo-change', listener);
     };
-  },
-
-  // Updater API
-  updater: {
-    check: () => ipcRenderer.invoke(UPDATER_CHECK),
-    download: () => ipcRenderer.invoke(UPDATER_DOWNLOAD),
-    install: () => ipcRenderer.invoke(UPDATER_INSTALL),
-    onStatus: (callback: (event: unknown, status: unknown) => void): (() => void) => {
-      ipcRenderer.on(
-        UPDATER_STATUS,
-        callback as (event: Electron.IpcRendererEvent, ...args: unknown[]) => void
-      );
-      return (): void => {
-        ipcRenderer.removeListener(
-          UPDATER_STATUS,
-          callback as (event: Electron.IpcRendererEvent, ...args: unknown[]) => void
-        );
-      };
-    },
   },
 
   // SSH API

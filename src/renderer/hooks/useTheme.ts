@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { useShallow } from 'zustand/react/shallow';
 
+import { localKv } from '@renderer/services/storage';
+
 import { useStore } from '../store';
 
 type Theme = 'dark' | 'light' | 'system';
@@ -30,12 +32,8 @@ export function useTheme(): {
   );
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => {
     // Initialize from cache to prevent flash
-    try {
-      const cached = localStorage.getItem(THEME_CACHE_KEY);
-      if (cached === 'light' || cached === 'dark') return cached;
-    } catch {
-      // localStorage may not be available
-    }
+    const cached = localKv.getString(THEME_CACHE_KEY);
+    if (cached === 'light' || cached === 'dark') return cached;
     // No cache — detect system preference for flash-free first launch
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
@@ -65,11 +63,7 @@ export function useTheme(): {
       setResolvedTheme(resolved);
 
       // Cache for flash prevention
-      try {
-        localStorage.setItem(THEME_CACHE_KEY, resolved);
-      } catch {
-        // localStorage may not be available
-      }
+      localKv.setString(THEME_CACHE_KEY, resolved);
     };
 
     updateTheme();

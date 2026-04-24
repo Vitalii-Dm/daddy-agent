@@ -1,5 +1,7 @@
 import { useCallback, useState } from 'react';
 
+import { localKv } from '@renderer/services/storage';
+
 /**
  * Manages collapsed/expanded state for group headers with localStorage persistence.
  * Each grouping mode gets a unique prefix to avoid key collisions.
@@ -13,14 +15,10 @@ function storageKey(prefix: string, groupKey: string): string {
 
 function loadCollapsedSet(prefix: string, groupKeys: string[]): Set<string> {
   const set = new Set<string>();
-  try {
-    for (const key of groupKeys) {
-      if (localStorage.getItem(storageKey(prefix, key)) === '1') {
-        set.add(key);
-      }
+  for (const key of groupKeys) {
+    if (localKv.getString(storageKey(prefix, key)) === '1') {
+      set.add(key);
     }
-  } catch {
-    /* ignore storage errors */
   }
   return set;
 }
@@ -50,16 +48,12 @@ export function useCollapsedGroups(prefix: string, groupKeys: string[]) {
       setCollapsed((prev) => {
         const next = new Set(prev);
         const key = storageKey(prefix, groupKey);
-        try {
-          if (next.has(groupKey)) {
-            next.delete(groupKey);
-            localStorage.removeItem(key);
-          } else {
-            next.add(groupKey);
-            localStorage.setItem(key, '1');
-          }
-        } catch {
-          /* ignore storage errors */
+        if (next.has(groupKey)) {
+          next.delete(groupKey);
+          localKv.remove(key);
+        } else {
+          next.add(groupKey);
+          localKv.setString(key, '1');
         }
         return next;
       });

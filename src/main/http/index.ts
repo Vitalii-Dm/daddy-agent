@@ -16,7 +16,6 @@ import { registerSessionRoutes } from './sessions';
 import { registerSshRoutes } from './ssh';
 import { registerSubagentRoutes } from './subagents';
 import { registerTeamRoutes } from './teams';
-import { registerUpdaterRoutes } from './updater';
 import { registerUtilityRoutes } from './utility';
 import { registerValidationRoutes } from './validation';
 
@@ -26,7 +25,6 @@ import type {
   ProjectScanner,
   SessionParser,
   SubagentResolver,
-  UpdaterService,
 } from '../services';
 import type { SshConnectionManager } from '../services/infrastructure/SshConnectionManager';
 import type { TeamProvisioningService } from '../services/team/TeamProvisioningService';
@@ -40,7 +38,6 @@ export interface HttpServices {
   subagentResolver: SubagentResolver;
   chunkBuilder: ChunkBuilder;
   dataCache: DataCache;
-  updaterService: UpdaterService;
   sshConnectionManager: SshConnectionManager;
   teamProvisioningService?: TeamProvisioningService;
 }
@@ -62,7 +59,6 @@ export function registerHttpRoutes(
   registerValidationRoutes(app);
   registerUtilityRoutes(app);
   registerSshRoutes(app, services.sshConnectionManager, sshModeSwitchCallback);
-  registerUpdaterRoutes(app, services);
   registerEventRoutes(app);
 
   logger.info('All HTTP routes registered');

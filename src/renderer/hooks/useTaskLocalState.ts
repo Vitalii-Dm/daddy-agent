@@ -1,5 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 
+import { localKv } from '@renderer/services/storage';
+
 const PINNED_KEY = 'taskPinnedIds';
 const ARCHIVED_KEY = 'taskArchivedIds';
 const RENAMED_KEY = 'taskRenamedSubjects';
@@ -8,50 +10,29 @@ function makeCompositeKey(teamName: string, taskId: string): string {
   return `${teamName}:${taskId}`;
 }
 
+function isStringArray(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every((x) => typeof x === 'string');
+}
+
+function isStringRecord(v: unknown): v is Record<string, string> {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) return false;
+  return Object.values(v as Record<string, unknown>).every((x) => typeof x === 'string');
+}
+
 function loadSet(key: string): Set<string> {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return new Set();
-    const arr: unknown = JSON.parse(raw);
-    if (Array.isArray(arr)) return new Set(arr.filter((v): v is string => typeof v === 'string'));
-  } catch {
-    /* ignore */
-  }
-  return new Set();
+  return new Set(localKv.getJson<string[]>(key, isStringArray, []));
 }
 
 function saveSet(key: string, set: Set<string>): void {
-  try {
-    localStorage.setItem(key, JSON.stringify([...set]));
-  } catch {
-    /* ignore */
-  }
+  localKv.setJson(key, [...set]);
 }
 
 function loadMap(key: string): Map<string, string> {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return new Map();
-    const obj: unknown = JSON.parse(raw);
-    if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
-      return new Map(
-        Object.entries(obj as Record<string, unknown>).filter(
-          (entry): entry is [string, string] => typeof entry[1] === 'string'
-        )
-      );
-    }
-  } catch {
-    /* ignore */
-  }
-  return new Map();
+  return new Map(Object.entries(localKv.getJson<Record<string, string>>(key, isStringRecord, {})));
 }
 
 function saveMap(key: string, map: Map<string, string>): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(Object.fromEntries(map)));
-  } catch {
-    /* ignore */
-  }
+  localKv.setJson(key, Object.fromEntries(map));
 }
 
 export interface TaskLocalState {

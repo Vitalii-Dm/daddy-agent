@@ -63,7 +63,7 @@ Default location:
 - `src/features/<feature-name>/`
 
 Reference implementation:
-- `src/features/recent-projects`
+- `src/features/agent-graph`
 
 Feature-local guidance:
 - `src/features/CLAUDE.md`

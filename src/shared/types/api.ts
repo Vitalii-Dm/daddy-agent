@@ -87,7 +87,6 @@ import type {
   UpdateKanbanPatch,
 } from './team';
 import type { TerminalAPI } from './terminal';
-import type { WaterfallData } from './visualization';
 import type {
   ConversationGroup,
   FileChangeEvent,
@@ -271,31 +270,6 @@ export interface ClaudeMdFileInfo {
   exists: boolean;
   charCount: number;
   estimatedTokens: number;
-}
-
-// =============================================================================
-// Updater API
-// =============================================================================
-
-/**
- * Status payload sent from the main process updater to the renderer.
- */
-export interface UpdaterStatus {
-  type: 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
-  version?: string;
-  releaseNotes?: string;
-  progress?: { percent: number; transferred: number; total: number };
-  error?: string;
-}
-
-/**
- * Updater API exposed via preload.
- */
-export interface UpdaterAPI {
-  check: () => Promise<void>;
-  download: () => Promise<void>;
-  install: () => Promise<void>;
-  onStatus: (callback: (event: unknown, status: unknown) => void) => () => void;
 }
 
 // =============================================================================
@@ -744,7 +718,6 @@ export interface ElectronAPI {
     options?: { bypassCache?: boolean }
   ) => Promise<SessionDetail | null>;
   getSessionMetrics: (projectId: string, sessionId: string) => Promise<SessionMetrics | null>;
-  getWaterfallData: (projectId: string, sessionId: string) => Promise<WaterfallData | null>;
   getSubagentDetail: (
     projectId: string,
     sessionId: string,
@@ -822,9 +795,6 @@ export interface ElectronAPI {
 
   /** Subscribe to fullscreen changes (e.g. to remove macOS traffic light padding in fullscreen) */
   onFullScreenChange: (callback: (isFullScreen: boolean) => void) => () => void;
-
-  // Updater API
-  updater: UpdaterAPI;
 
   // SSH API
   ssh: SshAPI;

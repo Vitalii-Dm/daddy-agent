@@ -89,7 +89,6 @@ import {
   TeammateToolTracker,
   TeamMemberLogsFinder,
   TeamProvisioningService,
-  UpdaterService,
 } from './services';
 
 import type { FileChangeEvent } from '@main/types';
@@ -362,7 +361,6 @@ let mainWindow: BrowserWindow | null = null;
 // Service registry and global services
 let contextRegistry: ServiceContextRegistry;
 let notificationManager: NotificationManager;
-let updaterService: UpdaterService;
 let sshConnectionManager: SshConnectionManager;
 let teamDataService: TeamDataService;
 let teamProvisioningService: TeamProvisioningService;
@@ -748,8 +746,6 @@ async function initializeServices(): Promise<void> {
   // Wire file watcher events for local context
   wireFileWatcherEvents(localContext);
 
-  // Initialize updater service
-  updaterService = new UpdaterService();
   const teamMemberLogsFinder = new TeamMemberLogsFinder();
   const boardTaskActivityRecordSource = new BoardTaskActivityRecordSource();
   const boardTaskActivityService = new BoardTaskActivityService(boardTaskActivityRecordSource);
@@ -929,7 +925,6 @@ async function startHttpServer(
         subagentResolver: activeContext.subagentResolver,
         chunkBuilder: activeContext.chunkBuilder,
         dataCache: activeContext.dataCache,
-        updaterService,
         sshConnectionManager,
         teamProvisioningService,
       },

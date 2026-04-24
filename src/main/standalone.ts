@@ -30,7 +30,6 @@ import type { HttpServer } from './services/infrastructure/HttpServer';
 import type { NotificationManager } from './services/infrastructure/NotificationManager';
 import type { ServiceContext } from './services/infrastructure/ServiceContext';
 import type { SshConnectionManager } from './services/infrastructure/SshConnectionManager';
-import type { UpdaterService } from './services/infrastructure/UpdaterService';
 
 const logger = createLogger('Standalone');
 
@@ -50,14 +49,6 @@ if (!process.env.CORS_ORIGIN) {
 // =============================================================================
 // Stub services (Electron-only features unavailable in standalone)
 // =============================================================================
-
-/** No-op UpdaterService stub — auto-updater requires Electron. */
-const updaterServiceStub = {
-  checkForUpdates: async () => {},
-  downloadUpdate: async () => {},
-  quitAndInstall: () => {},
-  setMainWindow: () => {},
-} as unknown as UpdaterService;
 
 /** No-op SshConnectionManager stub — SSH is managed per-user in the Electron app. */
 const sshConnectionManagerStub = {
@@ -157,7 +148,6 @@ async function start(): Promise<void> {
     subagentResolver: localContext.subagentResolver,
     chunkBuilder: localContext.chunkBuilder,
     dataCache: localContext.dataCache,
-    updaterService: updaterServiceStub,
     sshConnectionManager: sshConnectionManagerStub,
   };
 

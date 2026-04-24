@@ -5,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui
 import { useCollapsedGroups } from '@renderer/hooks/useCollapsedGroups';
 import { useTaskLocalState } from '@renderer/hooks/useTaskLocalState';
 import { cn } from '@renderer/lib/utils';
+import { localKv } from '@renderer/services/storage';
 import { useStore } from '@renderer/store';
 import { normalizePath } from '@renderer/utils/pathNormalize';
 import { projectColor } from '@renderer/utils/projectColor';
@@ -51,21 +52,13 @@ const TASK_GROUPING_STORAGE_KEY = 'sidebarTasksGrouping';
 export type TaskGroupingMode = 'none' | 'project' | 'time';
 
 function loadGroupingMode(): TaskGroupingMode {
-  try {
-    const v = localStorage.getItem(TASK_GROUPING_STORAGE_KEY);
-    if (v === 'none' || v === 'project' || v === 'time') return v;
-  } catch {
-    /* ignore */
-  }
+  const v = localKv.getString(TASK_GROUPING_STORAGE_KEY);
+  if (v === 'none' || v === 'project' || v === 'time') return v;
   return 'project';
 }
 
 function saveGroupingMode(mode: TaskGroupingMode): void {
-  try {
-    localStorage.setItem(TASK_GROUPING_STORAGE_KEY, mode);
-  } catch {
-    /* ignore */
-  }
+  localKv.setString(TASK_GROUPING_STORAGE_KEY, mode);
 }
 
 export type TaskSortMode = 'time' | 'project' | 'team' | 'unread';
@@ -80,21 +73,13 @@ const SORT_OPTIONS: { id: TaskSortMode; label: string }[] = [
 ];
 
 function loadSortMode(): TaskSortMode {
-  try {
-    const v = localStorage.getItem(TASK_SORT_STORAGE_KEY);
-    if (v === 'time' || v === 'project' || v === 'team' || v === 'unread') return v;
-  } catch {
-    /* ignore */
-  }
+  const v = localKv.getString(TASK_SORT_STORAGE_KEY);
+  if (v === 'time' || v === 'project' || v === 'team' || v === 'unread') return v;
   return 'time';
 }
 
 function saveSortMode(mode: TaskSortMode): void {
-  try {
-    localStorage.setItem(TASK_SORT_STORAGE_KEY, mode);
-  } catch {
-    /* ignore */
-  }
+  localKv.setString(TASK_SORT_STORAGE_KEY, mode);
 }
 
 function applySortMode(

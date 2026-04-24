@@ -68,9 +68,7 @@ import type {
   TeamTaskStatus,
   TriggerTestResult,
   UpdateKanbanPatch,
-  UpdaterAPI,
   UpdateSchedulePatch,
-  WaterfallData,
   WslClaudeRootCandidate,
 } from '@shared/types';
 import type { AgentConfig } from '@shared/types/api';
@@ -272,11 +270,6 @@ export class HttpAPIClient implements ElectronAPI {
   getSessionMetrics = (projectId: string, sessionId: string): Promise<SessionMetrics | null> =>
     this.get<SessionMetrics | null>(
       `/api/projects/${encodeURIComponent(projectId)}/sessions/${encodeURIComponent(sessionId)}/metrics`
-    );
-
-  getWaterfallData = (projectId: string, sessionId: string): Promise<WaterfallData | null> =>
-    this.get<WaterfallData | null>(
-      `/api/projects/${encodeURIComponent(projectId)}/sessions/${encodeURIComponent(sessionId)}/waterfall`
     );
 
   getSubagentDetail = (
@@ -580,25 +573,6 @@ export class HttpAPIClient implements ElectronAPI {
   onFullScreenChange =
     (_callback: (isFullScreen: boolean) => void): (() => void) =>
     () => {};
-
-  // ---------------------------------------------------------------------------
-  // Updater (browser no-ops)
-  // ---------------------------------------------------------------------------
-
-  updater: UpdaterAPI = {
-    check: async (): Promise<void> => {
-      console.warn('[HttpAPIClient] updater not available in browser mode');
-    },
-    download: async (): Promise<void> => {
-      console.warn('[HttpAPIClient] updater not available in browser mode');
-    },
-    install: async (): Promise<void> => {
-      console.warn('[HttpAPIClient] updater not available in browser mode');
-    },
-    onStatus: (_callback): (() => void) => {
-      return () => {};
-    },
-  };
 
   // ---------------------------------------------------------------------------
   // SSH

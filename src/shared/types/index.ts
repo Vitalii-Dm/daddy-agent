@@ -15,9 +15,6 @@ export * from '@main/types';
 // Re-export notification and config types
 export * from './notifications';
 
-// Re-export visualization types (WaterfallData, WaterfallItem)
-export type * from './visualization';
-
 // Re-export API types (ElectronAPI, ConfigAPI, etc.)
 export type * from './api';
 

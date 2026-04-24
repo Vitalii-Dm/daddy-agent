@@ -41,8 +41,6 @@ import { createLogger } from '@shared/utils/logger';
 
 import { startMainSpan } from '../../sentry';
 
-import type { WaterfallData, WaterfallItem } from '@shared/types';
-
 const logger = createLogger('Service:ChunkBuilder');
 
 import { classifyMessages } from '../parsing/MessageClassifier';
@@ -202,121 +200,6 @@ export class ChunkBuilder {
       chunks,
       processes: subagents,
       metrics,
-    };
-  }
-
-  /**
-   * Build waterfall chart data from chunks and resolved processes.
-   */
-  buildWaterfallData(chunks: Chunk[], processes: Process[]): WaterfallData {
-    const items: WaterfallItem[] = [];
-
-    for (const chunk of chunks) {
-      const baseChunkItem: WaterfallItem = {
-        id: chunk.id,
-        label: this.getChunkLabel(chunk),
-        startTime: chunk.startTime,
-        endTime: chunk.endTime,
-        durationMs: chunk.durationMs,
-        tokenUsage: this.toTokenUsage(chunk.metrics),
-        level: 0,
-        type: 'chunk',
-        isParallel: false,
-      };
-      items.push(baseChunkItem);
-
-      if (isAIChunk(chunk)) {
-        for (const toolExec of chunk.toolExecutions) {
-          const endTime = toolExec.endTime ?? toolExec.startTime;
-          items.push({
-            id: `tool-${toolExec.toolCall.id}`,
-            label: toolExec.toolCall.name,
-            startTime: toolExec.startTime,
-            endTime,
-            durationMs:
-              toolExec.durationMs ?? Math.max(endTime.getTime() - toolExec.startTime.getTime(), 0),
-            tokenUsage: {
-              input_tokens: 0,
-              output_tokens: 0,
-            },
-            level: 1,
-            type: 'tool',
-            isParallel: false,
-            parentId: chunk.id,
-          });
-        }
-
-        for (const process of chunk.processes) {
-          items.push({
-            id: `subagent-${process.id}`,
-            label: process.description || process.subagentType || process.id,
-            startTime: process.startTime,
-            endTime: process.endTime,
-            durationMs: process.durationMs,
-            tokenUsage: this.toTokenUsage(process.metrics),
-            level: 1,
-            type: 'subagent',
-            isParallel: process.isParallel,
-            parentId: chunk.id,
-            metadata: {
-              subagentType: process.subagentType,
-              messageCount: process.messages.length,
-            },
-          });
-        }
-      }
-    }
-
-    // Add any process that was not attached to an AI chunk (defensive fallback)
-    for (const process of processes) {
-      const itemId = `subagent-${process.id}`;
-      if (items.some((item) => item.id === itemId)) {
-        continue;
-      }
-      items.push({
-        id: itemId,
-        label: process.description || process.subagentType || process.id,
-        startTime: process.startTime,
-        endTime: process.endTime,
-        durationMs: process.durationMs,
-        tokenUsage: this.toTokenUsage(process.metrics),
-        level: 0,
-        type: 'subagent',
-        isParallel: process.isParallel,
-        metadata: {
-          subagentType: process.subagentType,
-          messageCount: process.messages.length,
-        },
-      });
-    }
-
-    const sortedItems = [...items];
-    sortedItems.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
-
-    if (sortedItems.length === 0) {
-      const now = new Date();
-      return {
-        items: [],
-        minTime: now,
-        maxTime: now,
-        totalDurationMs: 0,
-      };
-    }
-
-    const minTime = sortedItems.reduce(
-      (min, item) => (item.startTime.getTime() < min.getTime() ? item.startTime : min),
-      sortedItems[0].startTime
-    );
-    const maxTime = sortedItems.reduce(
-      (max, item) => (item.endTime.getTime() > max.getTime() ? item.endTime : max),
-      sortedItems[0].endTime
-    );
-
-    return {
-      items: sortedItems,
-      minTime,
-      maxTime,
-      totalDurationMs: Math.max(maxTime.getTime() - minTime.getTime(), 0),
     };
   }
 
