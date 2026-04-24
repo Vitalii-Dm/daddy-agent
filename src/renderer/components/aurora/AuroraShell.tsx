@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 
 import { destroyLenis, initLenis } from '@renderer/lib/lenis';
 
+import { CommandBar } from './CommandBar';
 import { GlobalBackground } from './GlobalBackground';
 import { RefractFilter } from './RefractFilter';
 import { TopRail } from './TopRail';
@@ -43,6 +44,7 @@ export const AuroraShell = (): React.JSX.Element => {
         <DashboardSection />
         <GraphSectionPlaceholder />
       </main>
+      <CommandBar />
     </div>
   );
 };
