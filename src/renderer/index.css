@@ -258,6 +258,90 @@
   --compact-phase-text: #818cf8;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   Aurora — warm-daylight Liquid Glass theme. Activated via
+   document.documentElement.dataset.theme = 'aurora' (see AuroraShell).
+   Coexists with the dark default and the .light theme below; selectors are
+   scoped to [data-theme="aurora"] so nothing else moves.
+   ───────────────────────────────────────────────────────────────────────── */
+[data-theme='aurora'] {
+  /* Paper */
+  --bg-base: #f6f3ee;
+  --bg-elevated: #fbf9f5;
+  --bg-sunk: #efebe4;
+  --bg-ink: #14131a;
+
+  /* Aurora accents — rotate per section */
+  --a-violet: #7c5cff;
+  --a-cyan: #3dc6ff;
+  --a-peach: #ff9c7a;
+  --a-lime: #b8f27b;
+
+  /* Glass material */
+  --glass-fill: rgba(255, 255, 255, 0.48);
+  --glass-fill-lo: rgba(255, 255, 255, 0.32);
+  --glass-border: rgba(255, 255, 255, 0.65);
+  --glass-shade: rgba(20, 19, 26, 0.06);
+  --glass-spec: rgba(255, 255, 255, 0.9);
+
+  /* Ink ladder */
+  --ink-1: #14131a;
+  --ink-2: rgba(20, 19, 26, 0.72);
+  --ink-3: rgba(20, 19, 26, 0.52);
+  --ink-4: rgba(20, 19, 26, 0.32);
+
+  /* Status */
+  --ok: #2ecc71;
+  --warn: #ffb020;
+  --err: #ff5a5a;
+  --info: #3dc6ff;
+
+  /* Type */
+  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font-serif: 'Instrument Serif', 'Times New Roman', serif;
+}
+
+[data-theme='aurora'] body {
+  background-color: var(--bg-base);
+  color: var(--ink-1);
+  font-family: var(--font-sans);
+  font-feature-settings: 'ss01', 'ss02', 'cv01', 'cv11';
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+[data-theme='aurora'] ::selection {
+  background: rgba(124, 92, 255, 0.18);
+  color: var(--ink-1);
+}
+
+[data-theme='aurora'] .font-serif {
+  font-family: var(--font-serif);
+  font-feature-settings: 'liga', 'dlig';
+}
+
+[data-theme='aurora'] .font-mono {
+  font-family: var(--font-mono);
+  font-feature-settings: 'tnum', 'zero', 'ss01';
+}
+
+/* Apple-easing utility — exposed so motion.ts and CSS transitions stay in sync */
+[data-theme='aurora'] {
+  --ease-apple: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Reduce-motion respect for aurora-only motion */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme='aurora'] *,
+  [data-theme='aurora'] *::before,
+  [data-theme='aurora'] *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
 .kanban-grid-layout {
   min-height: 0;
   overflow: visible;
