@@ -18,8 +18,6 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol
 
-log = logging.getLogger(__name__)
-
 from pydantic import BaseModel, Field, field_validator
 
 from daddy_agent.codebase_mcp import queries
@@ -27,6 +25,8 @@ from daddy_agent.codebase_mcp.safety import ReadOnlyViolation, ensure_read_only
 
 if TYPE_CHECKING:  # pragma: no cover - only used for typing
     from neo4j import Driver
+
+log = logging.getLogger(__name__)
 
 
 # --------------------------------------------------------------------------- #

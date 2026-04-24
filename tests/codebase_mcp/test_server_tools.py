@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from pydantic import ValidationError
 
 from daddy_agent.codebase_mcp import queries
 from daddy_agent.codebase_mcp.safety import ReadOnlyViolation
@@ -140,7 +141,7 @@ def test_get_dependencies_inlines_depth(make_graph) -> None:
 
 def test_get_dependencies_rejects_bad_depth(make_graph) -> None:
     graph: CodebaseGraph = make_graph(lambda *_: [])
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         graph.get_dependencies(
             DependenciesInput(file_path="x", depth=0)  # pydantic ge=1
         )

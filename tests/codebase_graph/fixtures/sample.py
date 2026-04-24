@@ -1,7 +1,7 @@
 """Sample Python fixture for parser tests."""
 
 import os  # noqa: F401 -- import is under test
-from typing import List  # noqa: F401 -- import is under test
+from typing import List  # noqa: F401,UP035 -- import is under test
 
 
 def greet(name: str) -> str:

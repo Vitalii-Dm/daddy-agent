@@ -73,15 +73,12 @@ def _locked(path: Path, mode: str) -> Iterator[object]:
     # ``r+`` needs the file to exist; ``open`` with mode "a+" then seek(0) is
     # more forgiving but loses atomic truncation. We stick with r+ and create
     # above.
-    fh = open(path, mode)
-    try:
-        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
-        yield fh
-    finally:
+    with open(path, mode) as fh:
         try:
-            fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+            fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+            yield fh
         finally:
-            fh.close()
+            fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
 
 
 def _parse(text: str) -> Board:
