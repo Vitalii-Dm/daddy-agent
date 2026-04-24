@@ -1,16 +1,10 @@
-"""Per-language Tree-sitter query strings.
+"""Per-language Tree-sitter AST-node-type constants.
 
-Each submodule exposes four query strings used by :mod:`..parser`:
-
-* ``IMPORTS_QUERY`` — captures ``@import`` modules.
-* ``FUNCTIONS_QUERY`` — captures ``@function.def`` and ``@function.name``.
-* ``CLASSES_QUERY`` — captures ``@class.def``, ``@class.name`` and, where the
-  language supports it, ``@class.extends`` / ``@class.implements``.
-* ``CALLS_QUERY`` — captures ``@call`` callee identifiers.
-
-The parser only uses these queries when Tree-sitter's query engine is
-available; the fallback parse path walks the AST manually so tests can still
-exercise behaviour even if a grammar ships without query support.
+Each submodule exposes the node-kind strings that :mod:`..parser`'s walker
+looks for — e.g. ``FUNCTION_NODE``/``FUNCTION_NODES``, ``CLASS_NODE``,
+``IMPORT_NODE(S)``, ``CALL_NODE``.  The parser walks the syntax tree
+manually (rather than using tree-sitter's query DSL) because some
+``tree-sitter-language-pack`` builds ship without the query engine.
 """
 
 from daddy_agent.codebase_graph.queries import (

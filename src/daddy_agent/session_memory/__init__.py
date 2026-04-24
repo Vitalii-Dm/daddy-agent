@@ -15,7 +15,7 @@ submodule you actually need.
 from __future__ import annotations
 
 from .config import MemoryConfig, build_client, load_config
-from .facts import Fact, invalidate_fact, query_fact_history, store_fact
+from .facts import Fact, FactStore, invalidate_fact, query_fact_history, store_fact
 from .lifecycle import (
     ContextBundle,
     FakeMemoryBackend,
@@ -24,6 +24,7 @@ from .lifecycle import (
     ToolCallLog,
     cross_agent_query,
     end_session,
+    flush,
     log_message,
     log_reasoning,
     pull_context,
@@ -33,6 +34,7 @@ from .lifecycle import (
 __all__ = [
     "ContextBundle",
     "Fact",
+    "FactStore",
     "FakeMemoryBackend",
     "MemoryBackend",
     "MemoryConfig",
@@ -41,6 +43,7 @@ __all__ = [
     "build_client",
     "cross_agent_query",
     "end_session",
+    "flush",
     "invalidate_fact",
     "load_config",
     "log_message",

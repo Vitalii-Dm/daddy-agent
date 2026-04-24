@@ -6,7 +6,10 @@ Each TMUX agent follows the lifecycle described in
 1. :func:`start_session` — create a ``Session`` keyed on tmux pane id and
    hydrate the agent with existing context.
 2. :func:`log_message`, :func:`log_reasoning` — append to short-term and
-   reasoning memory. Writes are fire-and-forget so they never block the agent.
+   reasoning memory. Writes run on a daemon thread (non-blocking);
+   :func:`end_session` and :func:`flush` drain in-flight writes before
+   shutdown so messages scheduled in the final milliseconds are not
+   silently dropped at interpreter exit.
 3. :func:`pull_context` — assemble combined context for a new task.
 4. :func:`cross_agent_query` — read what other agents have learned.
 5. :func:`end_session` — close the session and persist a summary.
@@ -141,6 +144,10 @@ class FakeMemoryBackend:
     Every method records its arguments in public lists so tests can assert on
     the exact call sequence. No network, no threads — the fake is safe to use
     in offline CI.
+
+    Also implements :class:`daddy_agent.session_memory.facts.FactStore` so
+    the same backend object serves both lifecycle + temporal-fact calls,
+    mirroring the real ``AgentMemoryClient`` which does the same.
     """
 
     def __init__(self) -> None:
@@ -159,6 +166,24 @@ class FakeMemoryBackend:
             "entities": [],
             "reasoning": [],
         }
+
+        # Composed FactStore — fresh per backend, shared state with the
+        # rest of this object so tests can assert on fact history alongside
+        # message/reasoning history.
+        from daddy_agent.session_memory.facts import InMemoryFactStore
+        self._fact_store = InMemoryFactStore()
+
+    # -- FactStore protocol -----------------------------------------------
+    # Delegate to the composed store so the fake satisfies FactStore.
+
+    def write_fact(self, fact: Any) -> None:
+        self._fact_store.write_fact(fact)
+
+    def set_valid_until(self, fact_id: str, valid_until: datetime) -> Any:
+        return self._fact_store.set_valid_until(fact_id, valid_until)
+
+    def list_facts(self, subject: str, predicate: str) -> list[Any]:
+        return self._fact_store.list_facts(subject, predicate)
 
     # -- lifecycle ---------------------------------------------------------
 

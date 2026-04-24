@@ -25,9 +25,9 @@ __all__ = [
     "Fact",
     "FactStore",
     "InMemoryFactStore",
-    "attach_fact_store",
     "invalidate_fact",
     "query_fact_history",
+    "resolve_fact_store",
     "store_fact",
 ]
 
@@ -92,32 +92,22 @@ class InMemoryFactStore:
         ]
 
 
-def attach_fact_store(backend: object, store: FactStore | None = None) -> FactStore:
-    """Return a ``FactStore`` attached to ``backend``.
+def resolve_fact_store(backend: object) -> FactStore:
+    """Return the ``FactStore`` implementation for *backend*.
 
-    The real ``AgentMemoryClient`` must implement both :class:`MemoryBackend`
-    (for lifecycle calls) *and* :class:`FactStore` (for temporal facts).  Use
-    this helper to get a store from a backend that already implements the
-    protocol, or to bolt an :class:`InMemoryFactStore` onto a plain
-    :class:`FakeMemoryBackend` for tests without duplicating state.
-
-    The returned store is also memoised on the backend so repeated calls
-    during a session see a single shared store.
+    The real ``AgentMemoryClient`` implements both :class:`MemoryBackend`
+    and :class:`FactStore` (see ``docs/session-memory.md``).  Test fakes
+    implement :class:`FactStore` directly (see ``FakeMemoryBackend``).
+    This helper just asserts the protocol is satisfied and returns the
+    object as-is — it never reaches into foreign attributes.
     """
-
-    existing = getattr(backend, "_fact_store", None)
-    if isinstance(existing, FactStore):
-        return existing
-    if isinstance(backend, FactStore):
-        return backend
-    resolved = store if store is not None else InMemoryFactStore()
-    try:
-        setattr(backend, "_fact_store", resolved)
-    except (AttributeError, TypeError):
-        # Some backends (e.g. frozen dataclasses) reject attribute sets; that's
-        # fine — the caller just won't get memoisation.
-        pass
-    return resolved
+    if not isinstance(backend, FactStore):
+        raise TypeError(
+            f"{type(backend).__name__} does not implement FactStore; "
+            "the real AgentMemoryClient and any test double must provide "
+            "write_fact / set_valid_until / list_facts."
+        )
+    return backend
 
 
 def _now() -> datetime:

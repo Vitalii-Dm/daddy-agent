@@ -420,29 +420,29 @@ async def _ticker_iter(
 def _signature(factory: DriverFactory) -> str:
     """Return a tiny signature reflecting DB state across both graphs.
 
-    Counts both nodes AND edges so that property edits that add/remove
-    relationships — the most common mutation in daily work — invalidate
-    the signature.  A count-only signature would miss rename events and
-    any same-count insert+delete pair.
+    Counts both nodes AND edges so that relationship add/delete (not just
+    node churn) invalidates the signature.  Pure property edits are still
+    missed — acceptable for a 5-second poll.
+
+    Raises on DB error — the caller is the SSE stream, which catches and
+    emits ``event: error`` so the client sees a real failure signal instead
+    of a stuck "last-known-good" count.
     """
     parts: list[str] = []
     for alias in ("codebase", "memory"):
         db = os.environ.get(DB_ENV_MAP[alias], DB_DEFAULTS[alias])
-        try:
-            rows = _run(
-                factory.get(),
-                db,
-                "MATCH (n) WITH count(n) AS nc "
-                "OPTIONAL MATCH ()-[r]->() "
-                "RETURN nc, count(r) AS ec",
-            )
-            if rows:
-                nc = rows[0].get("nc", 0)
-                ec = rows[0].get("ec", 0)
-            else:
-                nc = ec = 0
-        except Exception:
-            nc = ec = -1
+        rows = _run(
+            factory.get(),
+            db,
+            "MATCH (n) WITH count(n) AS nc "
+            "OPTIONAL MATCH ()-[r]->() "
+            "RETURN nc, count(r) AS ec",
+        )
+        if rows:
+            nc = rows[0].get("nc", 0)
+            ec = rows[0].get("ec", 0)
+        else:
+            nc = ec = 0
         parts.append(f"{alias}:{nc}/{ec}")
     return "|".join(parts)
 

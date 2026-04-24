@@ -63,9 +63,12 @@ The dashboard is a single page split into three columns:
 | `GET /events` | Server-Sent-Events stream with `graph-updated` + heartbeats |
 
 The SSE stream polls both databases every 5s (`tick_interval` in
-`create_app`) and emits a `graph-updated` event when the node count changes
-on either graph. Heartbeats (`: heartbeat N`) fire every tick so
-load-balancers keep the connection open.
+`create_app`) and emits a `graph-updated` event when the node **or edge**
+count changes on either graph — pure property edits that preserve both
+counts are still missed (acceptable at a 5s poll).  Heartbeats
+(`: heartbeat N`) fire every tick so load-balancers keep the connection
+open.  When the DB is unreachable, the stream emits `event: error` with
+the failure reason instead of a stale last-known signature.
 
 ### CDN Version Pinning Policy
 

@@ -170,10 +170,10 @@ def index_repository(
 
     try:
         if apply_schema_on_start and session is not None:
-            try:
-                apply_schema(session)
-            except Exception as exc:  # pragma: no cover - depends on driver
-                log.warning("apply_schema failed: %s", exc)
+            # apply_schema failures must be fatal: indexing without the
+            # uniqueness constraints will let the first duplicate MERGE
+            # corrupt the graph silently.  Better to refuse to run.
+            apply_schema(session)
 
         spec = _load_pathspec(root_path)
         existing = {} if full else _known_hashes(session)
@@ -220,8 +220,11 @@ def index_repository(
             if callable(close):
                 try:
                     close()
-                except Exception:  # pragma: no cover
-                    pass
+                except Exception as exc:  # pragma: no cover
+                    # Don't re-raise during cleanup, but don't be silent
+                    # either — pool-exhaustion / auth-expiry bugs start as
+                    # close-time errors.
+                    log.warning("neo4j session close failed: %s", exc)
 
 
 def _remove_file(session: Any, path: str) -> None:

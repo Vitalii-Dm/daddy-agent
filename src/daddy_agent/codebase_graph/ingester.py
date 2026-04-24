@@ -315,27 +315,33 @@ def _emit_calls(run: Any, path: str, *, caller_qname: str, calls: Iterable[str])
 
 
 def _flush_batch(session: Any, batch: list[ParsedFile]) -> int:
-    """Flush a batch of parsed files in a single write transaction if possible."""
+    """Flush a batch of parsed files in a single write transaction if possible.
+
+    If the session supports ``execute_write`` we run the batch atomically.
+    We deliberately do NOT fall back to per-file writes on failure: a
+    transaction rollback means zero files got ingested, while a silent
+    fallback could leave partial state across the batch.  Re-raise so the
+    caller can decide (retry? abort? report?) — never pretend success.
+
+    Sessions that lack ``execute_write`` (e.g. test doubles) are assumed
+    to manage their own transactionality; we run directly against them.
+    """
 
     executed = 0
     write_tx = getattr(session, "execute_write", None) or getattr(
         session, "write_transaction", None
     )
     if callable(write_tx):
-        # Real neo4j driver path — execute atomically.
         def _work(tx: Any) -> int:
             inner = 0
             for parsed in batch:
                 inner += ingest_file(tx, parsed)
             return inner
 
-        try:
-            executed = write_tx(_work)
-            return executed
-        except Exception as exc:  # pragma: no cover - depends on driver
-            log.warning("batched write failed, falling back to per-file: %s", exc)
+        executed = write_tx(_work)
+        return executed
 
-    # Fallback: just run per-file against the session.
+    # Fallback path for test doubles / minimal sessions without execute_write.
     for parsed in batch:
         executed += ingest_file(session, parsed)
     return executed

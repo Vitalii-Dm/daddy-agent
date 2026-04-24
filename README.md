@@ -39,7 +39,7 @@ Neo4j Browser is then at http://localhost:7474 (bolt on 7687).
 │   ├── __init__.py             # __version__
 │   ├── neo4j_client.py         # shared driver/session helper (W1)
 │   ├── codebase_graph/         # Tree-sitter ingestion (W2)
-│   ├── mcp_codebase/           # codebase MCP server (W3)
+│   ├── codebase_mcp/           # codebase MCP server (W3)
 │   ├── session_memory/         # agent memory glue (W4)
 │   └── viz/                    # FastAPI + Sigma.js dashboard (W5)
 ├── tests/                      # pytest suite

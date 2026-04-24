@@ -5,13 +5,17 @@ called on every startup without clobbering an existing graph.
 
 The schema mirrors the design in ``PLAN-neo4j-knowledge-graphs.md``:
 
-* Node types: ``File``, ``Function``, ``Class``, ``Method``, ``Module``,
-  ``Variable``, ``Community``.
-* Relationship types: ``CALLS``, ``IMPORTS``, ``EXTENDS``, ``IMPLEMENTS``,
-  ``HAS_METHOD``, ``USES``, ``BELONGS_TO``, ``GIT_COUPLED``.
+* Node types emitted today: ``File``, ``Function``, ``Class``, ``Method``,
+  ``Module``.  ``Variable`` and ``Community`` constraints are declared for
+  forward-compat but no code currently writes them — those belong to a
+  later community-detection + variable-tracking pass.
+* Relationship types emitted today: ``CALLS``, ``IMPORTS``, ``EXTENDS``,
+  ``IMPLEMENTS``, ``HAS_METHOD``, ``HAS_FUNCTION``, ``HAS_CLASS``,
+  ``GIT_COUPLED``.  ``USES`` and ``BELONGS_TO`` are placeholders (same
+  pass as above).
 
-We also persist a lightweight ``codebase_file_hashes`` helper label so the
-incremental indexer can diff sha256 hashes without a side database.
+``File.hash`` stores sha256 of the file's bytes so the incremental indexer
+can diff without a side database — see :mod:`daddy_agent.codebase_graph.indexer`.
 """
 
 from __future__ import annotations

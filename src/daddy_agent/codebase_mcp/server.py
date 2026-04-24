@@ -12,10 +12,13 @@ MCP SDK is only touched at import time and at ``serve()`` time.
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol
+
+log = logging.getLogger(__name__)
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -238,8 +241,11 @@ class CodebaseGraph:
         finally:
             try:
                 session.close()
-            except Exception:  # pragma: no cover - defensive
-                pass
+            except Exception as exc:  # pragma: no cover - defensive
+                # Close-time failures are usually driver/pool issues worth
+                # seeing in logs, even though we don't propagate them past
+                # the tool handler.
+                log.warning("neo4j session close failed: %s", exc)
 
     # ------------------------------------------------------------------ #
     # Tool implementations
