@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Daddy Agent — Knowledge Graph</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <!--
+      CDN pinning policy:
+        - sigma.js  v3.0.1  (WebGL renderer)
+        - graphology v0.25.4
+        - graphology-layout-forceatlas2 v0.10.1
+      Upgrade by bumping the version in both the <script> tag and docs/viz.md.
+    -->
+    <script src="https://cdn.jsdelivr.net/npm/graphology@0.25.4/dist/graphology.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/graphology-layout-forceatlas2@0.10.1/build/graphology-layout-forceatlas2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sigma@3.0.1/build/sigma.min.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>Daddy Agent Graph</h1>
+      <nav class="tabs" role="tablist">
+        <button class="tab" data-db="codebase" role="tab" aria-selected="true">Codebase</button>
+        <button class="tab" data-db="memory" role="tab" aria-selected="false">Memory</button>
+      </nav>
+      <span id="status" class="status">connecting…</span>
+    </header>
+    <main>
+      <aside class="filters">
+        <label>
+          <span>Type</span>
+          <input id="f-type" type="text" placeholder="File, Function, Entity…" />
+        </label>
+        <label>
+          <span>Community</span>
+          <input id="f-community" type="text" placeholder="id or label" />
+        </label>
+        <label>
+          <span>Search</span>
+          <input id="f-search" type="text" placeholder="name contains…" />
+        </label>
+        <button id="f-apply" type="button">Apply</button>
+        <div id="search-results" class="search-results"></div>
+      </aside>
+      <section id="graph" class="graph" aria-label="graph canvas"></section>
+      <aside id="details" class="details">
+        <h2>Select a node</h2>
+        <p class="muted">Click any node in the graph to see its properties and neighbors.</p>
+      </aside>
+    </main>
+    <script>
+      (function () {
+        "use strict";
+        const state = {
+          db: "codebase",
+          graph: null,
+          renderer: null,
+          eventSource: null,
+        };
+
+        function setStatus(msg, kind) {
+          const el = document.getElementById("status");
+          el.textContent = msg;
+          el.className = "status " + (kind || "");
+        }
+
+        function currentDb() {
+          const hash = window.location.hash.replace(/^#\//, "").trim();
+          if (hash === "memory" || hash === "codebase") return hash;
+          return "codebase";
+        }
+
+        function syncTabs() {
+          state.db = currentDb();
+          document.querySelectorAll(".tab").forEach(function (t) {
+            const active = t.dataset.db === state.db;
+            t.setAttribute("aria-selected", String(active));
+            t.classList.toggle("active", active);
+          });
+        }
+
+        async function fetchJSON(url) {
+          const r = await fetch(url);
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return await r.json();
+        }
+
+        function buildGraph(payload) {
+          const Graph = window.graphology;
+          const g = new Graph({ multi: true, type: "directed" });
+          (payload.nodes || []).forEach(function (n) {
+            if (!g.hasNode(n.id)) {
+              g.addNode(n.id, {
+                label: n.label,
+                size: 4,
+                color: colorFor(n.type),
+                nodeType: n.type,
+                community: n.community,
+                attributes: n.attributes || {},
+                x: Math.random(),
+                y: Math.random(),
+              });
+            }
+          });
+          (payload.edges || []).forEach(function (e) {
+            if (!g.hasNode(e.source) || !g.hasNode(e.target)) return;
+            g.addEdgeWithKey(e.id, e.source, e.target, {
+              label: e.type,
+              size: 1,
+              color: "#555",
+            });
+          });
+          return g;
+        }
+
+        function colorFor(type) {
+          const palette = {
+            File: "#4fc3f7",
+            Function: "#81c784",
+            Class: "#ffb74d",
+            Method: "#ba68c8",
+            Module: "#64b5f6",
+            Entity: "#f06292",
+            Message: "#aed581",
+            Session: "#fff176",
+          };
+          return palette[type] || "#90a4ae";
+        }
+
+        function runLayout(graph) {
+          if (!graph.order) return;
+          const FA2 = window.graphologyLibrary && window.graphologyLibrary.layoutForceAtlas2
+            ? window.graphologyLibrary.layoutForceAtlas2
+            : window.forceAtlas2;
+          if (FA2 && typeof FA2.assign === "function") {
+            FA2.assign(graph, { iterations: 120, settings: { gravity: 1, scalingRatio: 10 } });
+          }
+        }
+
+        async function render() {
+          syncTabs();
+          setStatus("loading graph…");
+          const params = new URLSearchParams({ db: state.db, limit: "1000" });
+          const type = document.getElementById("f-type").value.trim();
+          const community = document.getElementById("f-community").value.trim();
+          if (type) params.set("type", type);
+          if (community) params.set("community", community);
+          let payload;
+          try {
+            payload = await fetchJSON("/api/graph?" + params.toString());
+          } catch (err) {
+            setStatus("error: " + err.message, "error");
+            return;
+          }
+          const graph = buildGraph(payload);
+          runLayout(graph);
+          if (state.renderer) state.renderer.kill();
+          const container = document.getElementById("graph");
+          container.innerHTML = "";
+          state.graph = graph;
+          state.renderer = new window.Sigma(graph, container);
+          state.renderer.on("clickNode", function (evt) {
+            showNode(evt.node);
+          });
+          setStatus("ok (" + graph.order + " nodes, " + graph.size + " edges)", "ok");
+        }
+
+        async function showNode(id) {
+          const details = document.getElementById("details");
+          details.innerHTML = "<h2>Loading…</h2>";
+          try {
+            const data = await fetchJSON(
+              "/api/node/" + encodeURIComponent(id) + "/neighbors?db=" + state.db + "&depth=1"
+            );
+            const me = (data.nodes || []).find(function (n) { return n.id === id; });
+            const others = (data.nodes || []).filter(function (n) { return n.id !== id; });
+            const attrs = me ? me.attributes || {} : {};
+            const rows = Object.keys(attrs).map(function (k) {
+              return "<tr><th>" + escape(k) + "</th><td>" + escape(String(attrs[k])) + "</td></tr>";
+            }).join("");
+            const neighbors = others.map(function (n) {
+              return "<li><a href=\"#\" data-id=\"" + escape(n.id) + "\">" + escape(n.label) + "</a> <em>" + escape(n.type) + "</em></li>";
+            }).join("");
+            details.innerHTML =
+              "<h2>" + (me ? escape(me.label) : "Node") + "</h2>" +
+              "<p class=\"muted\">" + (me ? escape(me.type) : "") + "</p>" +
+              "<table>" + rows + "</table>" +
+              "<h3>Neighbors</h3><ul>" + neighbors + "</ul>";
+            details.querySelectorAll("a[data-id]").forEach(function (a) {
+              a.addEventListener("click", function (e) {
+                e.preventDefault();
+                showNode(a.dataset.id);
+              });
+            });
+          } catch (err) {
+            details.innerHTML = "<h2>Error</h2><p>" + escape(err.message) + "</p>";
+          }
+        }
+
+        function escape(s) {
+          return String(s).replace(/[&<>"']/g, function (c) {
+            return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c];
+          });
+        }
+
+        async function runSearch() {
+          const q = document.getElementById("f-search").value.trim();
+          const target = document.getElementById("search-results");
+          if (!q) { target.innerHTML = ""; return; }
+          try {
+            const data = await fetchJSON(
+              "/api/search?db=" + state.db + "&q=" + encodeURIComponent(q) + "&limit=20"
+            );
+            target.innerHTML = (data.results || []).map(function (n) {
+              return "<a href=\"#\" data-id=\"" + escape(n.id) + "\">" + escape(n.label) + "</a>";
+            }).join("");
+            target.querySelectorAll("a[data-id]").forEach(function (a) {
+              a.addEventListener("click", function (e) {
+                e.preventDefault();
+                showNode(a.dataset.id);
+              });
+            });
+          } catch (err) {
+            target.innerHTML = "<span class=\"muted\">" + escape(err.message) + "</span>";
+          }
+        }
+
+        function subscribe() {
+          if (state.eventSource) state.eventSource.close();
+          const es = new EventSource("/events");
+          es.addEventListener("graph-updated", function () { render(); });
+          es.onerror = function () { setStatus("events: reconnecting…", "warn"); };
+          state.eventSource = es;
+        }
+
+        document.querySelectorAll(".tab").forEach(function (t) {
+          t.addEventListener("click", function () {
+            window.location.hash = "#/" + t.dataset.db;
+          });
+        });
+        window.addEventListener("hashchange", render);
+        document.getElementById("f-apply").addEventListener("click", function () {
+          render();
+          runSearch();
+        });
+        document.getElementById("f-search").addEventListener("keydown", function (e) {
+          if (e.key === "Enter") runSearch();
+        });
+
+        render();
+        subscribe();
+      })();
+    </script>
+  </body>
+</html>
