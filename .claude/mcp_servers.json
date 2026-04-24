@@ -1,29 +1,31 @@
 {
+  "_comment": [
+    "Claude Code does NOT expand ${VAR} inside this file — the env block is",
+    "passed verbatim to the child process. We therefore launch each server",
+    "through `sh -c` so the real shell performs substitution against the",
+    "parent environment. Ensure NEO4J_URI / NEO4J_USER / NEO4J_PASSWORD /",
+    "OPENAI_API_KEY are exported in your shell before launching Claude Code",
+    "(see .env.example for the list). NAM_* vars configure the bundled",
+    "neo4j-agent-memory MCP server."
+  ],
   "mcpServers": {
     "codebase-graph": {
-      "command": "python",
-      "args": ["-m", "daddy_agent.codebase_mcp"],
+      "command": "sh",
+      "args": [
+        "-c",
+        "exec python -m daddy_agent.codebase_mcp"
+      ],
       "env": {
-        "NEO4J_URI": "${NEO4J_URI}",
-        "NEO4J_USER": "${NEO4J_USER}",
-        "NEO4J_PASSWORD": "${NEO4J_PASSWORD}",
-        "NEO4J_DATABASE": "codebase"
+        "NEO4J_CODEBASE_DB": "codebase"
       }
     },
     "agent-memory": {
-      "command": "uvx",
+      "command": "sh",
       "args": [
-        "neo4j-agent-memory[mcp]",
-        "mcp",
-        "serve",
-        "--password",
-        "${NEO4J_PASSWORD}"
+        "-c",
+        "exec uvx 'neo4j-agent-memory[mcp]' mcp serve --password \"$NEO4J_PASSWORD\""
       ],
       "env": {
-        "OPENAI_API_KEY": "${OPENAI_API_KEY}",
-        "NAM_NEO4J__URI": "${NEO4J_URI}",
-        "NAM_NEO4J__USER": "${NEO4J_USER}",
-        "NAM_NEO4J__PASSWORD": "${NEO4J_PASSWORD}",
         "NAM_NEO4J__DATABASE": "agent_memory"
       }
     }

@@ -41,6 +41,14 @@ OPTIONAL MATCH (c)-[:HAS_METHOD]->(m:Method)
 DETACH DELETE fn, c, m
 """
 
+# Detach :IMPORTS edges from this file before re-ingestion.  Without this,
+# removing an import line would leave a stale edge to the old module — the
+# graph would say the file still depends on something it no longer uses.
+DELETE_FILE_IMPORTS = """
+MATCH (f:File {path: $path})-[r:IMPORTS]->()
+DELETE r
+"""
+
 MERGE_FUNCTION = """
 MATCH (f:File {path: $path})
 MERGE (fn:Function {qualified_name: $qualified_name})
@@ -99,8 +107,13 @@ MERGE (iface:Class {qualified_name: $parent_qname})
 MERGE (child)-[:IMPLEMENTS]->(iface)
 """
 
+# Caller is always a Function or Method; we label the MATCH explicitly so an
+# accidentally-identical ``qualified_name`` on another label (Variable,
+# Module, …) can never be mistaken for our caller.  A label-less MATCH here
+# previously allowed the query to traverse unrelated nodes and silently drop
+# CALLS edges when a collision occurred.
 MERGE_CALL = """
-MATCH (caller {qualified_name: $caller_qname})
+MATCH (caller:Function|Method {qualified_name: $caller_qname})
 MERGE (callee:Function {qualified_name: $callee_qname})
   ON CREATE SET callee.name = $callee_name,
                 callee.signature = '',
@@ -110,6 +123,24 @@ MERGE (callee:Function {qualified_name: $callee_qname})
                 callee.file_path = ''
 MERGE (caller)-[r:CALLS]->(callee)
 SET r.callee_name = $callee_name
+"""
+
+# After an ingest pass we collapse ``external::<name>`` call targets into
+# the local definition if one exists.  Runs once per repository index,
+# fixing call-graph fragmentation caused by first-seen external names.
+REWRITE_EXTERNAL_CALLS = """
+MATCH (ext:Function {qualified_name: $external_qname})
+WITH ext, ext.name AS nm
+MATCH (local:Function {name: nm})
+WHERE local.qualified_name <> $external_qname
+  AND local.qualified_name STARTS WITH $path_prefix
+WITH ext, local
+MATCH (caller)-[r:CALLS]->(ext)
+MERGE (caller)-[:CALLS]->(local)
+DELETE r
+WITH ext
+WHERE NOT (ext)<-[:CALLS]-()
+DELETE ext
 """
 
 # ---------------------------------------------------------------------------
@@ -151,11 +182,13 @@ def ingest_file(session: Any, parsed: ParsedFile) -> int:
         raise TypeError("ingest_file() requires a neo4j-compatible session")
 
     count = 0
-    # File node (and wipe previous structural children so re-ingestion is
-    # idempotent; call/import edges get re-created below).
+    # File node (and wipe previous structural children + import edges so
+    # re-ingestion is idempotent — call/import edges get re-created below).
     run(MERGE_FILE, path=parsed.path, language=parsed.language, hash=parsed.hash)
     count += 1
     run(DELETE_FILE_CHILDREN, path=parsed.path)
+    count += 1
+    run(DELETE_FILE_IMPORTS, path=parsed.path)
     count += 1
 
     # Imports

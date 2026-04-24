@@ -1,12 +1,17 @@
+name: daddy-agent
 services:
   neo4j:
     image: neo4j:5.26-community
     container_name: daddy-agent-neo4j
+    # Bind to loopback only; dev-only Neo4j must not be reachable from the LAN
+    # given the placeholder password in .env.example.
     ports:
-      - "7474:7474"   # HTTP Browser
-      - "7687:7687"   # Bolt protocol
+      - "127.0.0.1:7474:7474"   # HTTP Browser
+      - "127.0.0.1:7687:7687"   # Bolt protocol
     environment:
       - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:?NEO4J_PASSWORD env var is required}
+      # Re-exposed so the cypher-shell healthcheck below can auth; never logged.
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
       - NEO4J_PLUGINS=["apoc"]
       - NEO4J_server_memory_heap_initial__size=512M
       - NEO4J_server_memory_heap_max__size=1G
@@ -21,10 +26,14 @@ services:
       - neo4j_plugins:/plugins
       - neo4j_import:/var/lib/neo4j/import
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"]
+      # Probe Bolt + auth with cypher-shell so dependent services only start
+      # once the DB is actually query-ready (not just HTTP listener alive).
+      test:
+        - "CMD-SHELL"
+        - "cypher-shell -u neo4j -p \"$${NEO4J_PASSWORD}\" 'RETURN 1' || exit 1"
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 15
       start_period: 30s
     deploy:
       resources:

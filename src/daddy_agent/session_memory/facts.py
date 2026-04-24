@@ -25,6 +25,7 @@ __all__ = [
     "Fact",
     "FactStore",
     "InMemoryFactStore",
+    "attach_fact_store",
     "invalidate_fact",
     "query_fact_history",
     "store_fact",
@@ -91,6 +92,34 @@ class InMemoryFactStore:
         ]
 
 
+def attach_fact_store(backend: object, store: FactStore | None = None) -> FactStore:
+    """Return a ``FactStore`` attached to ``backend``.
+
+    The real ``AgentMemoryClient`` must implement both :class:`MemoryBackend`
+    (for lifecycle calls) *and* :class:`FactStore` (for temporal facts).  Use
+    this helper to get a store from a backend that already implements the
+    protocol, or to bolt an :class:`InMemoryFactStore` onto a plain
+    :class:`FakeMemoryBackend` for tests without duplicating state.
+
+    The returned store is also memoised on the backend so repeated calls
+    during a session see a single shared store.
+    """
+
+    existing = getattr(backend, "_fact_store", None)
+    if isinstance(existing, FactStore):
+        return existing
+    if isinstance(backend, FactStore):
+        return backend
+    resolved = store if store is not None else InMemoryFactStore()
+    try:
+        setattr(backend, "_fact_store", resolved)
+    except (AttributeError, TypeError):
+        # Some backends (e.g. frozen dataclasses) reject attribute sets; that's
+        # fine — the caller just won't get memoisation.
+        pass
+    return resolved
+
+
 def _now() -> datetime:
     return datetime.now(tz=UTC)
 
@@ -149,4 +178,11 @@ def query_fact_history(
     ``valid_until`` if they only want the currently-valid entry.
     """
 
-    return sorted(store.list_facts(subject, predicate), key=lambda f: f.valid_from)
+    # Secondary sort by id so two facts with identical valid_from
+    # still return in a stable, reproducible order — important for the
+    # real Neo4j backend (Cypher has no implicit ordering) and for test
+    # assertions that round-trip timestamps at whole-second precision.
+    return sorted(
+        store.list_facts(subject, predicate),
+        key=lambda f: (f.valid_from, f.id),
+    )

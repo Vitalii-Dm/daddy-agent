@@ -46,6 +46,29 @@ DB_DEFAULTS: dict[str, str] = {
     "memory": "agent_memory",
 }
 
+# Closed whitelist of Cypher labels accepted by the /api/graph `type` filter.
+# Mirrors the labels defined in PLAN-neo4j-knowledge-graphs.md for both
+# databases; anything outside this set is a 400 — see api_graph.
+ALLOWED_NODE_LABELS: frozenset[str] = frozenset(
+    {
+        # codebase graph
+        "File",
+        "Function",
+        "Class",
+        "Method",
+        "Module",
+        "Variable",
+        "Community",
+        # agent-memory graph
+        "Session",
+        "Message",
+        "Entity",
+        "Preference",
+        "ReasoningTrace",
+        "ToolCall",
+    }
+)
+
 
 def _resolve_db(db: str) -> str:
     """Translate a logical DB name (``codebase``/``memory``) to the real one."""
@@ -237,11 +260,16 @@ def create_app(
             where.append("n.community = $community")
             params["community"] = community
         if type:
-            # Label filter (cannot parametrise labels in Cypher, so we
-            # whitelist characters to avoid injection).
-            safe = "".join(c for c in type if c.isalnum() or c == "_")
-            if safe:
-                where.append(f"'{safe}' IN labels(n)")
+            # Cypher cannot parametrise labels, so we hard-gate the label
+            # against a closed whitelist.  Anything outside the set is a
+            # client error rather than a silent filter drop (or, worse, a
+            # future injection if the char-allowlist regresses).
+            if type not in ALLOWED_NODE_LABELS:
+                return JSONResponse(
+                    status_code=400,
+                    content={"error": f"unknown node label: {type}"},
+                )
+            where.append(f"'{type}' IN labels(n)")
         where_clause = ("WHERE " + " AND ".join(where)) if where else ""
         cypher = (
             f"MATCH (n) {where_clause} "
@@ -390,16 +418,32 @@ async def _ticker_iter(
 
 
 def _signature(factory: DriverFactory) -> str:
-    """Return a tiny signature reflecting DB state across both graphs."""
+    """Return a tiny signature reflecting DB state across both graphs.
+
+    Counts both nodes AND edges so that property edits that add/remove
+    relationships — the most common mutation in daily work — invalidate
+    the signature.  A count-only signature would miss rename events and
+    any same-count insert+delete pair.
+    """
     parts: list[str] = []
     for alias in ("codebase", "memory"):
         db = os.environ.get(DB_ENV_MAP[alias], DB_DEFAULTS[alias])
         try:
-            rows = _run(factory.get(), db, "MATCH (n) RETURN count(n) AS c")
-            c = rows[0]["c"] if rows else 0
+            rows = _run(
+                factory.get(),
+                db,
+                "MATCH (n) WITH count(n) AS nc "
+                "OPTIONAL MATCH ()-[r]->() "
+                "RETURN nc, count(r) AS ec",
+            )
+            if rows:
+                nc = rows[0].get("nc", 0)
+                ec = rows[0].get("ec", 0)
+            else:
+                nc = ec = 0
         except Exception:
-            c = -1
-        parts.append(f"{alias}:{c}")
+            nc = ec = -1
+        parts.append(f"{alias}:{nc}/{ec}")
     return "|".join(parts)
 
 

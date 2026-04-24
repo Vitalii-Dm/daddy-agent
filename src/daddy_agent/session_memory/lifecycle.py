@@ -17,11 +17,15 @@ The real backend is :mod:`neo4j_agent_memory`; callers depend only on the
 
 from __future__ import annotations
 
+import logging
 import threading
+import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Protocol, runtime_checkable
+
+log = logging.getLogger(__name__)
 
 __all__ = [
     "ContextBundle",
@@ -31,6 +35,7 @@ __all__ = [
     "ToolCallLog",
     "cross_agent_query",
     "end_session",
+    "flush",
     "log_message",
     "log_reasoning",
     "pull_context",
@@ -247,25 +252,59 @@ def _now() -> datetime:
     return datetime.now(tz=UTC)
 
 
+# Tracks every in-flight fire-and-forget write so end_session / flush can
+# drain them before the process exits — daemon threads are killed abruptly
+# at interpreter shutdown (CPython doc), silently dropping the last few
+# writes otherwise.
+_IN_FLIGHT_LOCK = threading.Lock()
+_IN_FLIGHT: set[threading.Thread] = set()
+
+
 def _fire_and_forget(target: Any, /, **kwargs: Any) -> None:
     """Run ``target(**kwargs)`` on a daemon thread.
 
-    We deliberately do **not** await the result. If the call explodes the
-    exception is swallowed — the alternative is blocking the agent's main loop
-    on a flaky Neo4j connection, which the plan explicitly forbids
-    ("Message storage latency under 100ms", "async, non-blocking").
+    We deliberately do **not** block the caller — writes are async per the
+    plan's "Message storage latency under 100ms" budget.  However we DO
+    keep the thread registered and log exceptions, so that:
+
+      * :func:`flush` can join pending writes before shutdown or session end;
+      * failures are never silent — the stdlib ``logging`` module records
+        them with a full traceback via ``logger.exception``.
     """
 
     def _run() -> None:
         try:
             target(**kwargs)
-        except Exception:  # pragma: no cover - defensive
-            # Intentional: logging would require a logger dependency and the
-            # plan says writes must be non-blocking.
-            pass
+        except Exception:
+            log.exception("async memory write failed: %s", target)
+        finally:
+            with _IN_FLIGHT_LOCK:
+                _IN_FLIGHT.discard(threading.current_thread())
 
     t = threading.Thread(target=_run, daemon=True)
+    with _IN_FLIGHT_LOCK:
+        _IN_FLIGHT.add(t)
     t.start()
+
+
+def flush(timeout: float = 2.0) -> int:
+    """Wait up to ``timeout`` seconds for pending async writes to complete.
+
+    Returns the number of writes that did NOT finish within the budget — 0
+    means everything drained cleanly.  Callers that care about durability
+    (session end, process shutdown) should invoke this explicitly.
+    """
+
+    deadline = time.monotonic() + timeout
+    with _IN_FLIGHT_LOCK:
+        threads = list(_IN_FLIGHT)
+    for t in threads:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        t.join(timeout=remaining)
+    with _IN_FLIGHT_LOCK:
+        return sum(1 for t in _IN_FLIGHT if t.is_alive())
 
 
 def start_session(
@@ -309,6 +348,11 @@ def end_session(handle: SessionHandle, summary: str | None = None) -> None:
 
     if handle.closed:
         return
+    # Drain any in-flight log_message / log_reasoning calls before the
+    # backend records the session as closed.  Without this, fire-and-forget
+    # writes scheduled in the final milliseconds of the session can be
+    # lost when the process exits.
+    flush(timeout=2.0)
     resolved = summary if summary is not None else f"Session for task: {handle.task}"
     handle.backend.end_session(session_id=handle.session_id, summary=resolved)
     handle.closed = True

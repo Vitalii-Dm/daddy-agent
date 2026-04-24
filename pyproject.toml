@@ -26,7 +26,7 @@ dependencies = [
     "tree-sitter>=0.21",
     "tree-sitter-language-pack>=0.6",
     # Session memory library (ships with 16 MCP tools when [mcp] extra installed)
-    "neo4j-agent-memory[mcp]",
+    "neo4j-agent-memory[mcp]>=0.1.0",
     # Entity extraction pipeline
     "spacy>=3.7",
     "gliner>=0.2",
@@ -49,11 +49,11 @@ dev = [
 ]
 
 [project.scripts]
-daddy-index = "daddy_agent.index:main"
-daddy-mcp-codebase = "daddy_agent.mcp_codebase:main"
-daddy-mcp-memory = "daddy_agent.mcp_memory:main"
-daddy-viz = "daddy_agent.viz:main"
-daddy-export = "daddy_agent.export:main"
+daddy-index = "daddy_agent.codebase_graph.indexer:main"
+daddy-install-git-hook = "daddy_agent.codebase_graph.git_hooks:main"
+daddy-mcp-codebase = "daddy_agent.codebase_mcp.__main__:main"
+daddy-viz = "daddy_agent.viz.__main__:main"
+daddy-export = "daddy_agent.viz.obsidian_export:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/daddy_agent"]

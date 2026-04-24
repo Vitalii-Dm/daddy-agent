@@ -125,27 +125,37 @@ def validate_read_only_cypher(query: str) -> ValidationResult:
     if not isinstance(query, str) or not query.strip():
         return ValidationResult(False, "empty query")
 
-    stripped = _strip_noise(query)
+    # Two views of the query:
+    #   ``with_backticks`` = comments + strings stripped, backticks PRESERVED.
+    #   ``stripped``       = backticks also replaced with a placeholder.
+    # Procedure / mutation checks run against ``with_backticks`` so that
+    # ``CALL `apoc.create.node`(...)`` cannot slip through by being quoted
+    # — some Neo4j versions resolve backticked procedure identifiers.
+    with_backticks = _STRING_LITERAL_RE.sub(
+        "''",
+        _LINE_COMMENT_RE.sub(
+            " ",
+            _BLOCK_COMMENT_RE.sub(" ", query),
+        ),
+    )
+    stripped = _BACKTICK_IDENT_RE.sub("`ident`", with_backticks)
     upper = stripped.upper()
 
-    # 1. forbidden keywords as standalone tokens
+    # 1. forbidden keywords as standalone tokens (on the backtick-stripped
+    #    view so quoted keywords in identifiers are not flagged).
     for word_match in _WORD_RE.finditer(stripped):
         token = word_match.group(0)
         head = token.split(".", 1)[0].upper()
         if head in FORBIDDEN_KEYWORDS:
-            # Allow ``ON CREATE SET`` / ``ON MATCH SET`` detection — both still
-            # mutate, so we keep rejecting.  SET is already forbidden.  The
-            # keyword list above is intentionally conservative.
             return ValidationResult(
                 False, f"forbidden keyword: {head}"
             )
 
-    # 2. forbidden procedure substrings (CALL apoc.create.node, etc.)
-    lowered = stripped.lower()
-    # Normalise whitespace between ``CALL`` and the procedure name so that
-    # ``CALL   apoc.create.node()`` still triggers.
+    # 2. forbidden procedure substrings (CALL apoc.create.node, etc.).
+    #    Scan the backticked form too so CALL `apoc.create.node` is caught.
+    lowered = with_backticks.lower()
     call_proc_re = re.compile(
-        r"\bcall\s+((?:apoc|gds|db|dbms)\.[a-zA-Z0-9_.]+)",
+        r"\bcall\s+`?\s*((?:apoc|gds|db|dbms)\.[a-zA-Z0-9_.]+)",
         re.IGNORECASE,
     )
     for match in call_proc_re.finditer(lowered):
@@ -156,10 +166,18 @@ def validate_read_only_cypher(query: str) -> ValidationResult:
                     False, f"forbidden procedure: {proc}"
                 )
 
-    # Also guard against bare ``apoc.create.node(...)`` used as a function
-    # expression (APOC has both forms).
+    # Defence in depth: any bare reference to a known-mutating procedure
+    # needle anywhere in the query, under any namespace we care about.
+    _mutating_prefixes = ("apoc.", "gds.", "db.", "dbms.")
     for needle in FORBIDDEN_PROCEDURE_SUBSTRINGS:
-        if needle in lowered and needle.startswith(("apoc.", "gds.", "db.")):
+        if needle not in lowered:
+            continue
+        # ``.write`` and ``mutate`` have no namespace prefix; accept them
+        # wherever they land.  Namespaced needles still require a known
+        # prefix appearance.
+        if needle.startswith(_mutating_prefixes) or not any(
+            needle.startswith(p) for p in _mutating_prefixes
+        ):
             return ValidationResult(
                 False, f"forbidden procedure reference: {needle}"
             )

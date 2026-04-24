@@ -339,7 +339,13 @@ def build_mcp(graph: CodebaseGraph) -> Any:
     importable in environments that only care about the query layer
     (e.g. unit tests).  The SDK is a declared runtime dependency.
     """
-    from mcp.server.fastmcp import FastMCP  # type: ignore[import-not-found]
+    try:
+        from mcp.server.fastmcp import FastMCP  # type: ignore[import-not-found]
+    except ImportError as exc:  # pragma: no cover - env-dependent
+        raise RuntimeError(
+            "The `mcp` SDK is required to run the codebase MCP server. "
+            "Install it with: pip install 'mcp>=0.9'"
+        ) from exc
 
     mcp = FastMCP("codebase-graph")
 
@@ -438,7 +444,13 @@ class ServerConfig:
 
 def build_graph_from_env(env: dict[str, str] | None = None) -> CodebaseGraph:
     """Create a :class:`CodebaseGraph` configured from environment vars."""
-    from neo4j import GraphDatabase  # type: ignore[import-not-found]
+    try:
+        from neo4j import GraphDatabase  # type: ignore[import-not-found]
+    except ImportError as exc:  # pragma: no cover - env-dependent
+        raise RuntimeError(
+            "The `neo4j` driver is required to connect to the codebase graph. "
+            "Install it with: pip install 'neo4j>=5.15'"
+        ) from exc
 
     cfg = ServerConfig.from_env(env)
     driver: Driver = GraphDatabase.driver(
