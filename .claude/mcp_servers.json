@@ -1,0 +1,31 @@
+{
+  "mcpServers": {
+    "codebase-graph": {
+      "command": "python",
+      "args": ["-m", "daddy_agent.codebase_mcp"],
+      "env": {
+        "NEO4J_URI": "${NEO4J_URI}",
+        "NEO4J_USER": "${NEO4J_USER}",
+        "NEO4J_PASSWORD": "${NEO4J_PASSWORD}",
+        "NEO4J_DATABASE": "codebase"
+      }
+    },
+    "agent-memory": {
+      "command": "uvx",
+      "args": [
+        "neo4j-agent-memory[mcp]",
+        "mcp",
+        "serve",
+        "--password",
+        "${NEO4J_PASSWORD}"
+      ],
+      "env": {
+        "OPENAI_API_KEY": "${OPENAI_API_KEY}",
+        "NAM_NEO4J__URI": "${NEO4J_URI}",
+        "NAM_NEO4J__USER": "${NEO4J_USER}",
+        "NAM_NEO4J__PASSWORD": "${NEO4J_PASSWORD}",
+        "NAM_NEO4J__DATABASE": "agent_memory"
+      }
+    }
+  }
+}
