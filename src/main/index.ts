@@ -20,21 +20,48 @@ process.env.UV_THREADPOOL_SIZE ??= '16';
 // from PATH, which makes the Claude CLI resolver fail with "Claude CLI not
 // found". Probe the well-known install locations early and pin
 // CLAUDE_CLI_PATH so the resolver short-circuits on the override branch.
-if (!process.env.CLAUDE_CLI_PATH) {
+// IMPORTANT: Skip this when multimodelEnabled is true — the orchestrator
+// binary (claude-multimodel) has its own resolution path, and setting
+// CLAUDE_CLI_PATH to the regular CLI would bypass it entirely.
+if (!process.env.CLAUDE_CLI_PATH && !process.env.CLAUDE_AGENT_TEAMS_ORCHESTRATOR_CLI_PATH) {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const fsSync = require('node:fs');
-  for (const candidate of [
-    '/opt/homebrew/bin/claude',
-    '/usr/local/bin/claude',
-    `${process.env.HOME ?? ''}/.local/bin/claude`,
-    `${process.env.HOME ?? ''}/.npm-global/bin/claude`,
-  ]) {
-    try {
-      fsSync.accessSync(candidate, fsSync.constants.X_OK);
-      process.env.CLAUDE_CLI_PATH = candidate;
-      break;
-    } catch {
-      // try next
+  // Check for claude-multimodel in runtime-cache first
+  const home = process.env.HOME ?? '';
+  const runtimeCacheDir = `${home}/.agent-teams/runtime-cache`;
+  let foundOrchestrator = false;
+  try {
+    const versions = fsSync.readdirSync(runtimeCacheDir) as string[];
+    const arch = process.arch === 'arm64' ? 'darwin-arm64' : 'darwin-x64';
+    for (const version of versions.sort().reverse()) {
+      const candidate = `${runtimeCacheDir}/${version}/${arch}/claude-multimodel`;
+      try {
+        fsSync.accessSync(candidate, fsSync.constants.X_OK);
+        process.env.CLAUDE_AGENT_TEAMS_ORCHESTRATOR_CLI_PATH = candidate;
+        foundOrchestrator = true;
+        break;
+      } catch {
+        // try next version
+      }
+    }
+  } catch {
+    // runtime-cache doesn't exist
+  }
+  // Fallback: set CLAUDE_CLI_PATH for regular CLI resolution
+  if (!foundOrchestrator) {
+    for (const candidate of [
+      '/opt/homebrew/bin/claude',
+      '/usr/local/bin/claude',
+      `${home}/.local/bin/claude`,
+      `${home}/.npm-global/bin/claude`,
+    ]) {
+      try {
+        fsSync.accessSync(candidate, fsSync.constants.X_OK);
+        process.env.CLAUDE_CLI_PATH = candidate;
+        break;
+      } catch {
+        // try next
+      }
     }
   }
 }

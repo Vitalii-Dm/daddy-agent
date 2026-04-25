@@ -5,6 +5,8 @@ import type { InboxMessage } from '@shared/types/team';
 import { useStore } from '@renderer/store';
 import { stripAgentBlocks } from '@shared/constants/agentBlocks';
 
+import { GlassButton } from '@renderer/components/ui/GlassButton';
+
 import { LiquidGlass } from '../LiquidGlass';
 import { Mascot, inferMascotRole } from '../Mascot';
 
@@ -21,15 +23,18 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
   const listRef = useRef<HTMLDivElement | null>(null);
 
   const rawMessages = useStore((s) => s.selectedTeamData?.messages ?? []);
+  const members = useStore((s) => s.selectedTeamData?.members ?? []);
   const sendTeamMessage = useStore((s) => s.sendTeamMessage);
   const sendingMessage = useStore((s) => s.sendingMessage);
+
+  // Resolve actual lead member name (e.g. "team-lead") instead of hardcoded "lead"
+  const leadMemberName = members.find((m) => m.agentType === 'team-lead')?.name ?? 'team-lead';
 
   // The team data pipeline emits messages newest-first (TeamDataService.ts and
   // TeamInboxReader.ts both sort that way). For a chat-style transcript we
   // want oldest-at-top, newest-at-bottom — flip the local copy so render +
   // scroll-to-bottom give the expected reading order.
   const messages = useMemo(() => [...rawMessages].reverse(), [rawMessages]);
-
   useEffect(() => {
     const el = listRef.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -39,14 +44,14 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
     const trimmed = text.trim();
     if (!trimmed || sendingMessage) return;
     void sendTeamMessage(teamName, {
-      member: 'lead',
+      member: leadMemberName,
       text: trimmed,
       from: 'user',
       source: 'user_sent',
     });
     setText('');
     inputRef.current?.focus();
-  }, [text, sendingMessage, sendTeamMessage, teamName]);
+  }, [text, sendingMessage, sendTeamMessage, teamName, leadMemberName]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -59,10 +64,14 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
   );
 
   return (
-    <LiquidGlass radius={26} className="flex flex-col overflow-hidden" style={{ maxHeight: 360 }}>
-      {/* Header */}
+    <LiquidGlass
+      radius={26}
+      className="flex h-full min-h-0 flex-col overflow-hidden"
+      style={{ flex: '1 1 auto' }}
+    >
+      {/* Header — sticky chat label row */}
       <div
-        className="flex shrink-0 items-center justify-between border-b px-4 py-3"
+        className="sticky top-0 z-10 flex shrink-0 items-center justify-between border-b px-4 py-3"
         style={{ borderColor: 'var(--glass-shade)' }}
       >
         <div className="flex items-center gap-2">
@@ -84,11 +93,11 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
         </span>
       </div>
 
-      {/* Message list — anchored at the start; scroll on hover via wheel. */}
+      {/* Message list — only this scrolls. */}
       <div
         ref={listRef}
         data-lenis-prevent
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3"
+        className="glass-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3"
       >
         {messages.length === 0 ? (
           <p className="py-4 text-center text-[12px] text-[color:var(--ink-3)]">
@@ -99,7 +108,12 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
             {messages
               .filter((msg) => {
                 if (typeof msg.text !== 'string') return true;
-                return stripAgentBlocks(msg.text).trim().length > 0;
+                const text = msg.text;
+                // Hide internal system messages: idle notifications, JSON payloads, etc.
+                if (text.startsWith('{') && text.includes('"type"')) return false;
+                // Hide messages that are only agent blocks (internal instructions)
+                if (stripAgentBlocks(text).trim().length === 0) return false;
+                return true;
               })
               .map((msg, idx) => (
                 <ChatBubble key={msg.messageId ?? `msg-${idx}`} msg={msg} />
@@ -108,9 +122,9 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
         )}
       </div>
 
-      {/* Composer */}
+      {/* Composer — sticky at panel bottom */}
       <div
-        className="flex shrink-0 items-center gap-2 border-t px-3 py-2.5"
+        className="sticky bottom-0 z-10 flex shrink-0 items-center gap-2 border-t px-3 py-2.5"
         style={{ borderColor: 'var(--glass-shade)' }}
       >
         <input
@@ -128,13 +142,13 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
           disabled={!text.trim() || sendingMessage}
           onClick={handleSend}
           aria-label="Send message"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white transition-opacity disabled:opacity-40"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full text-white transition-opacity disabled:opacity-40"
           style={{
             background: 'linear-gradient(135deg, var(--a-violet) 0%, var(--a-cyan) 100%)',
           }}
         >
-          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
-            <path d="M1 12L12 6.5 1 1v4l8 1.5-8 1.5v4z" fill="currentColor" />
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M2.5 2.1a.5.5 0 0 1 .7-.4l10 5a.5.5 0 0 1 0 .9l-10 5a.5.5 0 0 1-.7-.5V9.5L8.3 8 2.5 6.5V2.1Z" />
           </svg>
         </button>
       </div>
