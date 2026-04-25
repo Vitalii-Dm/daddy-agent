@@ -143,7 +143,7 @@ export const KanbanGlass = ({
     >
       <LiquidGlass
         radius={26}
-        className="relative flex min-h-0 w-full flex-col gap-4 overflow-hidden p-4 sm:p-5"
+        className="relative flex h-full min-h-[400px] w-full flex-col gap-4 overflow-hidden p-4 sm:p-5"
       >
         {isEmpty && (
           <p className="px-1 pb-1 text-[12px] text-[color:var(--ink-3)]">
@@ -151,20 +151,37 @@ export const KanbanGlass = ({
           </p>
         )}
         <div
-          className="glass-scroll flex min-h-0 w-full snap-x gap-4 overflow-x-auto pb-2"
-          style={{ scrollSnapType: 'x mandatory', overscrollBehavior: 'contain' }}
+          className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden pb-2"
+          style={{ overscrollBehavior: 'contain' }}
         >
-          {COLUMNS.map((col) => (
-            <Column
-              key={col.id}
-              def={col}
-              cards={grouped[col.id]}
-              activeId={activeId}
-              realTasks={realTasks}
-              onTaskClick={onTaskClick}
-              onCreateTask={onCreateTask}
-            />
-          ))}
+          {/* Top row: 2 columns */}
+          <div className="flex min-h-0 flex-1 basis-0 gap-3">
+            {COLUMNS.slice(0, 2).map((col) => (
+              <Column
+                key={col.id}
+                def={col}
+                cards={grouped[col.id]}
+                activeId={activeId}
+                realTasks={realTasks}
+                onTaskClick={onTaskClick}
+                onCreateTask={onCreateTask}
+              />
+            ))}
+          </div>
+          {/* Bottom row: 3 columns */}
+          <div className="flex min-h-0 flex-1 basis-0 gap-3">
+            {COLUMNS.slice(2).map((col) => (
+              <Column
+                key={col.id}
+                def={col}
+                cards={grouped[col.id]}
+                activeId={activeId}
+                realTasks={realTasks}
+                onTaskClick={onTaskClick}
+                onCreateTask={onCreateTask}
+              />
+            ))}
+          </div>
         </div>
       </LiquidGlass>
 
@@ -196,8 +213,8 @@ const Column = ({
   return (
     <div
       ref={setNodeRef}
-      className="relative flex h-full w-[300px] shrink-0 snap-start flex-col rounded-[20px] border border-white/55 bg-white/35 p-3"
-      style={{ scrollSnapAlign: 'start', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.85)' }}
+      className="relative flex h-full min-w-0 flex-1 flex-col rounded-[20px] border border-white/55 bg-white/35 p-3"
+      style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.85)' }}
     >
       <header className="mb-3 flex items-center justify-between px-1">
         <div className="flex items-center gap-2">

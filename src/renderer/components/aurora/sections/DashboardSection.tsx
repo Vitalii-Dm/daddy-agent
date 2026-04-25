@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -22,6 +22,7 @@ import { AgentRoster } from '../dashboard/AgentRoster';
 import { AuroraReviewDiffDialog } from '../dashboard/AuroraReviewDiffDialog';
 import { DashboardChat } from '../dashboard/DashboardChat';
 import { KanbanGlass } from '../dashboard/KanbanGlass';
+import { TeamSelectionGrid } from '../dashboard/TeamSelectionGrid';
 import { isTradersTeam, TradersDashboard } from '../dashboard/TradersDashboard';
 import { LiquidGlass } from '../LiquidGlass';
 import { useAuroraTeam } from '../hooks/useAuroraTeam';
@@ -39,7 +40,14 @@ const APPLE_EASE = [0.22, 1, 0.36, 1] as const;
 // horizontal scrollbar at the document level. Side panels stick to top: 88px
 // once the user scrolls past the header.
 export const DashboardSection = (): React.JSX.Element => {
-  const { teamName, members, runningCount, totalCount, isAlive } = useAuroraTeam();
+  const { teamName: auroraTeamName, members, runningCount, totalCount, isAlive } = useAuroraTeam();
+  const selectedTeamName = useStore((s) => s.selectedTeamName);
+  const teamName = selectedTeamName ? auroraTeamName : null;
+
+  const deselectTeam = useCallback(() => {
+    useStore.setState({ selectedTeamName: null, selectedTeamData: null });
+  }, []);
+
   const tasks = useStore((s) => s.selectedTeamData?.tasks ?? []);
   const messages = useStore((s) => s.selectedTeamData?.messages ?? []);
   const createTeamTask = useStore((s) => s.createTeamTask);
@@ -228,53 +236,68 @@ export const DashboardSection = (): React.JSX.Element => {
             onNewTeam={() => setCreateTeamOpen(true)}
             onSendMessage={() => setSendDialogOpen(true)}
             onTrash={teamName ? () => setTrashOpen(true) : undefined}
+            onDeselectTeam={deselectTeam}
           />
 
-          {teamName && (
-            <div className="mt-6">
-              <TeamProvisioningPanel teamName={teamName} surface="raised" dismissible />
-            </div>
-          )}
-
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.15 }}
-            transition={{ duration: 0.65, ease: APPLE_EASE }}
-            className="mt-10 grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)_320px]"
-          >
-            <div className="lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-120px)] lg:overflow-y-auto lg:pr-1">
-              <AgentRoster
-                onMemberClick={handleMemberClick}
-                onSendMessage={(name) => {
-                  setSendDialogRecipient(name);
-                  setSendDialogOpen(true);
-                }}
-              />
-            </div>
-
-            <div className="min-w-0">
-              {isTradersTeam(teamName, members) ? (
-                <TradersDashboard members={members} />
-              ) : (
-                <KanbanGlass
-                  filter={filter}
-                  view={view}
-                  onTaskClick={(task) => setSelectedTask(task)}
-                  onCreateTask={() => setCreateTaskOpen(true)}
-                />
-              )}
-            </div>
-
-            <div className="flex min-h-0 flex-col gap-4 lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-120px)] lg:pl-1">
-              <ActivityStream onSendMessage={handleSendMessageFromActivity} maxItems={4} />
-              {teamName ? (
-                <div className="min-h-0 flex-1">
-                  <DashboardChat teamName={teamName} />
+          {!teamName ? (
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.15 }}
+              transition={{ duration: 0.65, ease: APPLE_EASE }}
+              className="mt-10"
+            >
+              <TeamSelectionGrid />
+            </motion.div>
+          ) : (
+            <>
+              {teamName && (
+                <div className="mt-6">
+                  <TeamProvisioningPanel teamName={teamName} surface="raised" dismissible />
                 </div>
-              ) : null}
-            </div>
-          </motion.div>
+              )}
+
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.15 }}
+                transition={{ duration: 0.65, ease: APPLE_EASE }}
+                className="mt-10 grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)_320px]"
+              >
+                <div className="lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-80px)] lg:overflow-y-auto lg:pr-1">
+                  <AgentRoster
+                    onMemberClick={handleMemberClick}
+                    onSendMessage={(name) => {
+                      setSendDialogRecipient(name);
+                      setSendDialogOpen(true);
+                    }}
+                  />
+                </div>
+
+                <div className="min-w-0">
+                  {isTradersTeam(teamName, members) ? (
+                    <TradersDashboard members={members} />
+                  ) : (
+                    <KanbanGlass
+                      filter={filter}
+                      view={view}
+                      onTaskClick={(task) => setSelectedTask(task)}
+                      onCreateTask={() => setCreateTaskOpen(true)}
+                    />
+                  )}
+                </div>
+
+                <div className="flex min-h-0 flex-col gap-4 lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-80px)] lg:pl-1">
+                  <ActivityStream onSendMessage={handleSendMessageFromActivity} maxItems={4} />
+                  {teamName ? (
+                    <div className="min-h-0 flex-1">
+                      <DashboardChat teamName={teamName} />
+                    </div>
+                  ) : null}
+                </div>
+              </motion.div>
+            </>
+          )}
         </motion.div>
       </section>
 
@@ -437,6 +460,7 @@ interface DashboardHeaderProps {
   onNewTeam: () => void;
   onSendMessage: () => void;
   onTrash?: () => void;
+  onDeselectTeam?: () => void;
 }
 
 const DashboardHeader = ({
@@ -452,11 +476,26 @@ const DashboardHeader = ({
   onNewTeam,
   onSendMessage,
   onTrash,
+  onDeselectTeam,
 }: DashboardHeaderProps): React.JSX.Element => (
   <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
     <div className="min-w-0 max-w-[640px]">
       <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-[color:var(--ink-3)]">
-        {teamName ?? 'No team selected'}
+        {teamName ? (
+          <>
+            <button
+              type="button"
+              onClick={onDeselectTeam}
+              className="transition-colors hover:text-[color:var(--ink-1)] focus-visible:outline-none"
+            >
+              Teams
+            </button>
+            {' / '}
+            {teamName}
+          </>
+        ) : (
+          'No team selected'
+        )}
       </p>
       <h2
         className="mt-3 whitespace-normal break-words font-serif font-normal text-[color:var(--ink-1)]"
