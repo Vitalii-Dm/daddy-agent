@@ -14,7 +14,7 @@ import { cn } from '@renderer/lib/utils';
 // Hover lifts ~1.5%, brightens the inner specular, deepens the shadow.
 // Active sinks ~1.5% with an inset shadow. Same interaction language
 // across every variant.
-export type GlassButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'mono';
+export type GlassButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'mono' | 'danger';
 
 type GlassButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: GlassButtonVariant;
@@ -44,6 +44,11 @@ const variants: Record<GlassButtonVariant, string> = {
   secondary: 'text-[color:var(--ink-1)] [background:rgba(61,198,255,0.18)]',
   tertiary: 'text-[color:var(--ink-1)] [background:var(--glass-fill)]',
   mono: 'text-[color:var(--ink-2)] [background:var(--glass-fill-lo)]',
+  danger:
+    'text-white [background:linear-gradient(135deg,#ef4444_0%,#dc2626_100%)] ' +
+    'border-red-400/50 ' +
+    'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.25),0_10px_30px_-10px_rgba(239,68,68,0.4),0_2px_6px_-2px_rgba(20,19,26,0.08)] ' +
+    'hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.35),0_14px_36px_-10px_rgba(239,68,68,0.5),0_2px_6px_-2px_rgba(20,19,26,0.08)]',
 };
 
 export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(

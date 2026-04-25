@@ -21,8 +21,12 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
   const listRef = useRef<HTMLDivElement | null>(null);
 
   const messages = useStore((s) => s.selectedTeamData?.messages ?? []);
+  const members = useStore((s) => s.selectedTeamData?.members ?? []);
   const sendTeamMessage = useStore((s) => s.sendTeamMessage);
   const sendingMessage = useStore((s) => s.sendingMessage);
+
+  // Resolve actual lead member name (e.g. "team-lead") instead of hardcoded "lead"
+  const leadMemberName = members.find((m) => m.agentType === 'team-lead')?.name ?? 'team-lead';
 
   // Anchor the panel at the start of the chat (oldest messages visible first).
   // The user scrolls down manually; we don't pin to the bottom on new messages.
@@ -35,14 +39,14 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
     const trimmed = text.trim();
     if (!trimmed || sendingMessage) return;
     void sendTeamMessage(teamName, {
-      member: 'lead',
+      member: leadMemberName,
       text: trimmed,
       from: 'user',
       source: 'user_sent',
     });
     setText('');
     inputRef.current?.focus();
-  }, [text, sendingMessage, sendTeamMessage, teamName]);
+  }, [text, sendingMessage, sendTeamMessage, teamName, leadMemberName]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -95,7 +99,12 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
             {messages
               .filter((msg) => {
                 if (typeof msg.text !== 'string') return true;
-                return stripAgentBlocks(msg.text).trim().length > 0;
+                const text = msg.text;
+                // Hide internal system messages: idle notifications, JSON payloads, etc.
+                if (text.startsWith('{') && text.includes('"type"')) return false;
+                // Hide messages that are only agent blocks (internal instructions)
+                if (stripAgentBlocks(text).trim().length === 0) return false;
+                return true;
               })
               .map((msg, idx) => (
                 <ChatBubble key={msg.messageId ?? `msg-${idx}`} msg={msg} />
