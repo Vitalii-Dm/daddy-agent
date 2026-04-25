@@ -5849,6 +5849,12 @@ export class TeamProvisioningService {
     // SIGKILL: newer Claude CLI versions handle SIGTERM gracefully and delete
     // team files during cleanup. SIGKILL is uncatchable — files are preserved.
     killTeamProcess(run.child);
+    // Also kill any teammate processes that were spawned by the lead
+    try {
+      this.stopPersistentTeamMembers(run.teamName);
+    } catch {
+      /* best-effort */
+    }
     const progress = updateProgress(run, 'cancelled', 'Provisioning cancelled by user');
     run.onProgress(progress);
     this.cleanupRun(run);
