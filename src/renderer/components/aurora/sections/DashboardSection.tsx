@@ -42,7 +42,12 @@ const APPLE_EASE = [0.22, 1, 0.36, 1] as const;
 export const DashboardSection = (): React.JSX.Element => {
   const { teamName: auroraTeamName, members, runningCount, totalCount, isAlive } = useAuroraTeam();
   const selectedTeamName = useStore((s) => s.selectedTeamName);
-  const teamName = selectedTeamName ? auroraTeamName : null;
+  // Gate dashboard rendering on the selection state itself, not on the cached
+  // config.name. CLI-created teams often have no `config.name` field, in which
+  // case auroraTeamName is null and the dashboard never replaces the grid.
+  const teamName = selectedTeamName;
+  const teamDisplayName = auroraTeamName ?? selectedTeamName;
+
   const tasks = useStore((s) => s.selectedTeamData?.tasks ?? []);
   const messages = useStore((s) => s.selectedTeamData?.messages ?? []);
   const createTeamTask = useStore((s) => s.createTeamTask);
@@ -237,6 +242,7 @@ export const DashboardSection = (): React.JSX.Element => {
         >
           <DashboardHeader
             teamName={teamName}
+            teamDisplayName={teamDisplayName}
             runningCount={runningCount}
             totalCount={totalCount}
             isAlive={isAlive}
@@ -459,6 +465,7 @@ export const DashboardSection = (): React.JSX.Element => {
 
 interface DashboardHeaderProps {
   teamName: string | null;
+  teamDisplayName: string | null;
   runningCount: number;
   totalCount: number;
   isAlive: boolean;
@@ -478,6 +485,7 @@ interface DashboardHeaderProps {
 
 const DashboardHeader = ({
   teamName,
+  teamDisplayName,
   runningCount,
   totalCount,
   isAlive,
@@ -503,7 +511,7 @@ const DashboardHeader = ({
       >
         {teamName ? (
           <>
-            <span className="opacity-60">Teams /</span> {teamName}
+            <span className="opacity-60">Teams /</span> {teamDisplayName ?? teamName}
           </>
         ) : (
           'Select a team'

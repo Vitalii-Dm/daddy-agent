@@ -2223,6 +2223,8 @@ export class TeamProvisioningService {
   private readonly launchStateStore = new TeamLaunchStateStore();
   private readonly memberLogsFinder: TeamMemberLogsFinder;
   private teamChangeEmitter: ((event: TeamChangeEvent) => void) | null = null;
+  /** Optional codebase-graph indexer trigger; populated by main/index.ts. */
+  private codebaseIndexerTrigger: ((projectRoot: string) => void) | null = null;
   private helpOutputCache: string | null = null;
   private helpOutputCacheTime = 0;
   private static readonly HELP_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -2401,6 +2403,16 @@ export class TeamProvisioningService {
 
   setTeamChangeEmitter(emitter: ((event: TeamChangeEvent) => void) | null): void {
     this.teamChangeEmitter = emitter;
+  }
+
+  /**
+   * Wire a callback that runs the codebase-graph indexer for a project root.
+   * Invoked at the end of team launch so the knowledge graph reflects the
+   * project the team is actually working in. Best-effort — failures inside
+   * the trigger should not block launch.
+   */
+  setCodebaseIndexerTrigger(trigger: ((projectRoot: string) => void) | null): void {
+    this.codebaseIndexerTrigger = trigger;
   }
 
   private parseCrossTeamRecipient(
@@ -3928,16 +3940,45 @@ export class TeamProvisioningService {
       return getAnthropicDefaultTeamModel(limitContext);
     }
 
-    const { stdout } = await execCli(claudePath, ['model', 'list', '--json', '--provider', 'all'], {
-      cwd,
-      env,
-      timeout: 10_000,
-    });
+    // `model list --json --provider all` only exists on the agent_teams_orchestrator
+    // (claude-multimodel) fork. On the upstream Claude CLI the call exits with
+    // `error: unknown option '--json'`, which used to bubble up as the raw
+    // subprocess error during team creation. Detect that case explicitly and
+    // surface a clearer, user-actionable message; the caller maps null →
+    // "Select an explicit model and retry".
+    let stdout: string;
+    try {
+      ({ stdout } = await execCli(claudePath, ['model', 'list', '--json', '--provider', 'all'], {
+        cwd,
+        env,
+        timeout: 10_000,
+      }));
+    } catch (error) {
+      if (this.isCliFlagUnsupportedError(error)) {
+        logger.info(
+          `[resolveProviderDefaultModel] ${providerId}: CLI lacks multimodel introspection ` +
+            `(plain claude vs claude-multimodel) — caller will request explicit model.`
+        );
+        return null;
+      }
+      throw error;
+    }
     const parsed = extractJsonObjectFromCli<ProviderModelListCommandResponse>(stdout);
     const defaultModel = parsed.providers?.[providerId]?.defaultModel;
     return typeof defaultModel === 'string' && defaultModel.trim().length > 0
       ? defaultModel.trim()
       : null;
+  }
+
+  private isCliFlagUnsupportedError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error);
+    const lower = message.toLowerCase();
+    return (
+      lower.includes('unknown option') ||
+      lower.includes('unknown command') ||
+      lower.includes('no such command') ||
+      lower.includes('did you mean')
+    );
   }
 
   private async materializeEffectiveTeamMemberSpecs(params: {
@@ -10003,6 +10044,10 @@ export class TeamProvisioningService {
         logger.warn(`[${run.teamName}] post-reconnect relay failed: ${String(e)}`)
       );
 
+      // Refresh the knowledge-graph index for this team's project root so
+      // agents can immediately query an up-to-date graph.
+      this.triggerCodebaseIndexerForRun(run);
+
       // Solo teams have no teammate processes to resume work; kick off task execution
       // as a separate turn AFTER the launch is marked ready so the UI doesn't mix
       // long-running task output into the "Launching team" live output stream.
@@ -10170,12 +10215,32 @@ export class TeamProvisioningService {
     void this.relayLeadInboxMessages(run.teamName).catch((e: unknown) =>
       logger.warn(`[${run.teamName}] post-provisioning relay failed: ${String(e)}`)
     );
+
+    // Refresh the knowledge-graph index for this team's project root.
+    this.triggerCodebaseIndexerForRun(run);
+
     if (
       run.pendingGeminiPostLaunchHydration &&
       !run.geminiPostLaunchHydrationInFlight &&
       !run.cancelRequested
     ) {
       void this.injectGeminiPostLaunchHydration(run);
+    }
+  }
+
+  private triggerCodebaseIndexerForRun(run: ProvisioningRun): void {
+    const trigger = this.codebaseIndexerTrigger;
+    if (!trigger) return;
+    const root = run.request.cwd?.trim();
+    if (!root) return;
+    try {
+      trigger(root);
+    } catch (err) {
+      logger.warn(
+        `[${run.teamName}] codebase indexer trigger threw: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
     }
   }
 

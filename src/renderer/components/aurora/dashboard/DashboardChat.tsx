@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { InboxMessage } from '@shared/types/team';
 
@@ -22,7 +22,7 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
   const inputRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
 
-  const messages = useStore((s) => s.selectedTeamData?.messages ?? []);
+  const rawMessages = useStore((s) => s.selectedTeamData?.messages ?? []);
   const members = useStore((s) => s.selectedTeamData?.members ?? []);
   const sendTeamMessage = useStore((s) => s.sendTeamMessage);
   const sendingMessage = useStore((s) => s.sendingMessage);
@@ -30,12 +30,15 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
   // Resolve actual lead member name (e.g. "team-lead") instead of hardcoded "lead"
   const leadMemberName = members.find((m) => m.agentType === 'team-lead')?.name ?? 'team-lead';
 
-  // Anchor the panel at the start of the chat (oldest messages visible first).
-  // The user scrolls down manually; we don't pin to the bottom on new messages.
+  // The team data pipeline emits messages newest-first (TeamDataService.ts and
+  // TeamInboxReader.ts both sort that way). For a chat-style transcript we
+  // want oldest-at-top, newest-at-bottom — flip the local copy so render +
+  // scroll-to-bottom give the expected reading order.
+  const messages = useMemo(() => [...rawMessages].reverse(), [rawMessages]);
   useEffect(() => {
     const el = listRef.current;
-    if (el) el.scrollTop = 0;
-  }, []);
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages.length]);
 
   const handleSend = useCallback(() => {
     const trimmed = text.trim();
