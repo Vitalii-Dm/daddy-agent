@@ -68,6 +68,13 @@ export interface KGGraphRequest {
   community?: string;
   /** Summary-view only. Module fan-in cutoff for hub culling. */
   hubThreshold?: number;
+  /**
+   * Absolute filesystem path of the project to scope the graph to. The
+   * indexer writes this onto every node so multiple repos can cohabit one
+   * Neo4j DB; the renderer always sends the active project's path so the
+   * graph reflects the current workspace.
+   */
+  projectRoot?: string;
 }
 
 export interface KGGraphResponse {
@@ -82,6 +89,7 @@ export interface KGSearchRequest {
   db?: KGDatabase;
   q: string;
   limit?: number;
+  projectRoot?: string;
 }
 
 export interface KGSearchResponse {
@@ -93,6 +101,7 @@ export interface KGNeighborsRequest {
   db?: KGDatabase;
   /** 1..3 inclusive (clamped server-side). */
   depth?: number;
+  projectRoot?: string;
 }
 
 export interface KGNeighborsResponse {
@@ -127,3 +136,23 @@ export type KGEvent =
   | { kind: 'graph-updated'; signature: string; ts: number }
   | { kind: 'error'; error: string }
   | { kind: 'connection'; connected: boolean };
+
+/**
+ * Trigger an indexing pass against an arbitrary repo. The main process spawns
+ * `daddy-index <projectRoot>` and reports back when it exits. Used by the
+ * renderer's "Index this project" button when the active project has no
+ * graph yet.
+ */
+export interface KGReindexRequest {
+  projectRoot: string;
+  /** If true, ignore cached hashes and re-ingest every file. */
+  full?: boolean;
+}
+
+export interface KGReindexResult {
+  projectRoot: string;
+  exitCode: number;
+  /** Tail of stderr — useful for surfacing errors to the renderer. */
+  stderrTail: string;
+  durationMs: number;
+}

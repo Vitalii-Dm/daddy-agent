@@ -23,6 +23,7 @@ import {
   KNOWLEDGE_GRAPH_GET_HEALTH,
   KNOWLEDGE_GRAPH_NEIGHBORS,
   KNOWLEDGE_GRAPH_QUERY,
+  KNOWLEDGE_GRAPH_REINDEX,
   KNOWLEDGE_GRAPH_SEARCH,
   KNOWLEDGE_GRAPH_START,
   KNOWLEDGE_GRAPH_STOP,
@@ -37,12 +38,15 @@ import {
   type KGNeighborsRequest,
   type KGNeighborsResponse,
   type KGNodeLabel,
+  type KGReindexRequest,
+  type KGReindexResult,
   type KGSearchRequest,
   type KGSearchResponse,
 } from '@shared/types/knowledgeGraph';
 import { createLogger } from '@shared/utils/logger';
 import { BrowserWindow, type IpcMain, type IpcMainInvokeEvent } from 'electron';
 
+import type { KnowledgeGraphIndexer } from '../services/knowledgeGraph/KnowledgeGraphIndexer';
 import type { IKnowledgeGraphProxy, IPythonVizServer } from '../services/knowledgeGraph/types';
 import type { IpcResult } from '@shared/types/ipc';
 
@@ -183,6 +187,7 @@ export function validateKgNeighborsRequest(raw: unknown): ValidationResult<KGNei
 
 let pythonServer: IPythonVizServer | null = null;
 let kgProxy: IKnowledgeGraphProxy | null = null;
+let kgIndexer: KnowledgeGraphIndexer | null = null;
 let unsubscribeFromProxy: (() => void) | null = null;
 
 /**
@@ -191,10 +196,12 @@ let unsubscribeFromProxy: (() => void) | null = null;
  */
 export function initializeKnowledgeGraphHandlers(
   server: IPythonVizServer,
-  proxy: IKnowledgeGraphProxy
+  proxy: IKnowledgeGraphProxy,
+  indexer?: KnowledgeGraphIndexer
 ): void {
   pythonServer = server;
   kgProxy = proxy;
+  kgIndexer = indexer ?? null;
 }
 
 function getServer(): IPythonVizServer {
@@ -209,6 +216,13 @@ function getProxy(): IKnowledgeGraphProxy {
     throw new Error('Knowledge graph proxy is not initialized');
   }
   return kgProxy;
+}
+
+function getIndexer(): KnowledgeGraphIndexer {
+  if (!kgIndexer) {
+    throw new Error('Knowledge graph indexer is not initialized');
+  }
+  return kgIndexer;
 }
 
 async function wrapKgHandler<T>(operation: string, run: () => Promise<T>): Promise<IpcResult<T>> {
@@ -271,6 +285,35 @@ async function handleStop(): Promise<IpcResult<KGHealth>> {
   return wrapKgHandler('stop', () => getServer().stop());
 }
 
+function validateKgReindexRequest(raw: unknown): ValidationResult<KGReindexRequest> {
+  if (!raw || typeof raw !== 'object') {
+    return { valid: false, error: 'request must be an object' };
+  }
+  const req = raw as Record<string, unknown>;
+  const rootCheck = validateNonEmptyString(req.projectRoot, 'projectRoot', 1024);
+  if (!rootCheck.valid) {
+    return { valid: false, error: rootCheck.error };
+  }
+  return {
+    valid: true,
+    value: {
+      projectRoot: rootCheck.value!,
+      full: req.full === true,
+    },
+  };
+}
+
+async function handleReindex(
+  _event: IpcMainInvokeEvent,
+  request: unknown
+): Promise<IpcResult<KGReindexResult>> {
+  const validation = validateKgReindexRequest(request);
+  if (!validation.valid) {
+    return { success: false, error: validation.error ?? 'Invalid reindex request' };
+  }
+  return wrapKgHandler('reindex', () => getIndexer().reindex(validation.value!));
+}
+
 // =============================================================================
 // Event fan-out (main → renderer)
 // =============================================================================
@@ -294,6 +337,7 @@ export function registerKnowledgeGraphHandlers(ipcMain: IpcMain): void {
   ipcMain.handle(KNOWLEDGE_GRAPH_GET_HEALTH, handleGetHealth);
   ipcMain.handle(KNOWLEDGE_GRAPH_START, handleStart);
   ipcMain.handle(KNOWLEDGE_GRAPH_STOP, handleStop);
+  ipcMain.handle(KNOWLEDGE_GRAPH_REINDEX, handleReindex);
 
   // Subscribe once; the proxy decides when to actually open the SSE stream.
   if (kgProxy && !unsubscribeFromProxy) {
@@ -310,6 +354,7 @@ export function removeKnowledgeGraphHandlers(ipcMain: IpcMain): void {
   ipcMain.removeHandler(KNOWLEDGE_GRAPH_GET_HEALTH);
   ipcMain.removeHandler(KNOWLEDGE_GRAPH_START);
   ipcMain.removeHandler(KNOWLEDGE_GRAPH_STOP);
+  ipcMain.removeHandler(KNOWLEDGE_GRAPH_REINDEX);
 
   if (unsubscribeFromProxy) {
     try {
