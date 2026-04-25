@@ -181,9 +181,8 @@ function getLocalTimezone(): string {
 
 function getStoredTeamProvider(): TeamProviderId {
   const stored = localStorage.getItem('team:lastSelectedProvider');
-  // return stored === 'codex' || stored === 'gemini' ? stored : 'anthropic';
   return normalizeCreateLaunchProviderForUi(
-    stored === 'codex' || stored === 'gemini' ? stored : 'anthropic',
+    stored === 'anthropic' || stored === 'codex' || stored === 'gemini' ? stored : 'gemini',
     true
   );
 }
@@ -233,7 +232,8 @@ function resolveResolvedMemberRuntime(
 export const LaunchTeamDialog = (props: LaunchTeamDialogProps): React.JSX.Element => {
   const { open, onClose } = props;
   const { isLight } = useTheme();
-  const multimodelEnabled = useStore((s) => s.appConfig?.general?.multimodelEnabled ?? true);
+  // Multimodel is always enabled in this build — Codex/Gemini stay unlocked.
+  const multimodelEnabled = true;
   const cliStatus = useStore((s) => s.cliStatus);
   const cliStatusLoading = useStore((s) => s.cliStatusLoading);
   const fetchCliStatus = useStore((s) => s.fetchCliStatus);

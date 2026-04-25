@@ -33,7 +33,7 @@ export const TrashDialog = ({
 }: TrashDialogProps): React.JSX.Element => {
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="w-[min(92vw,640px)] max-w-none sm:w-[640px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-sm">
             <Trash2 size={14} className="text-[var(--color-text-muted)]" />
@@ -42,8 +42,14 @@ export const TrashDialog = ({
         </DialogHeader>
 
         {tasks.length === 0 ? (
-          <div className="py-8 text-center text-xs text-[var(--color-text-muted)]">
-            No deleted tasks
+          <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-surface-raised)] text-[var(--color-text-muted)]">
+              <Trash2 size={16} />
+            </div>
+            <p className="text-sm text-[var(--color-text)]">No deleted tasks</p>
+            <p className="text-xs text-[var(--color-text-muted)]">
+              Tasks you remove will appear here so you can restore them.
+            </p>
           </div>
         ) : (
           <TooltipProvider delayDuration={300}>

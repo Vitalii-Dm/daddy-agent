@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react';
 import { useShallow } from 'zustand/react/shallow';
 
-import { isElectronMode } from '@renderer/api';
+import { api, isElectronMode } from '@renderer/api';
 import { GlassButton } from '@renderer/components/ui/GlassButton';
 import { CreateTaskDialog } from '@renderer/components/team/dialogs/CreateTaskDialog';
 import { CreateTeamDialog } from '@renderer/components/team/dialogs/CreateTeamDialog';
@@ -79,6 +79,21 @@ export const DashboardSection = (): React.JSX.Element => {
 
   const [view, setView] = useState<ViewTab>('Kanban');
   const [filter, setFilter] = useState<FilterChip>('All');
+  const [stoppingTeam, setStoppingTeam] = useState(false);
+  const refreshTeamData = useStore((s) => s.refreshTeamData);
+
+  const handleStopTeam = useCallback(async () => {
+    if (!teamName || stoppingTeam) return;
+    setStoppingTeam(true);
+    try {
+      await api.teams.stop(teamName);
+      await refreshTeamData(teamName);
+    } catch (err) {
+      console.error('Failed to stop team:', err);
+    } finally {
+      setStoppingTeam(false);
+    }
+  }, [teamName, stoppingTeam, refreshTeamData]);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [creatingTask, setCreatingTask] = useState(false);
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
@@ -216,12 +231,15 @@ export const DashboardSection = (): React.JSX.Element => {
             teamName={teamName}
             runningCount={runningCount}
             totalCount={totalCount}
+            isAlive={isAlive}
+            stoppingTeam={stoppingTeam}
             view={view}
             onViewChange={setView}
             filter={filter}
             onFilterChange={setFilter}
             onCreateTask={() => setCreateTaskOpen(true)}
             onLaunchTeam={() => setLaunchDialogOpen(true)}
+            onStopTeam={handleStopTeam}
             onNewTeam={() => setCreateTeamOpen(true)}
             onSendMessage={() => setSendDialogOpen(true)}
             onTrash={teamName ? () => setTrashOpen(true) : undefined}
@@ -414,12 +432,15 @@ interface DashboardHeaderProps {
   teamName: string | null;
   runningCount: number;
   totalCount: number;
+  isAlive: boolean;
+  stoppingTeam: boolean;
   view: ViewTab;
   onViewChange: (v: ViewTab) => void;
   filter: FilterChip;
   onFilterChange: (f: FilterChip) => void;
   onCreateTask: () => void;
   onLaunchTeam: () => void;
+  onStopTeam: () => void;
   onNewTeam: () => void;
   onSendMessage: () => void;
   onTrash?: () => void;
@@ -429,17 +450,20 @@ const DashboardHeader = ({
   teamName,
   runningCount,
   totalCount,
+  isAlive,
+  stoppingTeam,
   view,
   onViewChange,
   filter,
   onFilterChange,
   onCreateTask,
   onLaunchTeam,
+  onStopTeam,
   onNewTeam,
   onSendMessage,
   onTrash,
 }: DashboardHeaderProps): React.JSX.Element => (
-  <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+  <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
     <div className="min-w-0 max-w-[640px]">
       <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-[color:var(--ink-3)]">
         {teamName ?? 'No team selected'}
@@ -447,18 +471,20 @@ const DashboardHeader = ({
       <h2
         className="mt-3 whitespace-normal break-words font-serif font-normal text-[color:var(--ink-1)]"
         style={{
-          fontSize: 'clamp(36px, 4vw, 56px)',
-          lineHeight: 1.05,
+          fontSize: 'clamp(32px, 3.6vw, 52px)',
+          lineHeight: 1.08,
           letterSpacing: '-0.025em',
         }}
       >
-        Your agents, <em className="italic">right now</em>.
+        Your agents,
+        <br />
+        <em className="italic">right now</em>
       </h2>
-      <p className="mt-2 text-[14px] text-[color:var(--ink-2)]">
-        {totalCount === 0
-          ? 'Spin up a team to fill this surface.'
-          : `${runningCount} of ${totalCount} ${totalCount === 1 ? 'agent' : 'agents'} working in parallel.`}
-      </p>
+      {totalCount > 0 ? (
+        <p className="mt-2 text-[14px] text-[color:var(--ink-2)]">
+          {`${runningCount} of ${totalCount} ${totalCount === 1 ? 'agent' : 'agents'} working in parallel.`}
+        </p>
+      ) : null}
     </div>
 
     <div className="flex flex-wrap items-center gap-3">
@@ -475,9 +501,15 @@ const DashboardHeader = ({
       >
         New Task
       </GlassButton>
-      <GlassButton variant="secondary" onClick={onLaunchTeam}>
-        Launch Team
-      </GlassButton>
+      {isAlive ? (
+        <GlassButton variant="danger" onClick={onStopTeam} disabled={stoppingTeam}>
+          {stoppingTeam ? 'Stopping…' : 'Stop Team'}
+        </GlassButton>
+      ) : (
+        <GlassButton variant="secondary" onClick={onLaunchTeam}>
+          Launch Team
+        </GlassButton>
+      )}
       <GlassButton variant="tertiary" onClick={onNewTeam}>
         New Team
       </GlassButton>

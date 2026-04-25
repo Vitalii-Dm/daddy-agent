@@ -22,17 +22,9 @@ import { EventEmitter } from 'events';
 import type { Readable } from 'stream';
 
 import { createLogger } from '@shared/utils/logger';
-import type {
-  KGHealth,
-  KGNeo4jStatus,
-  KGServerStatus,
-} from '@shared/types/knowledgeGraph';
+import type { KGHealth, KGNeo4jStatus, KGServerStatus } from '@shared/types/knowledgeGraph';
 
-import type {
-  IPythonVizServer,
-  PythonVizServerEventMap,
-  PythonVizServerOptions,
-} from './types';
+import type { IPythonVizServer, PythonVizServerEventMap, PythonVizServerOptions } from './types';
 
 type SidecarChild = ChildProcessByStdio<null, Readable, Readable>;
 
@@ -124,8 +116,7 @@ export class PythonVizServer extends EventEmitter implements IPythonVizServer {
     this.extraEnv = options.env ?? {};
     this.probe = options.probe ?? defaultProbe;
     this.pollIntervalMs = options.pollIntervalMs ?? READINESS_POLL_INTERVAL_MS;
-    this.readinessTimeoutMs =
-      options.readinessTimeoutMs ?? READINESS_TIMEOUT_MS;
+    this.readinessTimeoutMs = options.readinessTimeoutMs ?? READINESS_TIMEOUT_MS;
     this.sigtermGraceMs = options.sigtermGraceMs ?? SIGTERM_GRACE_MS;
   }
 
@@ -213,9 +204,7 @@ export class PythonVizServer extends EventEmitter implements IPythonVizServer {
       'info',
     ];
 
-    logger.info(
-      `spawning ${this.pythonBin} ${args.join(' ')} (cwd=${this.cwd ?? process.cwd()})`
-    );
+    logger.info(`spawning ${this.pythonBin} ${args.join(' ')} (cwd=${this.cwd ?? process.cwd()})`);
 
     let child: SidecarChild;
     try {
@@ -489,10 +478,7 @@ export class PythonVizServer extends EventEmitter implements IPythonVizServer {
   private recordStderrLine(line: string): void {
     this.stderrBuffer.push(line);
     if (this.stderrBuffer.length > STDERR_BUFFER_LINES) {
-      this.stderrBuffer.splice(
-        0,
-        this.stderrBuffer.length - STDERR_BUFFER_LINES
-      );
+      this.stderrBuffer.splice(0, this.stderrBuffer.length - STDERR_BUFFER_LINES);
     }
     this.emit('stderr', line);
   }
@@ -509,9 +495,7 @@ export class PythonVizServer extends EventEmitter implements IPythonVizServer {
     }
 
     const stoppingMarker = Symbol.for('PythonVizServer.stopping');
-    const wasStopping = Boolean(
-      (child as unknown as { [k: symbol]: boolean })[stoppingMarker]
-    );
+    const wasStopping = Boolean((child as unknown as { [k: symbol]: boolean })[stoppingMarker]);
 
     const previousStatus = this.serverStatus;
     this.child = null;
@@ -522,15 +506,10 @@ export class PythonVizServer extends EventEmitter implements IPythonVizServer {
 
     if (wasStopping) {
       this.serverStatus = 'stopped';
-    } else if (
-      previousStatus === 'starting' ||
-      previousStatus === 'running'
-    ) {
+    } else if (previousStatus === 'starting' || previousStatus === 'running') {
       this.serverStatus = 'crashed';
       const tail = this.stderrBuffer.slice(-STDERR_BUFFER_LINES).join('\n');
-      const reason = signal
-        ? `signal ${signal}`
-        : `exit code ${code ?? 'null'}`;
+      const reason = signal ? `signal ${signal}` : `exit code ${code ?? 'null'}`;
       this.lastError = tail
         ? `Python sidecar exited (${reason}):\n${tail}`
         : `Python sidecar exited (${reason})`;

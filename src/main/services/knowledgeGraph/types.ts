@@ -50,10 +50,7 @@ export interface IPythonVizServer {
   getHealth(): Promise<KGHealth>;
   /** Base URL for the proxy (e.g. `http://localhost:9750`). Throws if stopped. */
   baseUrl(): string;
-  on<E extends keyof PythonVizServerEventMap>(
-    event: E,
-    listener: PythonVizServerEventMap[E]
-  ): void;
+  on<E extends keyof PythonVizServerEventMap>(event: E, listener: PythonVizServerEventMap[E]): void;
   off<E extends keyof PythonVizServerEventMap>(
     event: E,
     listener: PythonVizServerEventMap[E]

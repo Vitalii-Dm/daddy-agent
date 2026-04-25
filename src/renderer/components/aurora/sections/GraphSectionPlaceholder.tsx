@@ -44,9 +44,8 @@ export const GraphSectionPlaceholder = (): React.JSX.Element => {
             Knowledge graph
           </h2>
           <p className="mt-2 max-w-[560px] text-[14px] text-[color:var(--ink-2)]">
-            Live view of the Neo4j codebase graph. Nodes are coloured by
-            community; the summary view culls stdlib hubs (typing, pathlib, …)
-            so the structure stays readable.
+            Live view of the Neo4j codebase graph. Nodes are coloured by community; the summary view
+            culls stdlib hubs (typing, pathlib, …) so the structure stays readable.
           </p>
 
           <LiquidGlass

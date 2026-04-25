@@ -200,7 +200,7 @@ export function getAvailableTeamProviderModelOptions(
   }
 
   if (!providerStatus) {
-    return [{ value: '', label: 'Default', badgeLabel: 'Default' }];
+    return getFallbackTeamProviderModelOptions(providerId);
   }
 
   const visibleModels = getRuntimeSelectorModels(providerId, providerStatus);
@@ -255,8 +255,11 @@ export function normalizeTeamModelForUi(
     return isTeamModelAvailableForUi(providerId, trimmed, providerStatus) ? normalized : '';
   }
 
+  // No live runtime status — accept any value present in the static catalog so
+  // clicking a Codex/Gemini model doesn't bounce straight back to Default.
   if (!providerStatus) {
-    return '';
+    const known = getTeamProviderModelOptions(providerId).some((opt) => opt.value === trimmed);
+    return known ? normalized : '';
   }
 
   const visibleModels = getVisibleRuntimeModels(providerId, providerStatus);

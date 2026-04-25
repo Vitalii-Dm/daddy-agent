@@ -11,7 +11,7 @@ const logger = createLogger('HTTP:teams');
 
 type LaunchBody = Omit<TeamLaunchRequest, 'teamName'>;
 
-const EFFORT_LEVELS = new Set<EffortLevel>(['low', 'medium', 'high']);
+const EFFORT_LEVELS = new Set<EffortLevel>(['low', 'medium', 'high', 'extra-high']);
 
 class HttpBadRequestError extends Error {}
 class HttpFeatureUnavailableError extends Error {}
@@ -81,7 +81,7 @@ function assertOptionalEffort(value: unknown): EffortLevel | undefined {
   }
 
   if (typeof value !== 'string' || !EFFORT_LEVELS.has(value as EffortLevel)) {
-    throw new HttpBadRequestError('effort must be one of: low, medium, high');
+    throw new HttpBadRequestError('effort must be one of: low, medium, high, extra-high');
   }
 
   return value as EffortLevel;

@@ -745,7 +745,7 @@ export interface TeamData {
   isDemo?: boolean;
 }
 
-export type EffortLevel = 'low' | 'medium' | 'high';
+export type EffortLevel = 'low' | 'medium' | 'high' | 'extra-high';
 export type TeamProviderId = 'anthropic' | 'codex' | 'gemini';
 
 export interface TeamLaunchRequest {

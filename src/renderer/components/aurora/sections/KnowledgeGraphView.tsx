@@ -331,7 +331,7 @@ function clamp(value: number, lo: number, hi: number): number {
 }
 
 function countLabel(n: number, singular: string, plural?: string): string {
-  return `${n} ${n === 1 ? singular : plural ?? `${singular}s`}`;
+  return `${n} ${n === 1 ? singular : (plural ?? `${singular}s`)}`;
 }
 
 interface Transform {
@@ -377,7 +377,9 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
   const [transform, setTransform] = useState<Transform>(IDENTITY_TRANSFORM);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const dragRef = useRef<{ startX: number; startY: number; t0: Transform; moved: boolean } | null>(null);
+  const dragRef = useRef<{ startX: number; startY: number; t0: Transform; moved: boolean } | null>(
+    null
+  );
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 1200, h: 420 });
   // Layout cache lets new augment additions slot in without resetting the
   // existing layout. Keyed by the base graph identity so a fresh query
@@ -415,8 +417,7 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
         if (health.neo4jStatus === 'unreachable') {
           setState({
             kind: 'error',
-            message:
-              'Neo4j is not reachable. Run `docker compose up -d neo4j` and retry.',
+            message: 'Neo4j is not reachable. Run `docker compose up -d neo4j` and retry.',
             canRetry: true,
           });
           return;
@@ -600,53 +601,62 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
   }, [focusId, pinned, adjacency]);
 
   // -- Wheel zoom, anchored at the pointer position.
-  const handleWheel = useCallback((event: React.WheelEvent<SVGSVGElement>) => {
-    event.preventDefault();
-    const svg = svgRef.current;
-    if (!svg) return;
-    const rect = svg.getBoundingClientRect();
-    const px = ((event.clientX - rect.left) / rect.width) * size.w;
-    const py = ((event.clientY - rect.top) / rect.height) * size.h;
-    setTransform((prev) => {
-      const factor = Math.exp(-event.deltaY * 0.0015);
-      const next = clamp(prev.scale * factor, MIN_ZOOM, MAX_ZOOM);
-      // Keep the world-space point under the cursor stationary on zoom.
-      const wx = (px - prev.tx) / prev.scale;
-      const wy = (py - prev.ty) / prev.scale;
-      return { scale: next, tx: px - wx * next, ty: py - wy * next };
-    });
-  }, [size.h, size.w]);
+  const handleWheel = useCallback(
+    (event: React.WheelEvent<SVGSVGElement>) => {
+      event.preventDefault();
+      const svg = svgRef.current;
+      if (!svg) return;
+      const rect = svg.getBoundingClientRect();
+      const px = ((event.clientX - rect.left) / rect.width) * size.w;
+      const py = ((event.clientY - rect.top) / rect.height) * size.h;
+      setTransform((prev) => {
+        const factor = Math.exp(-event.deltaY * 0.0015);
+        const next = clamp(prev.scale * factor, MIN_ZOOM, MAX_ZOOM);
+        // Keep the world-space point under the cursor stationary on zoom.
+        const wx = (px - prev.tx) / prev.scale;
+        const wy = (py - prev.ty) / prev.scale;
+        return { scale: next, tx: px - wx * next, ty: py - wy * next };
+      });
+    },
+    [size.h, size.w]
+  );
 
   // -- Pointer drag pans the canvas. Tracks `moved` so click-vs-drag can
   // distinguish a node selection from a pan that ended over a node.
-  const handlePointerDown = useCallback((event: React.PointerEvent<SVGSVGElement>) => {
-    if (event.button !== 0) return;
-    const svg = svgRef.current;
-    if (!svg) return;
-    svg.setPointerCapture(event.pointerId);
-    dragRef.current = {
-      startX: event.clientX,
-      startY: event.clientY,
-      t0: transform,
-      moved: false,
-    };
-  }, [transform]);
+  const handlePointerDown = useCallback(
+    (event: React.PointerEvent<SVGSVGElement>) => {
+      if (event.button !== 0) return;
+      const svg = svgRef.current;
+      if (!svg) return;
+      svg.setPointerCapture(event.pointerId);
+      dragRef.current = {
+        startX: event.clientX,
+        startY: event.clientY,
+        t0: transform,
+        moved: false,
+      };
+    },
+    [transform]
+  );
 
-  const handlePointerMove = useCallback((event: React.PointerEvent<SVGSVGElement>) => {
-    const drag = dragRef.current;
-    if (!drag) return;
-    const svg = svgRef.current;
-    if (!svg) return;
-    const rect = svg.getBoundingClientRect();
-    const dxClient = event.clientX - drag.startX;
-    const dyClient = event.clientY - drag.startY;
-    if (!drag.moved && Math.hypot(dxClient, dyClient) > 4) {
-      drag.moved = true;
-    }
-    const dx = (dxClient / rect.width) * size.w;
-    const dy = (dyClient / rect.height) * size.h;
-    setTransform({ scale: drag.t0.scale, tx: drag.t0.tx + dx, ty: drag.t0.ty + dy });
-  }, [size.h, size.w]);
+  const handlePointerMove = useCallback(
+    (event: React.PointerEvent<SVGSVGElement>) => {
+      const drag = dragRef.current;
+      if (!drag) return;
+      const svg = svgRef.current;
+      if (!svg) return;
+      const rect = svg.getBoundingClientRect();
+      const dxClient = event.clientX - drag.startX;
+      const dyClient = event.clientY - drag.startY;
+      if (!drag.moved && Math.hypot(dxClient, dyClient) > 4) {
+        drag.moved = true;
+      }
+      const dx = (dxClient / rect.width) * size.w;
+      const dy = (dyClient / rect.height) * size.h;
+      setTransform({ scale: drag.t0.scale, tx: drag.t0.tx + dx, ty: drag.t0.ty + dy });
+    },
+    [size.h, size.w]
+  );
 
   const handlePointerUp = useCallback((event: React.PointerEvent<SVGSVGElement>) => {
     const drag = dragRef.current;
@@ -668,16 +678,19 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
     setPinned((prev) => (prev === id ? null : id));
   }, []);
 
-  const zoomBy = useCallback((factor: number) => {
-    setTransform((prev) => {
-      const cx = size.w / 2;
-      const cy = size.h / 2;
-      const next = clamp(prev.scale * factor, MIN_ZOOM, MAX_ZOOM);
-      const wx = (cx - prev.tx) / prev.scale;
-      const wy = (cy - prev.ty) / prev.scale;
-      return { scale: next, tx: cx - wx * next, ty: cy - wy * next };
-    });
-  }, [size.h, size.w]);
+  const zoomBy = useCallback(
+    (factor: number) => {
+      setTransform((prev) => {
+        const cx = size.w / 2;
+        const cy = size.h / 2;
+        const next = clamp(prev.scale * factor, MIN_ZOOM, MAX_ZOOM);
+        const wx = (cx - prev.tx) / prev.scale;
+        const wy = (cy - prev.ty) / prev.scale;
+        return { scale: next, tx: cx - wx * next, ty: cy - wy * next };
+      });
+    },
+    [size.h, size.w]
+  );
 
   const resetView = useCallback(() => setTransform(IDENTITY_TRANSFORM), []);
 
@@ -872,9 +885,7 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
             onPointerCancel={handlePointerUp}
             style={{ cursor: dragRef.current ? 'grabbing' : 'grab', touchAction: 'none' }}
           >
-            <g
-              transform={`translate(${transform.tx} ${transform.ty}) scale(${transform.scale})`}
-            >
+            <g transform={`translate(${transform.tx} ${transform.ty}) scale(${transform.scale})`}>
               <g strokeWidth={0.6 / transform.scale}>
                 {drawnEdges.map((e) => {
                   const incident =
@@ -901,8 +912,7 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
                   const isPinned = pinned === n.id;
                   const isActive = focus?.activeNodes.has(n.id) ?? true;
                   const fillOpacity = focus ? (isActive ? 0.95 : 0.15) : 0.92;
-                  const strokeWidth =
-                    (isPinned ? 2.4 : isFocused ? 2 : 0.5) / transform.scale;
+                  const strokeWidth = (isPinned ? 2.4 : isFocused ? 2 : 0.5) / transform.scale;
                   return (
                     <g key={n.id}>
                       {isPinned ? (
@@ -946,7 +956,7 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
           </svg>
 
           {/* Top control row: DB selector + view toggle + search */}
-          <div className="absolute left-3 top-3 right-3 flex items-start gap-2">
+          <div className="absolute left-3 right-3 top-3 flex items-start gap-2">
             <div className="inline-flex overflow-hidden rounded-full bg-white/65 p-0.5 font-mono text-[11px] shadow-sm backdrop-blur-sm">
               {(['codebase', 'memory'] as const).map((db) => (
                 <button
@@ -1010,9 +1020,7 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
                         }}
                       >
                         <span className="text-[color:var(--ink-1)]">{n.label}</span>
-                        <span className="ml-2 text-[10px] text-[color:var(--ink-3)]">
-                          {n.type}
-                        </span>
+                        <span className="ml-2 text-[10px] text-[color:var(--ink-3)]">{n.type}</span>
                       </button>
                     </li>
                   ))}
