@@ -144,6 +144,7 @@ export const KanbanGlass = ({
       <LiquidGlass
         radius={26}
         className="relative flex min-h-0 w-full flex-col gap-4 overflow-hidden p-4 sm:p-5"
+        style={{ maxHeight: 'calc(100vh - 200px)' }}
       >
         {isEmpty && (
           <p className="px-1 pb-1 text-[12px] text-[color:var(--ink-3)]">
@@ -151,7 +152,7 @@ export const KanbanGlass = ({
           </p>
         )}
         <div
-          className="glass-scroll flex min-h-0 w-full snap-x gap-4 overflow-x-auto pb-2"
+          className="glass-scroll flex min-h-0 w-full flex-1 snap-x gap-4 overflow-hidden overflow-x-auto pb-2"
           style={{ scrollSnapType: 'x mandatory', overscrollBehavior: 'contain' }}
         >
           {COLUMNS.map((col) => (

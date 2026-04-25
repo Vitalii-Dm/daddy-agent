@@ -759,8 +759,85 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pinned, augment.expandedFrom, layoutResult]);
 
+  const controlBar = (
+    /* Top control row: DB selector + view toggle + search */
+    <div className="absolute left-3 right-3 top-3 z-20 flex items-start gap-2">
+      <div className="inline-flex overflow-hidden rounded-full bg-white/65 p-0.5 font-mono text-[11px] shadow-sm backdrop-blur-sm">
+        {(['codebase', 'memory'] as const).map((db) => (
+          <button
+            key={db}
+            type="button"
+            onClick={(): void => setDatabase(db)}
+            aria-pressed={database === db}
+            className={`rounded-full px-3 py-1 transition ${
+              database === db
+                ? 'bg-[color:var(--ink-1)] text-white'
+                : 'text-[color:var(--ink-2)] hover:bg-white/70'
+            }`}
+          >
+            {db}
+          </button>
+        ))}
+      </div>
+      <div className="inline-flex overflow-hidden rounded-full bg-white/65 p-0.5 font-mono text-[11px] shadow-sm backdrop-blur-sm">
+        {(['summary', 'detail'] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={(): void => setView(v)}
+            aria-pressed={view === v}
+            className={`rounded-full px-3 py-1 transition ${
+              view === v
+                ? 'bg-[color:var(--ink-1)] text-white'
+                : 'text-[color:var(--ink-2)] hover:bg-white/70'
+            }`}
+          >
+            {v}
+          </button>
+        ))}
+      </div>
+      <div className="relative ml-auto">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e): void => {
+            setSearchQuery(e.target.value);
+            setSearchOpen(true);
+          }}
+          onFocus={(): void => setSearchOpen(true)}
+          onBlur={(): void => {
+            // Delay so click on a result registers before close.
+            setTimeout(() => setSearchOpen(false), 150);
+          }}
+          placeholder="Search nodes…"
+          className="w-56 rounded-full border border-transparent bg-white/65 px-3 py-1 font-mono text-[11px] text-[color:var(--ink-1)] shadow-sm backdrop-blur-sm placeholder:text-[color:var(--ink-3)] focus:border-[color:var(--ink-2)] focus:outline-none"
+        />
+        {searchOpen && searchResults.length > 0 ? (
+          <ul className="absolute right-0 mt-1 max-h-[260px] w-72 overflow-auto rounded-lg bg-white/95 py-1 font-mono text-[11px] shadow-lg ring-1 ring-black/5">
+            {searchResults.map((n) => (
+              <li key={n.id}>
+                <button
+                  type="button"
+                  className="block w-full truncate px-3 py-1.5 text-left hover:bg-black/5"
+                  onMouseDown={(e): void => e.preventDefault()}
+                  onClick={(): void => {
+                    void focusOnNode(n.id);
+                  }}
+                >
+                  <span className="text-[color:var(--ink-1)]">{n.label}</span>
+                  <span className="ml-2 text-[10px] text-[color:var(--ink-3)]">{n.type}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+    </div>
+  );
+
   return (
     <div ref={containerRef} className="relative h-full w-full">
+      {controlBar}
       {state.kind === 'ready' && layoutResult ? (
         <>
           <svg
@@ -845,80 +922,6 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
               </g>
             </g>
           </svg>
-
-          {/* Top control row: DB selector + view toggle + search */}
-          <div className="absolute left-3 right-3 top-3 flex items-start gap-2">
-            <div className="inline-flex overflow-hidden rounded-full bg-white/65 p-0.5 font-mono text-[11px] shadow-sm backdrop-blur-sm">
-              {(['codebase', 'memory'] as const).map((db) => (
-                <button
-                  key={db}
-                  type="button"
-                  onClick={(): void => setDatabase(db)}
-                  aria-pressed={database === db}
-                  className={`rounded-full px-3 py-1 transition ${
-                    database === db
-                      ? 'bg-[color:var(--ink-1)] text-white'
-                      : 'text-[color:var(--ink-2)] hover:bg-white/70'
-                  }`}
-                >
-                  {db}
-                </button>
-              ))}
-            </div>
-            <div className="inline-flex overflow-hidden rounded-full bg-white/65 p-0.5 font-mono text-[11px] shadow-sm backdrop-blur-sm">
-              {(['summary', 'detail'] as const).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={(): void => setView(v)}
-                  aria-pressed={view === v}
-                  className={`rounded-full px-3 py-1 transition ${
-                    view === v
-                      ? 'bg-[color:var(--ink-1)] text-white'
-                      : 'text-[color:var(--ink-2)] hover:bg-white/70'
-                  }`}
-                >
-                  {v}
-                </button>
-              ))}
-            </div>
-            <div className="relative ml-auto">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e): void => {
-                  setSearchQuery(e.target.value);
-                  setSearchOpen(true);
-                }}
-                onFocus={(): void => setSearchOpen(true)}
-                onBlur={(): void => {
-                  // Delay so click on a result registers before close.
-                  setTimeout(() => setSearchOpen(false), 150);
-                }}
-                placeholder="Search nodes…"
-                className="w-56 rounded-full border border-transparent bg-white/65 px-3 py-1 font-mono text-[11px] text-[color:var(--ink-1)] shadow-sm backdrop-blur-sm placeholder:text-[color:var(--ink-3)] focus:border-[color:var(--ink-2)] focus:outline-none"
-              />
-              {searchOpen && searchResults.length > 0 ? (
-                <ul className="absolute right-0 mt-1 max-h-[260px] w-72 overflow-auto rounded-lg bg-white/95 py-1 font-mono text-[11px] shadow-lg ring-1 ring-black/5">
-                  {searchResults.map((n) => (
-                    <li key={n.id}>
-                      <button
-                        type="button"
-                        className="block w-full truncate px-3 py-1.5 text-left hover:bg-black/5"
-                        onMouseDown={(e): void => e.preventDefault()}
-                        onClick={(): void => {
-                          void focusOnNode(n.id);
-                        }}
-                      >
-                        <span className="text-[color:var(--ink-1)]">{n.label}</span>
-                        <span className="ml-2 text-[10px] text-[color:var(--ink-3)]">{n.type}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </div>
-          </div>
 
           {/* Counts pill */}
           <div className="pointer-events-none absolute bottom-3 left-3 rounded bg-white/55 px-2 py-1 font-mono text-[11px] text-[color:var(--ink-2)]">
