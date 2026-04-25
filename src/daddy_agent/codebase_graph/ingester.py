@@ -152,22 +152,29 @@ DELETE ext
 # ---------------------------------------------------------------------------
 
 
+_MAX_QNAME = 2000  # Neo4j composite RANGE index ~8KB limit shared with project_root
+
+
+def _truncate_qname(qname: str) -> str:
+    return qname[:_MAX_QNAME] if len(qname) > _MAX_QNAME else qname
+
+
 def _file_qname(path: str, name: str) -> str:
-    return f"{path}::{name}"
+    return _truncate_qname(f"{path}::{name}")
 
 
 def _class_qname(path: str, class_name: str) -> str:
-    return f"{path}::class::{class_name}"
+    return _truncate_qname(f"{path}::class::{class_name}")
 
 
 def _method_qname(path: str, class_name: str, method_name: str) -> str:
-    return f"{path}::class::{class_name}::{method_name}"
+    return _truncate_qname(f"{path}::class::{class_name}::{method_name}")
 
 
 def _external_qname(name: str) -> str:
     """For callees we don't resolve: store under ``external::<name>``."""
 
-    return f"external::{name}"
+    return _truncate_qname(f"external::{name}")
 
 
 # ---------------------------------------------------------------------------
@@ -350,6 +357,10 @@ def ingest_many(
 def _fn_params(fn: ParsedFunction) -> dict[str, Any]:
     data = asdict(fn)
     data.pop("calls", None)
+    # Truncate large string fields to stay within Neo4j index limits
+    for key in ("signature", "docstring", "name"):
+        if isinstance(data.get(key), str) and len(data[key]) > 4000:
+            data[key] = data[key][:4000]
     return data
 
 
@@ -370,7 +381,7 @@ def _emit_calls(
             project_root=project_root,
             caller_qname=caller_qname,
             callee_qname=_external_qname(callee),
-            callee_name=callee,
+            callee_name=callee[:_MAX_QNAME],
         )
         count += 1
     return count
