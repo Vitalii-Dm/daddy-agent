@@ -119,6 +119,21 @@ export const SplineMascot = ({ className, size = 520 }: SplineMascotProps): Reac
           }}
         />
       </Suspense>
+      {/* Overlay covering Spline's "Built with Spline" watermark in
+          the bottom-right corner of the canvas. The mask above already
+          fades that area, but the badge still renders above the mask
+          since it's a separate DOM node Spline injects into the canvas
+          container. This div sits on top of it with a soft radial
+          gradient that blends into the hero background. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute bottom-2 right-2 h-12 w-44"
+        style={{
+          background:
+            'radial-gradient(ellipse at center, var(--bg-base) 30%, rgba(246, 243, 238, 0.7) 70%, transparent 100%)',
+          filter: 'blur(4px)',
+        }}
+      />
     </div>
   );
 };
