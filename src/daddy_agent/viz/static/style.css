@@ -36,7 +36,17 @@ a:hover { text-decoration: underline; }
 
 main {
   display: grid; grid-template-columns: 240px 1fr 320px;
+  /* Pin the (single) row to the full main height.  Without an explicit
+     grid-template-rows, grid items get an "auto" track that collapses
+     to content height — `.graph` is empty until Sigma mounts, so its
+     height resolved to 0 and Sigma sized its canvas to ~206×1412
+     (whatever clientWidth/Height happened to be at construction).
+     `minmax(0, 1fr)` is required (rather than just `1fr`) so the row
+     can actually shrink to fit and child `height: 100%` resolves
+     correctly. */
+  grid-template-rows: minmax(0, 1fr);
   height: calc(100% - 46px);
+  min-height: 0;
 }
 
 .filters, .details {
