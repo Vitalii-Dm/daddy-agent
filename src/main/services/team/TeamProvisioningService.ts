@@ -5656,6 +5656,9 @@ export class TeamProvisioningService {
         await this.restorePrelaunchConfig(request.teamName);
         throw error;
       }
+      // --team-bootstrap-spec and --resume are mutually exclusive in the CLI.
+      // When resuming a previous session, skip the bootstrap spec entirely.
+      const useBootstrapSpec = !previousSessionId;
       const launchArgs = [
         '--input-format',
         'stream-json',
@@ -5666,10 +5669,14 @@ export class TeamProvisioningService {
         'user,project,local',
         '--mcp-config',
         mcpConfigPath,
-        '--team-bootstrap-spec',
-        bootstrapSpecPath,
-        ...(bootstrapUserPromptPath
-          ? ['--team-bootstrap-user-prompt-file', bootstrapUserPromptPath]
+        ...(useBootstrapSpec
+          ? [
+              '--team-bootstrap-spec',
+              bootstrapSpecPath,
+              ...(bootstrapUserPromptPath
+                ? ['--team-bootstrap-user-prompt-file', bootstrapUserPromptPath]
+                : []),
+            ]
           : []),
         '--disallowedTools',
         APP_TEAM_RUNTIME_DISALLOWED_TOOLS,
