@@ -201,7 +201,7 @@ export const DashboardSection = (): React.JSX.Element => {
       <section
         ref={sectionRef}
         id="dashboard"
-        className="relative px-6 pb-32 pt-24 sm:px-10 lg:px-16"
+        className="relative px-6 pb-32 pt-8 sm:px-10 lg:px-16"
         style={{ scrollMarginTop: '88px' }}
       >
         <motion.div

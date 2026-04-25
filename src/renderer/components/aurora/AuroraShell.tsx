@@ -17,21 +17,23 @@ import { GraphSectionPlaceholder } from './sections/GraphSectionPlaceholder';
 import { HeroSection } from './sections/HeroSection';
 
 // ---------------------------------------------------------------------------
-// Section divider — 96px band with a 1px aurora gradient line at the
+// Section divider — 40px band with a 1px aurora gradient line at the
 // midpoint. Pulses on a 6-second loop. Renders between Hero and Dashboard
-// to give the scroll handoff a visible beat.
+// to give the scroll handoff a visible beat without leaving a vertical
+// dead zone. Hero pb + this band + Dashboard pt now total ~120px instead
+// of the ~290px gap the v5 stack used.
 // ---------------------------------------------------------------------------
 const SectionDivider = (): React.JSX.Element => {
   const reduceMotion = useReducedMotion();
   return (
-    <div className="relative h-24" aria-hidden="true">
+    <div className="relative h-10" aria-hidden="true">
       <motion.div
         className="absolute inset-x-0 top-1/2 h-px"
         style={{
           background:
             'linear-gradient(90deg, transparent 0%, var(--a-violet) 30%, var(--a-cyan) 70%, transparent 100%)',
         }}
-        animate={reduceMotion ? undefined : { opacity: [0.3, 0.8, 0.3] }}
+        animate={reduceMotion ? undefined : { opacity: [0.35, 0.85, 0.35] }}
         transition={reduceMotion ? undefined : { duration: 6, ease: 'easeInOut', repeat: Infinity }}
       />
     </div>

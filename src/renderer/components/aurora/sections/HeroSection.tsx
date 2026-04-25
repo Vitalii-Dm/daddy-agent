@@ -39,7 +39,7 @@ export const HeroSection = (): React.JSX.Element => {
     <section
       ref={sectionRef}
       id="home"
-      className="relative isolate flex min-h-screen flex-col px-6 pb-24 pt-32 sm:px-10 lg:px-16"
+      className="relative isolate flex min-h-screen flex-col px-6 pb-8 pt-32 sm:px-10 lg:px-16"
       style={{ scrollMarginTop: '88px' }}
     >
       <div
