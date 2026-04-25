@@ -251,7 +251,13 @@ def _connect_from_env() -> Any:  # pragma: no cover - real driver required
     uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
     user = os.environ.get("NEO4J_USER", "neo4j")
     password = os.environ.get("NEO4J_PASSWORD", "neo4j")
-    database = os.environ.get("NEO4J_DATABASE", "codebase")
+    # Prefer NEO4J_CODEBASE_DB (the project-wide canonical name used by
+    # docker-compose, the viz server, and .env.example); fall back to
+    # NEO4J_DATABASE for back-compat with users who set the generic var.
+    database = os.environ.get(
+        "NEO4J_CODEBASE_DB",
+        os.environ.get("NEO4J_DATABASE", "codebase"),
+    )
 
     driver = GraphDatabase.driver(uri, auth=(user, password))
     return driver.session(database=database)
