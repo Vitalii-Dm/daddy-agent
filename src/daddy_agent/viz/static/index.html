@@ -202,10 +202,11 @@
           return state.layoutToken;
         }
 
-        // Run ForceAtlas2 in chunks, yielding to the browser between
-        // batches so the UI stays responsive and Sigma can repaint as
-        // the layout converges.  The user sees the graph "settle"
-        // instead of a frozen "loading…" message.
+        // Run ForceAtlas2 one (or two) iterations at a time, yielding
+        // between each step so Sigma can repaint and the user *sees*
+        // the layout converge live.  Bigger chunks are tempting for
+        // total wall-clock but fight the goal: a 30-iter chunk on
+        // 900 nodes blocks for 500ms+, no paint slot, looks frozen.
         async function runLayoutChunked(graph, token, onProgress) {
           if (!graph.order) {
             onProgress(0, 0);
@@ -216,12 +217,18 @@
             : window.forceAtlas2;
           if (!FA2 || typeof FA2.assign !== "function") return;
 
-          // Adaptive: more nodes → more iterations needed, but each
-          // iteration is also more expensive.  Cap the wall-clock budget
-          // by shrinking the per-chunk size on big graphs.
-          const big = graph.order > 200;
-          const totalIters = big ? 200 : 300;
-          const chunkSize = graph.order > 500 ? 8 : graph.order > 200 ? 20 : 30;
+          const order = graph.order;
+          const big = order > 300;
+          const huge = order > 700;
+          // Cap total iterations more aggressively as the graph grows —
+          // diminishing returns kick in fast on dense graphs and the
+          // user's perception of "responsive" matters more than the
+          // last 5% of layout convergence.
+          const totalIters = huge ? 80 : big ? 120 : 200;
+          // 1 iter per chunk on big graphs gives a paint after every
+          // step.  Small graphs can afford 3–5 per chunk and still
+          // feel smooth.
+          const chunkSize = huge ? 1 : big ? 2 : order > 100 ? 3 : 5;
           const settings = {
             gravity: 1.4,
             scalingRatio: 28,
@@ -234,13 +241,23 @@
             adjustSizes: true,
           };
 
+          let lastProgressAt = 0;
           for (let i = 0; i < totalIters; i += chunkSize) {
             if (token.cancelled) return;
             const thisChunk = Math.min(chunkSize, totalIters - i);
             FA2.assign(graph, { iterations: thisChunk, settings });
-            onProgress(i + thisChunk, totalIters);
-            // Yield to the browser so Sigma can repaint and the UI
-            // stays interactive (Apply button responsive, scroll OK).
+            // Defensive: some Sigma builds need an explicit refresh()
+            // when many node attributes change in one tick.  Cheap.
+            if (state.renderer) state.renderer.refresh();
+            const now = performance.now();
+            // Throttle status updates to ~10/s so the DOM write isn't
+            // its own perf hit on tiny chunks.
+            if (now - lastProgressAt > 100 || i + thisChunk >= totalIters) {
+              onProgress(i + thisChunk, totalIters);
+              lastProgressAt = now;
+            }
+            // Yield to the browser so Sigma paints the new positions
+            // and the UI stays interactive.
             await new Promise(function (resolve) {
               requestAnimationFrame(function () { resolve(); });
             });
