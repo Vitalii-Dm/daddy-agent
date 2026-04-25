@@ -120,22 +120,38 @@ export const SplineMascot = ({ className, size = 520 }: SplineMascotProps): Reac
         />
       </Suspense>
       {/* Overlay covering Spline's "Built with Spline" watermark.
-          A single large radial gradient that's solid paper at the
-          badge centre and feathers all the way out to fully
-          transparent. No hard rectangle, no backdrop blur (which
-          pulled darkness in), no second layer. The radial extends
-          well past the badge so the fade has room to disappear into
-          the surrounding hero gradient. */}
+          Two-stack approach now that we know what NOT to do (no
+          backdrop-filter, no hard pill):
+          (1) Big 560×280 ambient bloom — paper-coloured radial that
+              feathers out far enough to reach all the way past the
+              hover-state badge container without showing an edge.
+          (2) Tight 240×80 dense bloom over the badge itself, pure
+              paper at centre so even a darker hover badge is fully
+              hidden.
+          Both gradients use --bg-base, no other colours, so they
+          blend with the warm hero canvas. */}
       <div
         aria-hidden
         className="pointer-events-none absolute"
         style={{
-          right: -24,
-          bottom: -24,
-          width: 320,
-          height: 140,
+          right: -60,
+          bottom: -80,
+          width: 560,
+          height: 280,
           background:
-            'radial-gradient(ellipse 50% 35% at 60% 60%, var(--bg-base) 0%, var(--bg-base) 28%, rgba(246, 243, 238, 0.85) 50%, rgba(246, 243, 238, 0.4) 70%, transparent 100%)',
+            'radial-gradient(ellipse 55% 40% at 60% 55%, var(--bg-base) 0%, var(--bg-base) 30%, rgba(246, 243, 238, 0.78) 55%, rgba(246, 243, 238, 0.32) 80%, transparent 100%)',
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute"
+        style={{
+          right: -8,
+          bottom: 4,
+          width: 240,
+          height: 80,
+          background:
+            'radial-gradient(ellipse 50% 50% at 55% 50%, var(--bg-base) 0%, var(--bg-base) 50%, rgba(246, 243, 238, 0.6) 80%, transparent 100%)',
         }}
       />
     </div>
