@@ -303,7 +303,10 @@ export const DashboardSection = (): React.JSX.Element => {
                 </div>
 
                 {/* RIGHT: roster band (top) + kanban (full width) */}
-                <div className="flex min-w-0 flex-col gap-5">
+                <div
+                  className="flex min-w-0 flex-col gap-5 lg:sticky lg:top-[88px]"
+                  style={{ maxHeight: 'calc(100vh - 120px)' }}
+                >
                   <AgentRoster
                     onMemberClick={handleMemberClick}
                     onSendMessage={(name) => {
@@ -311,7 +314,7 @@ export const DashboardSection = (): React.JSX.Element => {
                       setSendDialogOpen(true);
                     }}
                   />
-                  <div className="min-h-[60vh] min-w-0 flex-1">
+                  <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
                     <KanbanGlass
                       filter={filter}
                       view={view}
