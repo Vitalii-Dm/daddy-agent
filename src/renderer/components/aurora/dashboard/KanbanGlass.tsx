@@ -151,13 +151,17 @@ export const KanbanGlass = ({
       <LiquidGlass
         radius={26}
         className="relative flex min-h-0 w-full flex-col gap-4 overflow-hidden p-4 sm:p-5"
+        style={{ maxHeight: 'calc(100vh - 200px)' }}
       >
         {isEmpty && (
           <p className="px-1 pb-1 text-[12px] text-[color:var(--ink-3)]">
             No tasks yet. Create a task to get started.
           </p>
         )}
-        <div className="flex min-h-0 w-full gap-3 pb-2" style={{ overscrollBehavior: 'contain' }}>
+        <div
+          className="flex min-h-0 w-full flex-1 gap-3 overflow-hidden pb-2"
+          style={{ overscrollBehavior: 'contain' }}
+        >
           {COLUMNS.map((col) => (
             <Column
               key={col.id}
