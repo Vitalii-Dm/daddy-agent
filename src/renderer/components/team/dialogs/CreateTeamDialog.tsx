@@ -1077,22 +1077,27 @@ export const CreateTeamDialog = ({
         }
       }}
     >
-      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto overscroll-contain">
-        <DialogHeader>
-          <DialogTitle className="text-sm">{initialData ? 'Copy Team' : 'Create Team'}</DialogTitle>
-          <DialogDescription className="text-xs">
+      <DialogContent className="aurora-dialog max-h-[88vh] max-w-2xl overflow-y-auto overscroll-contain">
+        <DialogHeader className="space-y-1.5">
+          <DialogTitle
+            className="font-serif text-[28px] font-normal leading-[1.1] tracking-[-0.01em] text-[color:var(--ink-1)]"
+            style={{ fontFamily: 'var(--font-serif, ui-serif)' }}
+          >
+            {initialData ? 'Copy team' : 'Create team'}
+          </DialogTitle>
+          <DialogDescription className="text-[13px] text-[color:var(--ink-2)]">
             {initialData
-              ? 'Create a new team based on an existing one.'
-              : 'Team provisioning via local Claude CLI.'}
+              ? 'Spin up a new team using an existing one as a template.'
+              : 'Provisioned via local Claude or Gemini CLI.'}
           </DialogDescription>
         </DialogHeader>
 
         {!initialData ? (
-          <div className="space-y-1.5">
-            <Label className="text-muted-foreground text-[11px] uppercase tracking-[0.18em]">
+          <div className="space-y-2">
+            <Label className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-[color:var(--ink-3)]">
               Template
             </Label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2.5">
               {TEAM_TEMPLATES.map((template) => {
                 const active = selectedTemplateId === template.id;
                 return (
@@ -1118,14 +1123,16 @@ export const CreateTeamDialog = ({
                       }
                     }}
                     className={cn(
-                      'flex h-full flex-col items-start gap-1 rounded-md border p-2 text-left text-xs transition-colors',
+                      'flex h-full flex-col items-start gap-1.5 rounded-2xl border p-3 text-left text-xs transition-all duration-200',
                       active
-                        ? 'bg-[color:var(--accent)]/40 border-[color:var(--ring)]'
-                        : 'hover:bg-[color:var(--accent)]/15 border-[color:var(--border)]'
+                        ? 'border-[color:var(--a-violet)]/55 bg-[color:var(--a-violet)]/10 shadow-[0_8px_22px_-12px_rgba(124,92,255,0.45)]'
+                        : 'border-[color:var(--glass-shade)] bg-white/55 hover:-translate-y-px hover:bg-white/75'
                     )}
                   >
-                    <span className="text-[12px] font-medium">{template.label}</span>
-                    <span className="text-[10.5px] leading-snug opacity-70">
+                    <span className="text-[13px] font-semibold text-[color:var(--ink-1)]">
+                      {template.label}
+                    </span>
+                    <span className="text-[11.5px] leading-snug text-[color:var(--ink-2)]">
                       {template.description}
                     </span>
                   </button>
@@ -1185,11 +1192,16 @@ export const CreateTeamDialog = ({
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="space-y-1.5 md:col-span-2">
-            <Label htmlFor="team-name">Team name</Label>
+            <Label
+              htmlFor="team-name"
+              className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-[color:var(--ink-3)]"
+            >
+              Team name
+            </Label>
             <Input
               id="team-name"
               className={cn(
-                'h-8 text-xs',
+                'focus-visible:border-[color:var(--a-violet)]/45 focus-visible:ring-[color:var(--a-violet)]/35 h-10 rounded-xl border-[color:var(--glass-shade)] bg-white/55 text-[14px] text-[color:var(--ink-1)] placeholder:text-[color:var(--ink-3)]',
                 (fieldErrors.teamName || teamNameInlineError || isNameTakenByExistingTeam) &&
                   'border-[var(--field-error-border)] bg-[var(--field-error-bg)] focus-visible:ring-[var(--field-error-border)]'
               )}

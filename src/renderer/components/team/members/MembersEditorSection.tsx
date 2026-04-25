@@ -269,7 +269,9 @@ export const MembersEditorSection = ({
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <Label>Members</Label>
+        <Label className="font-mono text-[10.5px] uppercase tracking-[0.22em] text-[color:var(--ink-3)]">
+          Members
+        </Label>
         {!hideContent && (
           <div className="flex gap-2">
             <Button variant="outline" size="sm" className="gap-1.5" onClick={addMember}>

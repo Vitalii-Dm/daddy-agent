@@ -206,7 +206,10 @@ export const MemberDraftRow = ({
           style={
             member.name.trim()
               ? {
-                  color: memberColorSet.text,
+                  color: isLight
+                    ? (memberColorSet.textLight ?? memberColorSet.text)
+                    : memberColorSet.text,
+                  fontWeight: 500,
                 }
               : undefined
           }

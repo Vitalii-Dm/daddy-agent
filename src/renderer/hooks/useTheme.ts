@@ -109,10 +109,17 @@ export function useTheme(): {
     };
   }, [resolvedTheme]);
 
+  // Aurora is a fundamentally light glass theme. When it's active, force the
+  // light variant of legacy color helpers so dialogs/popovers/select pills use
+  // dark-on-light text instead of the dim dark-on-dark variants.
+  const auroraActive =
+    typeof document !== 'undefined' && document.documentElement.dataset.theme === 'aurora';
+  const effectiveTheme: ResolvedTheme = auroraActive ? 'light' : resolvedTheme;
+
   return {
     theme: configuredTheme,
-    resolvedTheme,
-    isDark: resolvedTheme === 'dark',
-    isLight: resolvedTheme === 'light',
+    resolvedTheme: effectiveTheme,
+    isDark: effectiveTheme === 'dark',
+    isLight: effectiveTheme === 'light',
   };
 }

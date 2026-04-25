@@ -1,6 +1,9 @@
 import { api } from '@renderer/api';
 import {
+  DEMO_GEMINI_TEAM_NAME,
   DEMO_TEAM_NAME,
+  buildDemoGeminiTeamData,
+  buildDemoGeminiTeamSummary,
   buildDemoTeamData,
   buildDemoTeamSummary,
 } from '@renderer/utils/demoTeamFixture';
@@ -1366,6 +1369,7 @@ export interface TeamSlice {
   // Demo team — renderer-only fixture seeding for the hackathon walkthrough.
   // Never persisted, never round-tripped through IPC.
   seedDemoTeam: () => void;
+  seedGeminiDemoTeam: () => void;
   appendDemoTask: (task: TeamTaskWithKanban) => void;
   appendDemoMessage: (message: InboxMessage) => void;
 }
@@ -1656,6 +1660,23 @@ export const createTeamSlice: StateCreator<AppState, [], [], TeamSlice> = (set, 
   seedDemoTeam: () => {
     const teamData = buildDemoTeamData();
     const summary = buildDemoTeamSummary();
+    set((state) => {
+      const teamsWithoutDemo = state.teams.filter((t) => t.teamName !== summary.teamName);
+      return {
+        teams: [...teamsWithoutDemo, summary],
+        teamByName: { ...state.teamByName, [summary.teamName]: summary },
+        teamDataCacheByName: { ...state.teamDataCacheByName, [teamData.teamName]: teamData },
+        selectedTeamName: teamData.teamName,
+        selectedTeamData: teamData,
+        selectedTeamLoading: false,
+        selectedTeamError: null,
+      };
+    });
+  },
+
+  seedGeminiDemoTeam: () => {
+    const teamData = buildDemoGeminiTeamData();
+    const summary = buildDemoGeminiTeamSummary();
     set((state) => {
       const teamsWithoutDemo = state.teams.filter((t) => t.teamName !== summary.teamName);
       return {
@@ -2744,7 +2765,7 @@ export const createTeamSlice: StateCreator<AppState, [], [], TeamSlice> = (set, 
   sendTeamMessage: async (teamName: string, request: SendMessageRequest) => {
     // Demo team — append the message in-memory and synthesize an agent reply.
     // No IPC: there is no backing CLI process for the fixture team.
-    if (teamName === DEMO_TEAM_NAME) {
+    if (teamName === DEMO_TEAM_NAME || teamName === DEMO_GEMINI_TEAM_NAME) {
       const messageId = `demo-msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const userMessage: InboxMessage = {
         from: request.from ?? 'user',
@@ -2883,7 +2904,7 @@ export const createTeamSlice: StateCreator<AppState, [], [], TeamSlice> = (set, 
   },
 
   createTeamTask: async (teamName: string, request: CreateTaskRequest) => {
-    if (teamName === DEMO_TEAM_NAME) {
+    if (teamName === DEMO_TEAM_NAME || teamName === DEMO_GEMINI_TEAM_NAME) {
       const id = `demo-task-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
       const now = nowIso();
       const task: TeamTaskWithKanban = {
