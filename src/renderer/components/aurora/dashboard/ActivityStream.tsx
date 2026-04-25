@@ -8,7 +8,7 @@ import { useStore } from '@renderer/store';
 import { LiquidGlass } from '../LiquidGlass';
 import { Mascot, inferMascotRole } from '../Mascot';
 
-interface SeedEvent {
+interface ActivityEvent {
   id: string;
   from: string;
   verb: string;
@@ -16,40 +16,24 @@ interface SeedEvent {
   ago: string;
 }
 
-const SEED_EVENTS: SeedEvent[] = [
-  {
-    id: 'seed-1',
-    from: 'Atlas Coder',
-    verb: 'committed',
-    target: 'feat(ui): glass kanban',
-    ago: 'just now',
-  },
-  {
-    id: 'seed-2',
-    from: 'Vega Reviewer',
-    verb: 'asked',
-    target: 'about layout at 1280px',
-    ago: '2m',
-  },
-  { id: 'seed-3', from: 'Aurora Lead', verb: 'finished', target: 'sprint planning', ago: '6m' },
-  { id: 'seed-4', from: 'Lyra Designer', verb: 'shared', target: 'mascot palette', ago: '12m' },
-];
-
 const APPLE_EASE = [0.22, 1, 0.36, 1] as const;
 
 interface ActivityStreamProps {
   onSendMessage?: () => void;
+  maxItems?: number;
 }
 
 // Right-rail activity stream. Tops out with a heartbeat EKG strip that
 // blips whenever the message count grows. Each row is a small glass row
 // with the from-mascot, a verb, the target, and a relative timestamp.
-export const ActivityStream = ({ onSendMessage }: ActivityStreamProps): React.JSX.Element => {
+export const ActivityStream = ({
+  onSendMessage,
+  maxItems,
+}: ActivityStreamProps): React.JSX.Element => {
   const messages = useStore((s) => s.selectedTeamData?.messages ?? []);
-  const events = useMemo(() => toEvents(messages), [messages]);
-  const isSeeded = events.length === 0;
-  const display = isSeeded ? SEED_EVENTS : events;
-  const heartbeatCount = isSeeded ? 0 : events.length;
+  const allEvents = useMemo(() => toEvents(messages), [messages]);
+  const events = maxItems != null ? allEvents.slice(0, maxItems) : allEvents;
+  const heartbeatCount = events.length;
 
   return (
     <LiquidGlass radius={26} className="flex flex-col gap-3 p-4">
@@ -60,23 +44,21 @@ export const ActivityStream = ({ onSendMessage }: ActivityStreamProps): React.JS
         <Heartbeat trigger={heartbeatCount} />
       </header>
 
-      <ul className="flex flex-col gap-1.5">
-        {display.map((event, idx) => (
-          <motion.li
-            key={event.id}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: isSeeded ? 0.78 : 1, y: 0 }}
-            transition={{ duration: 0.4, ease: APPLE_EASE, delay: idx * 0.03 }}
-          >
-            <ActivityRow event={event} />
-          </motion.li>
-        ))}
-      </ul>
-
-      {isSeeded && (
-        <p className="px-1 pt-2 font-mono text-[10.5px] uppercase tracking-[0.14em] text-[color:var(--ink-4)]">
-          Sample events — real activity arrives once a team is live.
-        </p>
+      {events.length === 0 ? (
+        <p className="px-1 py-2 text-[12px] text-[color:var(--ink-3)]">No activity yet.</p>
+      ) : (
+        <ul className="flex flex-col gap-1.5">
+          {events.map((event, idx) => (
+            <motion.li
+              key={event.id}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: APPLE_EASE, delay: idx * 0.03 }}
+            >
+              <ActivityRow event={event} />
+            </motion.li>
+          ))}
+        </ul>
       )}
 
       {onSendMessage && (
@@ -95,7 +77,7 @@ export const ActivityStream = ({ onSendMessage }: ActivityStreamProps): React.JS
   );
 };
 
-const ActivityRow = ({ event }: { event: SeedEvent }): React.JSX.Element => {
+const ActivityRow = ({ event }: { event: ActivityEvent }): React.JSX.Element => {
   const role = inferMascotRole(event.from);
   return (
     <div
@@ -171,7 +153,7 @@ const Heartbeat = ({ trigger }: { trigger: number }): React.JSX.Element => {
   );
 };
 
-function toEvents(messages: InboxMessage[]): SeedEvent[] {
+function toEvents(messages: InboxMessage[]): ActivityEvent[] {
   return messages
     .slice(-12)
     .reverse()

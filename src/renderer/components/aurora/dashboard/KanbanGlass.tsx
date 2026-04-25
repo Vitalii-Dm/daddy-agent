@@ -47,42 +47,19 @@ interface KanbanGlassProps {
 
 const APPLE_EASE = [0.22, 1, 0.36, 1] as const;
 
-const SEED_CARDS: Record<ColumnId, SeedCard[]> = {
-  todo: [
-    seed('Set up team kanban', 'lead', 'Aurora Lead'),
-    seed('Wire dnd-kit drag handlers', 'coder', 'Atlas Coder'),
-  ],
-  in_progress: [seed('Reskin task cards as glass', 'designer', 'Lyra Designer')],
-  review: [seed('Audit alignment at 1280/1440/1920', 'reviewer', 'Vega Reviewer')],
-  done: [seed('Mount AuroraShell as default', 'lead', 'Aurora Lead')],
-};
-
-interface SeedCard {
-  id: string;
-  subject: string;
-  role: string;
-  owner: string;
-}
-
-function seed(subject: string, role: string, owner: string): SeedCard {
-  return { id: `seed-${subject.toLowerCase().replace(/\W+/g, '-')}`, subject, role, owner };
-}
-
 interface CardItem {
   id: string;
   subject: string;
   role: string;
   owner: string;
   blockedBy?: string[];
-  isSeed: boolean;
 }
 
-// Glass kanban: 4 columns, drag cards between them. When a real team is loaded
-// the cards come from selectedTeamData.tasks; otherwise a seed deck shows the
-// surface in its best light. The DnD updates a local override map — when wired
-// to a real team this would persist via TeamSlice mutators, but at this stage
-// we keep the optimistic local state so the surface is fully interactive in
-// the demo flow.
+// Glass kanban: 4 columns, drag cards between them. Cards come from
+// selectedTeamData.tasks; when no team is loaded, columns show an empty state.
+// The DnD updates a local override map — when wired to a real team this would
+// persist via TeamSlice mutators, but at this stage we keep the optimistic
+// local state so the surface is fully interactive in the demo flow.
 export const KanbanGlass = ({
   filter,
   view,
@@ -108,15 +85,6 @@ export const KanbanGlass = ({
 
   const grouped = useMemo<Record<ColumnId, CardItem[]>>(() => {
     const acc: Record<ColumnId, CardItem[]> = { todo: [], in_progress: [], review: [], done: [] };
-    if (realTasks.length === 0) {
-      for (const id of ['todo', 'in_progress', 'review', 'done'] as ColumnId[]) {
-        for (const card of SEED_CARDS[id]) {
-          const col = overrides[card.id] ?? id;
-          acc[col].push({ ...card, isSeed: true });
-        }
-      }
-      return filterCards(acc, filter);
-    }
     for (const task of realTasks) {
       const baseCol = mapTaskToColumn(task);
       const col = overrides[task.id] ?? baseCol;
@@ -126,7 +94,6 @@ export const KanbanGlass = ({
         role: inferRoleFromOwner(task.owner, members),
         owner: task.owner ?? 'Unassigned',
         blockedBy: task.blockedBy,
-        isSeed: false,
       });
     }
     return filterCards(acc, filter);
@@ -135,6 +102,8 @@ export const KanbanGlass = ({
   if (view === 'List')
     return <ListView grouped={grouped} onTaskClick={onTaskClick} realTasks={realTasks} />;
   if (view === 'Graph') return <GraphView />;
+
+  const isEmpty = realTasks.length === 0;
 
   return (
     <DndContext
@@ -148,9 +117,8 @@ export const KanbanGlass = ({
         const target = String(overId);
         if (!isColumnId(target)) return;
         const cardId = String(e.active.id);
-        const isCardSeed = cardId.startsWith('seed-');
         setOverrides((prev) => ({ ...prev, [cardId]: target }));
-        if (teamName && !isCardSeed) {
+        if (teamName) {
           // Only 'review' and 'approved' (done) are supported by the patch API.
           // For todo/in_progress the optimistic local override is the best we can do.
           if (target === 'review') {
@@ -167,6 +135,11 @@ export const KanbanGlass = ({
         radius={26}
         className="relative flex w-full flex-col gap-4 overflow-hidden p-4 sm:p-5"
       >
+        {isEmpty && (
+          <p className="px-1 pb-1 text-[12px] text-[color:var(--ink-3)]">
+            No tasks yet. Create a task to get started.
+          </p>
+        )}
         <div
           className="flex w-full snap-x gap-4 overflow-x-auto pb-2 [scrollbar-width:thin]"
           style={{ scrollSnapType: 'x mandatory', overscrollBehavior: 'contain' }}
@@ -296,7 +269,7 @@ const DraggableCard = ({
   };
 
   const handleClick = (): void => {
-    if (!onTaskClick || card.isSeed) return;
+    if (!onTaskClick) return;
     const realTask = realTasks.find((t) => t.id === card.id);
     if (realTask) onTaskClick(realTask);
   };
@@ -311,7 +284,7 @@ const DraggableCard = ({
       {...listeners}
       className="cursor-grab touch-none active:cursor-grabbing"
     >
-      <CardSurface card={card} onClick={!card.isSeed && onTaskClick ? handleClick : undefined} />
+      <CardSurface card={card} onClick={onTaskClick ? handleClick : undefined} />
     </motion.div>
   );
 };
@@ -405,7 +378,7 @@ const ListView = ({
     <LiquidGlass radius={26} className="p-4">
       <ul className="divide-y divide-[color:var(--glass-shade)]">
         {all.map((c) => {
-          const realTask = !c.isSeed ? realTasks.find((t) => t.id === c.id) : undefined;
+          const realTask = realTasks.find((t) => t.id === c.id);
           const handleClick = realTask && onTaskClick ? () => onTaskClick(realTask) : undefined;
           return (
             <li

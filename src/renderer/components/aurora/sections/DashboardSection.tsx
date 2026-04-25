@@ -17,6 +17,7 @@ import type { ResolvedTeamMember, TeamTaskWithKanban } from '@shared/types';
 
 import { ActivityStream } from '../dashboard/ActivityStream';
 import { AgentRoster } from '../dashboard/AgentRoster';
+import { DashboardChat } from '../dashboard/DashboardChat';
 import { KanbanGlass } from '../dashboard/KanbanGlass';
 import { LiquidGlass } from '../LiquidGlass';
 import { useAuroraTeam } from '../hooks/useAuroraTeam';
@@ -224,8 +225,13 @@ export const DashboardSection = (): React.JSX.Element => {
               />
             </div>
 
-            <div className="lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-120px)] lg:overflow-y-auto lg:pl-1">
-              <ActivityStream onSendMessage={handleSendMessageFromActivity} />
+            <div className="flex flex-col gap-4 overflow-hidden lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-120px)] lg:pl-1">
+              <ActivityStream onSendMessage={handleSendMessageFromActivity} maxItems={4} />
+              {teamName ? (
+                <div className="min-h-0 flex-1">
+                  <DashboardChat teamName={teamName} />
+                </div>
+              ) : null}
             </div>
           </motion.div>
         </motion.div>

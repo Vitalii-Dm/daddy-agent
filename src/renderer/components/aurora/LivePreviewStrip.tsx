@@ -13,61 +13,26 @@ interface PreviewTile {
   role: MascotRole;
   status: ReturnType<typeof inferMascotStatus>;
   task: string;
-  isSeed: boolean;
 }
-
-const SEED_TILES: PreviewTile[] = [
-  {
-    key: 'seed-lead',
-    name: 'Lead',
-    role: 'lead',
-    status: 'thinking',
-    task: 'No agents yet',
-    isSeed: true,
-  },
-  {
-    key: 'seed-coder',
-    name: 'Coder',
-    role: 'coder',
-    status: 'idle',
-    task: 'Awaiting kickoff',
-    isSeed: true,
-  },
-  {
-    key: 'seed-reviewer',
-    name: 'Reviewer',
-    role: 'reviewer',
-    status: 'idle',
-    task: 'Standby',
-    isSeed: true,
-  },
-  {
-    key: 'seed-researcher',
-    name: 'Researcher',
-    role: 'researcher',
-    status: 'idle',
-    task: 'Standby',
-    isSeed: true,
-  },
-  {
-    key: 'seed-designer',
-    name: 'Designer',
-    role: 'designer',
-    status: 'idle',
-    task: 'Standby',
-    isSeed: true,
-  },
-];
 
 const APPLE_EASE = [0.22, 1, 0.36, 1] as const;
 
 // Five-tile horizontal strip parallaxing along the bottom of the hero. Pulls
-// from the live team via useAuroraTeam(); falls back to a beautifully styled
-// seed roster when no team is loaded yet.
+// from the live team via useAuroraTeam(). Shows an empty state when no team
+// is loaded.
 export const LivePreviewStrip = (): React.JSX.Element => {
   const { members } = useAuroraTeam();
-  const tiles = members.length === 0 ? SEED_TILES : members.slice(0, 5).map(memberToTile);
-  const isSeeded = members.length === 0;
+  const tiles = members.slice(0, 5).map(memberToTile);
+
+  if (members.length === 0) {
+    return (
+      <div className="flex w-full items-center justify-center py-4">
+        <span className="rounded-full bg-white/65 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.18em] text-[color:var(--ink-2)] shadow-[0_4px_12px_-6px_rgba(20,19,26,0.18)]">
+          No agents yet
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className="relative isolate w-full overflow-hidden">
@@ -87,7 +52,7 @@ export const LivePreviewStrip = (): React.JSX.Element => {
           <motion.div
             key={tile.key}
             initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: isSeeded ? 0.78 : 1, y: 0 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.65, ease: APPLE_EASE, delay: idx * 0.06 }}
             className="shrink-0"
           >
@@ -95,14 +60,6 @@ export const LivePreviewStrip = (): React.JSX.Element => {
           </motion.div>
         ))}
       </div>
-
-      {isSeeded && (
-        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
-          <span className="rounded-full bg-white/65 px-3 py-1 font-mono text-[11px] uppercase tracking-[0.18em] text-[color:var(--ink-2)] shadow-[0_4px_12px_-6px_rgba(20,19,26,0.18)]">
-            No agents yet
-          </span>
-        </div>
-      )}
     </div>
   );
 };
@@ -116,12 +73,16 @@ const PreviewTileCard = ({ tile }: { tile: PreviewTile }): React.JSX.Element => 
         : tile.status === 'waiting'
           ? 'var(--warn)'
           : 'var(--ink-4)';
+  const isInactive = !tile.status || tile.status === 'idle';
 
   return (
     <LiquidGlass
       radius={22}
       shadow="soft"
-      className="flex h-[148px] w-[212px] flex-col justify-between p-4"
+      className={
+        'flex h-[148px] w-[212px] flex-col justify-between p-4 transition-opacity duration-300' +
+        (isInactive ? ' opacity-70' : '')
+      }
     >
       <div className="flex items-center gap-3">
         <Mascot role={tile.role} size={48} seed={tile.key} status={tile.status} halo />
@@ -156,6 +117,5 @@ function memberToTile(member: ResolvedTeamMember): PreviewTile {
     role: inferMascotRole(member.role ?? member.agentType ?? member.workflow),
     status: inferMascotStatus(member.status as unknown as string) ?? 'idle',
     task: member.currentTaskId ? `Task ${member.currentTaskId.slice(0, 8)}` : 'Awaiting task',
-    isSeed: false,
   };
 }

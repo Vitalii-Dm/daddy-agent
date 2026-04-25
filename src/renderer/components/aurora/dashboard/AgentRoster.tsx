@@ -9,42 +9,7 @@ import { LiquidGlass } from '../LiquidGlass';
 import { Mascot, inferMascotRole, inferMascotStatus, type MascotStatus } from '../Mascot';
 import { useAuroraTeam } from '../hooks/useAuroraTeam';
 
-const SEED_MEMBERS: SeedMember[] = [
-  {
-    name: 'Aurora Lead',
-    role: 'Lead orchestrator',
-    status: 'thinking',
-    currentTask: 'Routing the first sprint',
-    tasksDone: 0,
-    tasksTotal: 4,
-  },
-  {
-    name: 'Atlas Coder',
-    role: 'Coder',
-    status: 'coding',
-    currentTask: 'Spinning up the kanban',
-    tasksDone: 1,
-    tasksTotal: 3,
-  },
-  {
-    name: 'Vega Reviewer',
-    role: 'Reviewer',
-    status: 'waiting',
-    currentTask: 'Waiting on first PR',
-    tasksDone: 0,
-    tasksTotal: 0,
-  },
-  {
-    name: 'Lyra Researcher',
-    role: 'Researcher',
-    status: 'idle',
-    currentTask: 'Standby',
-    tasksDone: 0,
-    tasksTotal: 0,
-  },
-];
-
-interface SeedMember {
+interface AgentMember {
   name: string;
   role: string;
   status: MascotStatus;
@@ -62,16 +27,14 @@ interface AgentRosterProps {
 
 // Glass-card list of agents in the current team. Replaces the dark MemberList
 // skin without touching the underlying member data or its hover-card hookups.
-// When no team is loaded, a friendly seed roster fills the panel at reduced
-// opacity so the dashboard never feels broken.
+// When no team is loaded, shows an empty state.
 export const AgentRoster = ({
   onMemberClick,
   onSendMessage,
 }: AgentRosterProps): React.JSX.Element => {
   const { members, teamName, totalCount } = useAuroraTeam();
   const tasks = useStore((s) => s.selectedTeamData?.tasks ?? []);
-  const isSeeded = members.length === 0;
-  const cards = isSeeded ? SEED_MEMBERS : members.map((m) => toSeedMember(m, tasks));
+  const cards = members.map((m) => toAgentMember(m, tasks));
 
   return (
     <LiquidGlass radius={26} className="flex flex-col gap-3 p-4">
@@ -80,47 +43,55 @@ export const AgentRoster = ({
           Roster
         </h3>
         <span className="font-mono text-[11px] tabular-nums text-[color:var(--ink-3)]">
-          {isSeeded ? '0' : totalCount}
+          {totalCount}
         </span>
       </header>
 
-      <p className="px-1 text-[12px] text-[color:var(--ink-3)]">
-        {isSeeded
-          ? 'Seed agents — spin up a real team to populate.'
-          : `Active in ${teamName ?? 'this team'}.`}
-      </p>
-
-      <ul className="flex flex-col gap-2">
-        {cards.map((m, idx) => (
-          <motion.li
-            key={m.name}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: isSeeded ? 0.78 : 1, y: 0 }}
-            transition={{ duration: 0.45, ease: APPLE_EASE, delay: idx * 0.04 }}
-          >
-            <RosterCard
-              member={m}
-              onMemberClick={!isSeeded ? onMemberClick : undefined}
-              onSendMessage={!isSeeded ? onSendMessage : undefined}
-            />
-          </motion.li>
-        ))}
-      </ul>
+      {members.length === 0 ? (
+        <p className="px-1 py-4 text-center text-[12px] text-[color:var(--ink-3)]">
+          No agents yet. Create a team to get started.
+        </p>
+      ) : (
+        <>
+          <p className="px-1 text-[12px] text-[color:var(--ink-3)]">
+            {`Active in ${teamName ?? 'this team'}.`}
+          </p>
+          <ul className="flex flex-col gap-2">
+            {cards.map((m, idx) => (
+              <motion.li
+                key={m.name}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45, ease: APPLE_EASE, delay: idx * 0.04 }}
+              >
+                <RosterCard
+                  member={m}
+                  onMemberClick={onMemberClick}
+                  onSendMessage={onSendMessage}
+                />
+              </motion.li>
+            ))}
+          </ul>
+        </>
+      )}
     </LiquidGlass>
   );
 };
+
+const INACTIVE_STATUSES: MascotStatus[] = ['idle'];
 
 const RosterCard = ({
   member,
   onMemberClick,
   onSendMessage,
 }: {
-  member: SeedMember;
+  member: AgentMember;
   onMemberClick?: (memberName: string) => void;
   onSendMessage?: (memberName: string) => void;
 }): React.JSX.Element => {
   const role = inferMascotRole(member.role);
   const progress = member.tasksTotal === 0 ? 0 : Math.min(1, member.tasksDone / member.tasksTotal);
+  const isInactive = INACTIVE_STATUSES.includes(member.status);
 
   return (
     <div
@@ -139,7 +110,8 @@ const RosterCard = ({
       }
       className={
         'group flex flex-col gap-3 rounded-[18px] border border-white/55 bg-white/55 p-3 transition-all duration-300 hover:-translate-y-px hover:bg-white/65 hover:shadow-[0_10px_24px_-12px_rgba(20,19,26,0.18)]' +
-        (onMemberClick ? ' cursor-pointer' : '')
+        (onMemberClick ? ' cursor-pointer' : '') +
+        (isInactive ? ' opacity-70' : '')
       }
       style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.85)' }}
     >
@@ -203,7 +175,7 @@ const RosterCard = ({
 };
 
 const STATUS_LABEL: Record<MascotStatus, string> = {
-  idle: 'Idle',
+  idle: 'Inactive',
   thinking: 'Thinking',
   coding: 'Coding',
   blocked: 'Blocked',
@@ -243,7 +215,7 @@ const StatusChip = ({ status }: { status: MascotStatus }): React.JSX.Element => 
   </span>
 );
 
-function toSeedMember(member: ResolvedTeamMember, tasks: TeamTaskWithKanban[]): SeedMember {
+function toAgentMember(member: ResolvedTeamMember, tasks: TeamTaskWithKanban[]): AgentMember {
   const status = inferMascotStatus(member.status as unknown as string) ?? 'idle';
   const total = member.taskCount ?? 0;
   const tasksDone = tasks.filter((t) => t.owner === member.name && t.status === 'completed').length;

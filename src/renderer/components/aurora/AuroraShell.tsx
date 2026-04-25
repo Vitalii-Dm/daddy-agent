@@ -42,7 +42,12 @@ const AuroraChatPanel = ({ teamName, onClose }: AuroraChatPanelProps): React.JSX
   const handleSend = useCallback(() => {
     const trimmed = text.trim();
     if (!trimmed || sendingMessage) return;
-    void sendTeamMessage(teamName, { member: 'lead', text: trimmed });
+    void sendTeamMessage(teamName, {
+      member: 'lead',
+      text: trimmed,
+      from: 'user',
+      source: 'user_sent',
+    });
     setText('');
     inputRef.current?.focus();
   }, [text, sendingMessage, sendTeamMessage, teamName]);
