@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react';
 import { useShallow } from 'zustand/react/shallow';
 
-import { isElectronMode } from '@renderer/api';
+import { api, isElectronMode } from '@renderer/api';
 import { GlassButton } from '@renderer/components/ui/GlassButton';
 import { CreateTaskDialog } from '@renderer/components/team/dialogs/CreateTaskDialog';
 import { CreateTeamDialog } from '@renderer/components/team/dialogs/CreateTeamDialog';
@@ -21,9 +21,7 @@ import { ActivityStream } from '../dashboard/ActivityStream';
 import { AgentRoster } from '../dashboard/AgentRoster';
 import { AuroraReviewDiffDialog } from '../dashboard/AuroraReviewDiffDialog';
 import { ChatColumn } from '../dashboard/ChatColumn';
-import { DashboardChat } from '../dashboard/DashboardChat';
 import { KanbanGlass } from '../dashboard/KanbanGlass';
-import { TeamSelectionGrid } from '../dashboard/TeamSelectionGrid';
 import { isTradersTeam, TradersDashboard } from '../dashboard/TradersDashboard';
 import { LiquidGlass } from '../LiquidGlass';
 import { useAuroraTeam } from '../hooks/useAuroraTeam';
@@ -41,14 +39,7 @@ const APPLE_EASE = [0.22, 1, 0.36, 1] as const;
 // horizontal scrollbar at the document level. Side panels stick to top: 88px
 // once the user scrolls past the header.
 export const DashboardSection = (): React.JSX.Element => {
-  const { teamName: auroraTeamName, members, runningCount, totalCount, isAlive } = useAuroraTeam();
-  const selectedTeamName = useStore((s) => s.selectedTeamName);
-  const teamName = selectedTeamName ? auroraTeamName : null;
-
-  const deselectTeam = useCallback(() => {
-    useStore.setState({ selectedTeamName: null, selectedTeamData: null });
-  }, []);
-
+  const { teamName, members, runningCount, totalCount, isAlive } = useAuroraTeam();
   const tasks = useStore((s) => s.selectedTeamData?.tasks ?? []);
   const messages = useStore((s) => s.selectedTeamData?.messages ?? []);
   const createTeamTask = useStore((s) => s.createTeamTask);
@@ -68,7 +59,6 @@ export const DashboardSection = (): React.JSX.Element => {
     teams,
     openTeamTab,
     connectionMode,
-    selectTeam,
   } = useStore(
     useShallow((s) => ({
       sendTeamMessage: s.sendTeamMessage,
@@ -85,12 +75,26 @@ export const DashboardSection = (): React.JSX.Element => {
       teams: s.teams,
       openTeamTab: s.openTeamTab,
       connectionMode: s.connectionMode,
-      selectTeam: s.selectTeam,
     }))
   );
 
   const [view, setView] = useState<ViewTab>('Kanban');
   const [filter, setFilter] = useState<FilterChip>('All');
+  const [stoppingTeam, setStoppingTeam] = useState(false);
+  const refreshTeamData = useStore((s) => s.refreshTeamData);
+
+  const handleStopTeam = useCallback(async () => {
+    if (!teamName || stoppingTeam) return;
+    setStoppingTeam(true);
+    try {
+      await api.teams.stop(teamName);
+      await refreshTeamData(teamName);
+    } catch (err) {
+      console.error('Failed to stop team:', err);
+    } finally {
+      setStoppingTeam(false);
+    }
+  }, [teamName, stoppingTeam, refreshTeamData]);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [creatingTask, setCreatingTask] = useState(false);
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
@@ -213,7 +217,7 @@ export const DashboardSection = (): React.JSX.Element => {
       <section
         ref={sectionRef}
         id="dashboard"
-        className="relative px-6 pb-32 pt-24 sm:px-10 lg:px-16"
+        className="relative px-6 pb-32 pt-8 sm:px-10 lg:px-16"
         style={{ scrollMarginTop: '88px' }}
       >
         <motion.div
@@ -228,82 +232,71 @@ export const DashboardSection = (): React.JSX.Element => {
             teamName={teamName}
             runningCount={runningCount}
             totalCount={totalCount}
+            isAlive={isAlive}
+            stoppingTeam={stoppingTeam}
             view={view}
             onViewChange={setView}
             filter={filter}
             onFilterChange={setFilter}
             onCreateTask={() => setCreateTaskOpen(true)}
             onLaunchTeam={() => setLaunchDialogOpen(true)}
+            onStopTeam={handleStopTeam}
             onNewTeam={() => setCreateTeamOpen(true)}
             onSendMessage={() => setSendDialogOpen(true)}
             onTrash={teamName ? () => setTrashOpen(true) : undefined}
-            onDeselectTeam={deselectTeam}
           />
 
-          {!teamName ? (
-            <motion.div
-              initial={{ opacity: 0, y: 24 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.15 }}
-              transition={{ duration: 0.65, ease: APPLE_EASE }}
-              className="mt-10"
-            >
-              <TeamSelectionGrid />
-            </motion.div>
-          ) : (
-            <>
-              {teamName && (
-                <div className="mt-6">
-                  <TeamProvisioningPanel teamName={teamName} surface="raised" dismissible />
-                </div>
-              )}
-
-              <motion.div
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.15 }}
-                transition={{ duration: 0.65, ease: APPLE_EASE }}
-                className="mt-10 grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)] min-[1440px]:grid-cols-[480px_minmax(0,1fr)]"
-              >
-                {/* LEFT: chat column (sticky) */}
-                <div
-                  className="flex min-h-0 flex-col gap-4 lg:sticky lg:top-[88px]"
-                  style={{ maxHeight: 'calc(100vh - 80px)' }}
-                >
-                  <ChatColumn
-                    teamName={teamName}
-                    onSendMessageDialog={handleSendMessageFromActivity}
-                  />
-                </div>
-
-                {/* RIGHT: roster band (top) + kanban (full width) */}
-                <div
-                  className="flex min-w-0 flex-col gap-5 lg:sticky lg:top-[88px]"
-                  style={{ maxHeight: 'calc(100vh - 80px)' }}
-                >
-                  <AgentRoster
-                    onMemberClick={handleMemberClick}
-                    onSendMessage={(name) => {
-                      setSendDialogRecipient(name);
-                      setSendDialogOpen(true);
-                    }}
-                  />
-                  <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-                    {isTradersTeam(teamName, members) ? (
-                      <TradersDashboard members={members} />
-                    ) : (
-                      <KanbanGlass
-                        filter={filter}
-                        view={view}
-                        onTaskClick={(task) => setSelectedTask(task)}
-                        onCreateTask={() => setCreateTaskOpen(true)}
-                      />
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            </>
+          {teamName && (
+            <div className="mt-6">
+              <TeamProvisioningPanel teamName={teamName} surface="raised" dismissible />
+            </div>
           )}
+
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.15 }}
+            transition={{ duration: 0.65, ease: APPLE_EASE }}
+            className="mt-10 grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)] min-[1440px]:grid-cols-[480px_minmax(0,1fr)]"
+          >
+            {/* LEFT: chat column (sticky, fixed width) */}
+            <div
+              className="flex min-h-0 flex-col gap-4 lg:sticky lg:top-[88px]"
+              style={{ maxHeight: 'calc(100vh - 120px)' }}
+            >
+              {teamName ? (
+                <ChatColumn
+                  teamName={teamName}
+                  onSendMessageDialog={handleSendMessageFromActivity}
+                />
+              ) : (
+                <ActivityStream onSendMessage={handleSendMessageFromActivity} maxItems={6} />
+              )}
+            </div>
+
+            {/* RIGHT: roster band (top) + kanban (full width) */}
+            <div className="flex min-w-0 flex-col gap-5">
+              <AgentRoster
+                onMemberClick={handleMemberClick}
+                onSendMessage={(name) => {
+                  setSendDialogRecipient(name);
+                  setSendDialogOpen(true);
+                }}
+              />
+              <div className="min-h-[60vh] min-w-0 flex-1">
+                {isTradersTeam(teamName, members) ? (
+                  <TradersDashboard members={members} />
+                ) : (
+                  <KanbanGlass
+                    filter={filter}
+                    view={view}
+                    onTaskClick={(task) => setSelectedTask(task)}
+                    onCreateTask={() => setCreateTaskOpen(true)}
+                  />
+                )}
+              </div>
+            </div>
+          </motion.div>
         </motion.div>
       </section>
 
@@ -435,13 +428,6 @@ export const DashboardSection = (): React.JSX.Element => {
         onClose={() => setCreateTeamOpen(false)}
         onCreate={async (request) => {
           await createTeam(request);
-          // Select the freshly-created team so the dashboard fills with its
-          // roster, tasks, and activity instead of staying on "NO TEAM SELECTED".
-          try {
-            await selectTeam(request.teamName);
-          } catch {
-            // ignore — dashboard will pick it up on next teams refresh
-          }
           setCreateTeamOpen(false);
         }}
         onOpenTeam={(name, projectPath) => {
@@ -457,51 +443,41 @@ interface DashboardHeaderProps {
   teamName: string | null;
   runningCount: number;
   totalCount: number;
+  isAlive: boolean;
+  stoppingTeam: boolean;
   view: ViewTab;
   onViewChange: (v: ViewTab) => void;
   filter: FilterChip;
   onFilterChange: (f: FilterChip) => void;
   onCreateTask: () => void;
   onLaunchTeam: () => void;
+  onStopTeam: () => void;
   onNewTeam: () => void;
   onSendMessage: () => void;
   onTrash?: () => void;
-  onDeselectTeam?: () => void;
 }
 
 const DashboardHeader = ({
   teamName,
   runningCount,
   totalCount,
+  isAlive,
+  stoppingTeam,
   view,
   onViewChange,
   filter,
   onFilterChange,
   onCreateTask,
   onLaunchTeam,
+  onStopTeam,
   onNewTeam,
   onSendMessage,
   onTrash,
-  onDeselectTeam,
 }: DashboardHeaderProps): React.JSX.Element => (
   <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
     <div className="min-w-0 max-w-[640px]">
       <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-[color:var(--ink-3)]">
-        {teamName ? (
-          <>
-            <button
-              type="button"
-              onClick={onDeselectTeam}
-              className="transition-colors hover:text-[color:var(--ink-1)] focus-visible:outline-none"
-            >
-              Teams
-            </button>
-            {' / '}
-            {teamName}
-          </>
-        ) : (
-          'No team selected'
-        )}
+        {teamName ?? 'No team selected'}
       </p>
       <h2
         className="mt-3 whitespace-normal break-words font-serif font-normal text-[color:var(--ink-1)]"
@@ -536,9 +512,15 @@ const DashboardHeader = ({
       >
         New Task
       </GlassButton>
-      <GlassButton variant="secondary" onClick={onLaunchTeam}>
-        Launch Team
-      </GlassButton>
+      {isAlive ? (
+        <GlassButton variant="danger" onClick={onStopTeam} disabled={stoppingTeam}>
+          {stoppingTeam ? 'Stopping…' : 'Stop Team'}
+        </GlassButton>
+      ) : (
+        <GlassButton variant="secondary" onClick={onLaunchTeam}>
+          Launch Team
+        </GlassButton>
+      )}
       <GlassButton variant="tertiary" onClick={onNewTeam}>
         New Team
       </GlassButton>

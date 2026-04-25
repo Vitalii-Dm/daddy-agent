@@ -5,6 +5,8 @@ import type { InboxMessage } from '@shared/types/team';
 import { useStore } from '@renderer/store';
 import { stripAgentBlocks } from '@shared/constants/agentBlocks';
 
+import { GlassButton } from '@renderer/components/ui/GlassButton';
+
 import { LiquidGlass } from '../LiquidGlass';
 import { Mascot, inferMascotRole } from '../Mascot';
 
@@ -21,8 +23,12 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
   const listRef = useRef<HTMLDivElement | null>(null);
 
   const messages = useStore((s) => s.selectedTeamData?.messages ?? []);
+  const members = useStore((s) => s.selectedTeamData?.members ?? []);
   const sendTeamMessage = useStore((s) => s.sendTeamMessage);
   const sendingMessage = useStore((s) => s.sendingMessage);
+
+  // Resolve actual lead member name (e.g. "team-lead") instead of hardcoded "lead"
+  const leadMemberName = members.find((m) => m.agentType === 'team-lead')?.name ?? 'team-lead';
 
   // Anchor the panel at the start of the chat (oldest messages visible first).
   // The user scrolls down manually; we don't pin to the bottom on new messages.
@@ -35,14 +41,14 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
     const trimmed = text.trim();
     if (!trimmed || sendingMessage) return;
     void sendTeamMessage(teamName, {
-      member: 'lead',
+      member: leadMemberName,
       text: trimmed,
       from: 'user',
       source: 'user_sent',
     });
     setText('');
     inputRef.current?.focus();
-  }, [text, sendingMessage, sendTeamMessage, teamName]);
+  }, [text, sendingMessage, sendTeamMessage, teamName, leadMemberName]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -55,10 +61,14 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
   );
 
   return (
-    <LiquidGlass radius={26} className="flex flex-col overflow-hidden" style={{ maxHeight: 360 }}>
-      {/* Header */}
+    <LiquidGlass
+      radius={26}
+      className="flex h-full min-h-0 flex-col overflow-hidden"
+      style={{ flex: '1 1 auto' }}
+    >
+      {/* Header — sticky chat label row */}
       <div
-        className="flex shrink-0 items-center justify-between border-b px-4 py-3"
+        className="sticky top-0 z-10 flex shrink-0 items-center justify-between border-b px-4 py-3"
         style={{ borderColor: 'var(--glass-shade)' }}
       >
         <div className="flex items-center gap-2">
@@ -80,11 +90,11 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
         </span>
       </div>
 
-      {/* Message list — anchored at the start; scroll on hover via wheel. */}
+      {/* Message list — only this scrolls. */}
       <div
         ref={listRef}
         data-lenis-prevent
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3"
+        className="glass-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3"
       >
         {messages.length === 0 ? (
           <p className="py-4 text-center text-[12px] text-[color:var(--ink-3)]">
@@ -95,7 +105,12 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
             {messages
               .filter((msg) => {
                 if (typeof msg.text !== 'string') return true;
-                return stripAgentBlocks(msg.text).trim().length > 0;
+                const text = msg.text;
+                // Hide internal system messages: idle notifications, JSON payloads, etc.
+                if (text.startsWith('{') && text.includes('"type"')) return false;
+                // Hide messages that are only agent blocks (internal instructions)
+                if (stripAgentBlocks(text).trim().length === 0) return false;
+                return true;
               })
               .map((msg, idx) => (
                 <ChatBubble key={msg.messageId ?? `msg-${idx}`} msg={msg} />
@@ -104,9 +119,9 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
         )}
       </div>
 
-      {/* Composer */}
+      {/* Composer — sticky at panel bottom */}
       <div
-        className="flex shrink-0 items-center gap-2 border-t px-3 py-2.5"
+        className="sticky bottom-0 z-10 flex shrink-0 items-center gap-2 border-t px-3 py-2.5"
         style={{ borderColor: 'var(--glass-shade)' }}
       >
         <input
@@ -119,20 +134,17 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
           disabled={sendingMessage}
           className="min-w-0 flex-1 rounded-full border border-white/25 bg-white/20 px-3.5 py-1.5 text-[13px] text-[color:var(--ink-1)] placeholder:text-[color:var(--ink-3)] focus:outline-none focus:ring-1 focus:ring-[color:var(--a-violet)] disabled:opacity-50"
         />
-        <button
-          type="button"
+        <GlassButton
+          variant="primary"
           disabled={!text.trim() || sendingMessage}
           onClick={handleSend}
           aria-label="Send message"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white transition-opacity disabled:opacity-40"
-          style={{
-            background: 'linear-gradient(135deg, var(--a-violet) 0%, var(--a-cyan) 100%)',
-          }}
+          className="size-10 shrink-0 rounded-full px-0"
         >
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
             <path d="M1 12L12 6.5 1 1v4l8 1.5-8 1.5v4z" fill="currentColor" />
           </svg>
-        </button>
+        </GlassButton>
       </div>
     </LiquidGlass>
   );
