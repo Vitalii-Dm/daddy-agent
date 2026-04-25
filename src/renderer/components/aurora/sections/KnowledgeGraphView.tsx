@@ -45,7 +45,7 @@ const PALETTE = [
 const DEFAULT_COLOR = '#64748b';
 const FALLBACK_COMMUNITY = '__none__';
 
-const MIN_ZOOM = 0.5;
+const MIN_ZOOM = 0.15;
 const MAX_ZOOM = 6;
 
 interface LayoutNode {
@@ -187,7 +187,10 @@ function layout(
   const xMax = width - padding;
   const yMax = height - padding;
   const area = (xMax - xMin) * (yMax - yMin);
-  const k = Math.sqrt(area / Math.max(nodes.length, 1)) * 0.85;
+  // Detail view (>200 nodes) gets a larger spring rest length so dense
+  // codebase graphs don't collapse into an unreadable hairball.
+  const denseGraph = nodes.length > 200;
+  const k = Math.sqrt(area / Math.max(nodes.length, 1)) * (denseGraph ? 1.4 : 0.85);
   // Re-layouts (incremental seed) cool faster so existing structure isn't
   // shaken apart; cold-start gets the full 140 iterations.
   const iterations = options.iterations ?? (seed ? 60 : 140);
@@ -286,7 +289,9 @@ function layout(
     const fitScale = Math.min(targetW / bboxW, targetH / bboxH) * 0.92;
 
     // Density floor: average edge length must stay ≥ MIN_AVG_EDGE_PX.
-    const MIN_AVG_EDGE_PX = 32;
+    // Detail view needs a larger density floor so the post-fit pass spreads
+    // the hundreds of nodes out enough to stay readable.
+    const MIN_AVG_EDGE_PX = denseGraph ? 60 : 32;
     let avgEdge = 0;
     let edgeCount = 0;
     for (let m = 0; m < ei.length; m++) {

@@ -151,23 +151,39 @@ DELETE ext
 # Qualified name helpers
 # ---------------------------------------------------------------------------
 
+# Neo4j RANGE indexes reject values longer than ~8167 bytes. Tree-sitter
+# occasionally returns absurd identifiers (entire arrow-function chains
+# captured as a single name) which would blow past that limit. Cap each
+# qname and append a sha1 of the original so two long names with a shared
+# prefix remain distinct.
+_QNAME_MAX_LEN = 4000
+
+
+def _bound(qname: str) -> str:
+    if len(qname) <= _QNAME_MAX_LEN:
+        return qname
+    import hashlib
+
+    digest = hashlib.sha1(qname.encode("utf-8")).hexdigest()[:16]
+    return f"{qname[: _QNAME_MAX_LEN - 17]}#{digest}"
+
 
 def _file_qname(path: str, name: str) -> str:
-    return f"{path}::{name}"
+    return _bound(f"{path}::{name}")
 
 
 def _class_qname(path: str, class_name: str) -> str:
-    return f"{path}::class::{class_name}"
+    return _bound(f"{path}::class::{class_name}")
 
 
 def _method_qname(path: str, class_name: str, method_name: str) -> str:
-    return f"{path}::class::{class_name}::{method_name}"
+    return _bound(f"{path}::class::{class_name}::{method_name}")
 
 
 def _external_qname(name: str) -> str:
     """For callees we don't resolve: store under ``external::<name>``."""
 
-    return f"external::{name}"
+    return _bound(f"external::{name}")
 
 
 # ---------------------------------------------------------------------------
@@ -250,8 +266,8 @@ def ingest_file(
             path=parsed.path,
             project_root=project_root,
             qualified_name=class_qname,
-            name=cls.name,
-            docstring=cls.docstring,
+            name=_bound(cls.name),
+            docstring=_bound(cls.docstring) if isinstance(cls.docstring, str) else cls.docstring,
             start_line=cls.start_line,
             end_line=cls.end_line,
         )
@@ -262,7 +278,7 @@ def ingest_file(
                 project_root=project_root,
                 child_qname=class_qname,
                 parent_qname=_external_qname(parent),
-                parent_name=parent,
+                parent_name=_bound(parent),
             )
             count += 1
         for iface in cls.implements:
@@ -271,7 +287,7 @@ def ingest_file(
                 project_root=project_root,
                 child_qname=class_qname,
                 parent_qname=_external_qname(iface),
-                parent_name=iface,
+                parent_name=_bound(iface),
             )
             count += 1
         for method in cls.methods:
@@ -282,10 +298,14 @@ def ingest_file(
                 project_root=project_root,
                 class_qname=class_qname,
                 qualified_name=method_qname,
-                name=method.name,
-                signature=method.signature,
-                docstring=method.docstring,
-                class_name=cls.name,
+                name=_bound(method.name),
+                signature=_bound(method.signature)
+                if isinstance(method.signature, str)
+                else method.signature,
+                docstring=_bound(method.docstring)
+                if isinstance(method.docstring, str)
+                else method.docstring,
+                class_name=_bound(cls.name),
                 start_line=method.start_line,
                 end_line=method.end_line,
             )
@@ -350,6 +370,13 @@ def ingest_many(
 def _fn_params(fn: ParsedFunction) -> dict[str, Any]:
     data = asdict(fn)
     data.pop("calls", None)
+    # Cap indexed string fields so absurd tree-sitter captures (entire
+    # arrow-function bodies as a "name") don't blow past the Neo4j range
+    # index limit (~8167 bytes).
+    for key in ("name", "signature", "docstring"):
+        value = data.get(key)
+        if isinstance(value, str):
+            data[key] = _bound(value)
     return data
 
 
@@ -370,7 +397,7 @@ def _emit_calls(
             project_root=project_root,
             caller_qname=caller_qname,
             callee_qname=_external_qname(callee),
-            callee_name=callee,
+            callee_name=_bound(callee),
         )
         count += 1
     return count

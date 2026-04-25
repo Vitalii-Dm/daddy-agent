@@ -320,10 +320,10 @@ export class ClaudeBinaryResolver {
         // runtime-cache dir doesn't exist — continue
       }
 
-      // agent_teams_orchestrator mode is explicit. If the configured local
-      // runtime is missing, fail closed instead of silently falling back to a
-      // different CLI.
-      return null;
+      // agent_teams_orchestrator mode is explicit. The orchestrator binary
+      // wasn't found anywhere — fall through to the plain `claude` resolver
+      // below so launch isn't blocked when only the upstream Claude CLI is
+      // installed (e.g. via `npm i -g @anthropic-ai/claude-code` or Homebrew).
     }
 
     const baseBinaryName = 'claude';

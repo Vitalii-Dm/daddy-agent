@@ -58,6 +58,7 @@ export const DashboardSection = (): React.JSX.Element => {
     teams,
     openTeamTab,
     connectionMode,
+    selectTeam,
   } = useStore(
     useShallow((s) => ({
       sendTeamMessage: s.sendTeamMessage,
@@ -74,6 +75,7 @@ export const DashboardSection = (): React.JSX.Element => {
       teams: s.teams,
       openTeamTab: s.openTeamTab,
       connectionMode: s.connectionMode,
+      selectTeam: s.selectTeam,
     }))
   );
 
@@ -423,6 +425,13 @@ export const DashboardSection = (): React.JSX.Element => {
         onClose={() => setCreateTeamOpen(false)}
         onCreate={async (request) => {
           await createTeam(request);
+          // Select the freshly-created team so the dashboard fills with its
+          // roster, tasks, and activity instead of staying on "NO TEAM SELECTED".
+          try {
+            await selectTeam(request.teamName);
+          } catch {
+            // ignore — dashboard will pick it up on next teams refresh
+          }
           setCreateTeamOpen(false);
         }}
         onOpenTeam={(name, projectPath) => {

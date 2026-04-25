@@ -65,6 +65,10 @@ const TEAM_MODEL_LABEL_OVERRIDES: Record<string, string> = {
   'gemini-2.5-pro': 'Gemini 2.5 Pro',
   'gemini-2.5-flash': 'Gemini 2.5 Flash',
   'gemini-2.5-flash-lite': 'Gemini 2.5 Flash Lite',
+  'gemma-4': 'Gemma 4',
+  'gemma-4-27b': 'Gemma 4 27B',
+  'gemma-4-9b': 'Gemma 4 9B',
+  'gemma-4-2b': 'Gemma 4 2B',
 };
 
 const TEAM_PROVIDER_MODEL_OPTIONS: Record<SupportedProviderId, readonly TeamProviderModelOption[]> =
@@ -89,10 +93,13 @@ const TEAM_PROVIDER_MODEL_OPTIONS: Record<SupportedProviderId, readonly TeamProv
     ],
     gemini: [
       { value: '', label: 'Default', badgeLabel: 'Default' },
+      { value: 'gemma-4', label: 'Gemma 4', badgeLabel: 'Gemma 4' },
+      { value: 'gemma-4-27b', label: 'Gemma 4 27B', badgeLabel: '4-27b' },
+      { value: 'gemma-4-9b', label: 'Gemma 4 9B', badgeLabel: '4-9b' },
+      { value: 'gemma-4-2b', label: 'Gemma 4 2B', badgeLabel: '4-2b' },
       { value: 'gemini-3-pro', label: 'Gemini 3 Pro', badgeLabel: '3-pro' },
       { value: 'gemini-3-flash', label: 'Gemini 3 Flash', badgeLabel: '3-flash' },
       { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', badgeLabel: '2.5-pro' },
-      { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', badgeLabel: '2.5-flash' },
       {
         value: 'gemini-2.5-flash-lite',
         label: 'Gemini 2.5 Flash Lite',

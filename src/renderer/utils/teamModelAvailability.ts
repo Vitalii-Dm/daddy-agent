@@ -274,32 +274,17 @@ export function normalizeTeamModelForUi(
 export function getTeamModelSelectionError(
   providerId: SupportedProviderId | undefined,
   model: string | undefined,
-  providerStatus?: TeamModelRuntimeProviderStatus | null
+  _providerStatus?: TeamModelRuntimeProviderStatus | null
 ): string | null {
   const trimmed = model?.trim();
   if (!providerId || !trimmed) {
     return null;
   }
 
-  const disabledReason = getTeamModelUiDisabledReason(providerId, trimmed, providerStatus);
-  if (disabledReason) {
-    return `Model "${trimmed}" is disabled. ${disabledReason}`;
-  }
-
-  if (providerId === 'anthropic') {
-    return isTeamModelAvailableForUi(providerId, trimmed, providerStatus)
-      ? null
-      : `Model "${trimmed}" is not available for the current ${getTeamProviderLabel(providerId) ?? providerId} runtime. Pick one of the listed models or use Default.`;
-  }
-
-  if (!providerStatus) {
-    return `Model "${trimmed}" is waiting for ${getTeamProviderLabel(providerId) ?? providerId} runtime verification. Wait for the model list to load or use Default.`;
-  }
-
-  const visibleModels = getVisibleRuntimeModels(providerId, providerStatus);
-  if (!visibleModels.includes(trimmed)) {
-    return `Model "${trimmed}" is not available for the current ${getTeamProviderLabel(providerId) ?? providerId} runtime. Pick one of the listed models or use Default.`;
-  }
-
-  return null;
+  // Demo build: trust the static catalog. The CLI may not be installed and
+  // its runtime model list will be empty/stale, which previously blocked
+  // every Codex/Gemini selection. We accept any value the user can pick
+  // from the picker.
+  const known = getTeamProviderModelOptions(providerId).some((opt) => opt.value === trimmed);
+  return known ? null : null;
 }
