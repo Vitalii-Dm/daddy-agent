@@ -359,10 +359,9 @@ export const CreateTeamDialog = ({
 }: CreateTeamDialogProps): React.JSX.Element => {
   const { isLight } = useTheme();
   const multimodelEnabled = useStore((s) => s.appConfig?.general?.multimodelEnabled ?? true);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cliStatus = null as any;
-  const cliStatusLoading = false;
-  const fetchCliStatus = async (): Promise<void> => {};
+  const cliStatus = useStore((s) => s.cliStatus);
+  const cliStatusLoading = useStore((s) => s.cliStatusLoading);
+  const fetchCliStatus = useStore((s) => s.fetchCliStatus);
 
   // ── Persisted draft state (survives tab navigation) ──────────────────
   const {
@@ -399,9 +398,7 @@ export const CreateTeamDialog = ({
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectsError, setProjectsError] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [prepareState, setPrepareState] = useState<'idle' | 'loading' | 'ready' | 'failed'>(
-    'ready'
-  );
+  const [prepareState, setPrepareState] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle');
   const [prepareMessage, setPrepareMessage] = useState<string | null>(null);
   const [prepareWarnings, setPrepareWarnings] = useState<string[]>([]);
   const [prepareChecks, setPrepareChecks] = useState<ProvisioningProviderCheck[]>([]);
@@ -510,7 +507,7 @@ export const CreateTeamDialog = ({
     setLocalError(null);
     setFieldErrors({});
     setIsSubmitting(false);
-    setPrepareState('ready');
+    setPrepareState('idle');
     setPrepareMessage(null);
     setPrepareWarnings([]);
     setPrepareChecks([]);
@@ -566,7 +563,7 @@ export const CreateTeamDialog = ({
 
   const runtimeBackendSummaryByProvider = useMemo(() => {
     const entries: (readonly [TeamProviderId, string | null])[] = (cliStatus?.providers ?? []).map(
-      (provider: any) =>
+      (provider) =>
         [
           provider.providerId as TeamProviderId,
           getProvisioningProviderBackendSummary(provider),
@@ -616,16 +613,206 @@ export const CreateTeamDialog = ({
     void fetchCliStatus();
   }, [open, cliStatus, cliStatusLoading, fetchCliStatus]);
 
-  // CLI pre-flight check bypassed — always ready.
   useEffect(() => {
     if (!open || !canCreate || !launchTeam) {
       return;
     }
-    setPrepareState('ready');
-    setPrepareMessage(null);
+
+    if (typeof api.teams.prepareProvisioning !== 'function') {
+      setPrepareState('failed');
+      setPrepareWarnings([]);
+      setPrepareChecks([]);
+      setPrepareMessage(
+        'Current preload version does not support team:prepareProvisioning. Restart the dev app.'
+      );
+      return;
+    }
+
+    if (!effectiveCwd) {
+      setPrepareState('idle');
+      setPrepareWarnings([]);
+      setPrepareChecks([]);
+      setPrepareMessage('Select a working directory to validate the launch environment.');
+      return;
+    }
+
+    let cancelled = false;
+    const requestSeq = ++prepareRequestSeqRef.current;
+    const initialChecks = alignProvisioningChecks(
+      prepareChecksRef.current,
+      selectedMemberProviders
+    );
+    setPrepareState('loading');
+    setPrepareMessage('Checking selected providers in parallel...');
     setPrepareWarnings([]);
-    setPrepareChecks([]);
-  }, [open, canCreate, launchTeam]);
+    setPrepareChecks(initialChecks);
+
+    const timer = setTimeout(() => {
+      void (async () => {
+        let checks = initialChecks;
+        const providerPlans = selectedMemberProviders.map((providerId) => {
+          const selectedModelChecks = (() => {
+            const next = new Set<string>();
+            let hasDefaultSelection = false;
+            const supportsProviderDefaultCheck =
+              providerId === 'codex' ||
+              providerId === 'gemini' ||
+              (providerId === 'anthropic' && selectedProviderId === 'anthropic');
+            const leadModel = computeEffectiveTeamModel(
+              selectedModel,
+              limitContext,
+              selectedProviderId
+            );
+            if (selectedProviderId === providerId && selectedModel.trim()) {
+              if (leadModel?.trim()) {
+                next.add(leadModel.trim());
+              }
+            } else if (selectedProviderId === providerId && supportsProviderDefaultCheck) {
+              hasDefaultSelection = true;
+            }
+            for (const member of effectiveMemberDrafts) {
+              if (member.removedAt) {
+                continue;
+              }
+              const memberProviderId =
+                normalizeOptionalTeamProviderId(member.providerId) ?? selectedProviderId;
+              if (memberProviderId !== providerId) {
+                continue;
+              }
+              const memberModel = member.model?.trim();
+              if (memberModel) {
+                next.add(memberModel);
+              } else if (supportsProviderDefaultCheck) {
+                hasDefaultSelection = true;
+              }
+            }
+            if (supportsProviderDefaultCheck && hasDefaultSelection) {
+              next.add(DEFAULT_PROVIDER_MODEL_SELECTION);
+            }
+            return Array.from(next);
+          })();
+          const backendSummary = runtimeBackendSummaryByProviderRef.current.get(providerId) ?? null;
+          const cacheKey = buildPrepareModelCacheKey(effectiveCwd, providerId, backendSummary);
+          const cachedModelResultsById = prepareModelResultsCacheRef.current.get(cacheKey) ?? {};
+          const cachedSnapshot = getProviderPrepareCachedSnapshot({
+            providerId,
+            selectedModelIds: selectedModelChecks,
+            cachedModelResultsById,
+          });
+          return {
+            providerId,
+            selectedModelChecks,
+            backendSummary,
+            cacheKey,
+            cachedModelResultsById,
+            cachedSnapshot,
+          };
+        });
+
+        try {
+          for (const plan of providerPlans) {
+            checks = updateProviderCheck(checks, plan.providerId, {
+              status: plan.selectedModelChecks.length > 0 ? plan.cachedSnapshot.status : 'checking',
+              backendSummary: plan.backendSummary,
+              details: plan.cachedSnapshot.details,
+            });
+          }
+          if (!cancelled && prepareRequestSeqRef.current === requestSeq) {
+            setPrepareChecks(checks);
+          }
+          const providerResults = await Promise.all(
+            providerPlans.map(async (plan) => {
+              const prepResult = await runProviderPrepareDiagnostics({
+                cwd: effectiveCwd,
+                providerId: plan.providerId,
+                selectedModelIds: plan.selectedModelChecks,
+                prepareProvisioning: api.teams.prepareProvisioning,
+                limitContext,
+                cachedModelResultsById: plan.cachedModelResultsById,
+                onModelProgress: ({ details }) => {
+                  checks = updateProviderCheck(checks, plan.providerId, {
+                    status: 'checking',
+                    backendSummary: plan.backendSummary,
+                    details,
+                  });
+                  if (!cancelled && prepareRequestSeqRef.current === requestSeq) {
+                    setPrepareChecks(checks);
+                  }
+                },
+              });
+              return { ...plan, prepResult };
+            })
+          );
+          let anyFailure = false;
+          let anyNotes = false;
+          const collectedWarnings: string[] = [];
+          for (const plan of providerResults) {
+            if (plan.prepResult.warnings.length > 0) {
+              anyNotes = true;
+              collectedWarnings.push(
+                ...plan.prepResult.warnings.map(
+                  (warning) => `${getProviderLabel(plan.providerId)}: ${warning}`
+                )
+              );
+            }
+            if (plan.prepResult.status === 'failed') {
+              anyFailure = true;
+            } else if (plan.prepResult.status === 'notes') {
+              anyNotes = true;
+            }
+            prepareModelResultsCacheRef.current.set(
+              plan.cacheKey,
+              plan.prepResult.modelResultsById
+            );
+            checks = updateProviderCheck(checks, plan.providerId, {
+              status: plan.prepResult.status,
+              backendSummary: plan.backendSummary,
+              details: plan.prepResult.details,
+            });
+          }
+          if (!cancelled && prepareRequestSeqRef.current === requestSeq) {
+            setPrepareChecks(checks);
+          }
+          if (cancelled || prepareRequestSeqRef.current !== requestSeq) return;
+          const failureMessage =
+            getPrimaryProvisioningFailureDetail(checks) ??
+            'Some selected providers need attention.';
+          setPrepareState(anyFailure ? 'failed' : 'ready');
+          setPrepareMessage(
+            anyFailure
+              ? failureMessage
+              : anyNotes
+                ? 'Selected providers are ready with notes.'
+                : 'Selected providers are ready.'
+          );
+          setPrepareWarnings(collectedWarnings);
+        } catch (error) {
+          if (cancelled || prepareRequestSeqRef.current !== requestSeq) return;
+          const failureMessage =
+            error instanceof Error ? error.message : 'Failed to warm up Claude CLI environment';
+          setPrepareState('failed');
+          setPrepareWarnings([]);
+          setPrepareChecks(failIncompleteProviderChecks(checks, failureMessage));
+          setPrepareMessage(failureMessage);
+        }
+      })();
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [
+    open,
+    canCreate,
+    launchTeam,
+    effectiveCwd,
+    effectiveMemberDrafts,
+    limitContext,
+    selectedModel,
+    selectedProviderId,
+    selectedMemberProviders,
+  ]);
 
   useEffect(() => {
     if (!open) {
@@ -815,9 +1002,7 @@ export const CreateTeamDialog = ({
   const runtimeProviderStatusById = useMemo(
     () =>
       new Map(
-        (cliStatus?.providers ?? []).map(
-          (provider: any) => [provider.providerId, provider] as const
-        )
+        (cliStatus?.providers ?? []).map((provider) => [provider.providerId, provider] as const)
       ),
     [cliStatus?.providers]
   );
@@ -870,7 +1055,7 @@ export const CreateTeamDialog = ({
     const leadError = getTeamModelSelectionError(
       selectedProviderId,
       selectedModel,
-      runtimeProviderStatusById.get(selectedProviderId) as any
+      runtimeProviderStatusById.get(selectedProviderId)
     );
     if (leadError) {
       return leadError;
@@ -885,7 +1070,7 @@ export const CreateTeamDialog = ({
       const memberError = getTeamModelSelectionError(
         providerId,
         member.model,
-        runtimeProviderStatusById.get(providerId) as any
+        runtimeProviderStatusById.get(providerId)
       );
       if (!memberError) {
         continue;

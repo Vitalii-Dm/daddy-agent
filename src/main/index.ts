@@ -79,6 +79,7 @@ import {
   BoardTaskExactLogsService,
   BoardTaskLogStreamService,
   BranchStatusService,
+  CliInstallerService,
   configManager,
   LocalFileSystemProvider,
   MemberStatsComputer,
@@ -804,8 +805,9 @@ async function initializeServices(): Promise<void> {
   // Wire file watcher events for local context
   wireFileWatcherEvents(localContext);
 
-  // Initialize updater service
+  // Initialize updater and CLI installer services
   updaterService = new UpdaterService();
+  const cliInstallerService = new CliInstallerService();
   const teamMemberLogsFinder = new TeamMemberLogsFinder();
   const boardTaskActivityRecordSource = new BoardTaskActivityRecordSource();
   const boardTaskActivityService = new BoardTaskActivityService(boardTaskActivityRecordSource);
@@ -823,6 +825,12 @@ async function initializeServices(): Promise<void> {
   teamDataService = new TeamDataService();
   teamDataService.setMemberRuntimeAdvisoryService(teamMemberRuntimeAdvisoryService);
   teamProvisioningService = new TeamProvisioningService();
+  // Kill orphaned claude-multimodel processes from previous sessions
+  void teamProvisioningService
+    .killOrphanProcesses()
+    .catch((error: unknown) =>
+      logger.warn(`[Init] orphan process cleanup failed: ${String(error)}`)
+    );
   // Startup GC: remove stale MCP config files from previous sessions (best-effort)
   void new TeamMcpConfigBuilder().gcStaleConfigs();
   void teamDataService
@@ -942,6 +950,7 @@ async function initializeServices(): Promise<void> {
       httpServer,
       startHttpServer: () => startHttpServer(handleModeSwitch),
     },
+    cliInstallerService,
     crossTeamService,
     teamBackupService ?? undefined,
     knowledgeGraphServer && knowledgeGraphProxy
