@@ -285,13 +285,18 @@ def create_app(
         # First pass identifies the hubs against the FULL repo (not
         # just the limited slice) so the threshold is meaningful;
         # second pass builds the visible graph excluding them.
+        # All File nodes are project-scoped via the (path, project_root) key.
+        # A null $project_root means "any project" — useful for ad-hoc queries
+        # but the renderer always sends an explicit value.
         "OPTIONAL MATCH (mh:Module)<-[:IMPORTS]-(fh:File) "
+        "WHERE $project_root IS NULL OR fh.project_root = $project_root "
         "WITH mh, count(DISTINCT fh) AS m_indeg "
         "WITH collect(CASE WHEN m_indeg > $hub_threshold "
         "             THEN { mod: mh, name: mh.name, fan_in: m_indeg } END) AS hub_recs "
         "WITH [h IN hub_recs WHERE h IS NOT NULL] AS hub_recs "
         "WITH hub_recs, [h IN hub_recs | h.mod] AS hubs "
         "MATCH (f:File) "
+        "WHERE $project_root IS NULL OR f.project_root = $project_root "
         "WITH f, hubs, hub_recs LIMIT $limit "
         "OPTIONAL MATCH (f)-[:IMPORTS]->(m:Module) "
         "WHERE NOT m IN hubs "
@@ -369,9 +374,13 @@ def create_app(
         # range; set to 0 to keep every module visible (returns the old
         # hairball), or to a large number to disable the cull.
         hub_threshold: int = Query(8, ge=0, le=10000),
+        # Project namespace tag. Defaults to NULL (any project) for
+        # backward-compat, but the renderer always sends the active
+        # project's absolute path so multi-repo data doesn't bleed.
+        project_root: str | None = Query(None),
     ) -> Any:
         database = _resolve_db(db)
-        params: dict[str, Any] = {"limit": limit}
+        params: dict[str, Any] = {"limit": limit, "project_root": project_root}
 
         # Summary mode: ignore community/type filters — the view IS the
         # filter (Files + cross-file structural edges).  Honouring them
@@ -423,6 +432,11 @@ def create_app(
                 # versa) on Community Edition.
                 where.append("any(lbl IN labels(n) WHERE lbl IN $allowed_labels)")
                 params["allowed_labels"] = list(labels_for_db)
+            # Project scope on the codebase side; memory data doesn't carry
+            # project_root yet so we only enforce it when the caller asked
+            # for a specific project AND we're on the codebase side.
+            if project_root is not None and db != "memory":
+                where.append("n.project_root = $project_root")
             where_clause = ("WHERE " + " AND ".join(where)) if where else ""
             cypher = DETAIL_VIEW_CYPHER_TEMPLATE.format(where_clause=where_clause)
 
@@ -501,15 +515,32 @@ def create_app(
         db: str = Query("codebase"),
         q: str = Query(..., min_length=1),
         limit: int = Query(20, ge=1, le=200),
+        project_root: str | None = Query(None),
     ) -> Any:
         database = _resolve_db(db)
+        # Memory side has no project namespace yet; codebase side scopes by
+        # project_root when the caller specifies one (NULL → search across
+        # every project for ad-hoc CLI use).
+        scope_clause = (
+            "AND ($project_root IS NULL OR n.project_root = $project_root) "
+            if db != "memory"
+            else ""
+        )
         cypher = (
             "MATCH (n) "
             "WHERE toLower(coalesce(n.name, n.path, '')) CONTAINS toLower($q) "
+            f"{scope_clause}"
             "RETURN n LIMIT $limit"
         )
         try:
-            records = _run(factory.get(), database, cypher, q=q, limit=limit)
+            records = _run(
+                factory.get(),
+                database,
+                cypher,
+                q=q,
+                limit=limit,
+                project_root=project_root,
+            )
         except Exception as exc:
             return JSONResponse(status_code=503, content={"error": str(exc)})
         return {"results": [_node_to_sigma(r["n"]) for r in records]}
@@ -522,16 +553,30 @@ def create_app(
         node_id: str,
         db: str = Query("codebase"),
         depth: int = Query(1, ge=1, le=3),
+        project_root: str | None = Query(None),
     ) -> Any:
         database = _resolve_db(db)
+        # Filter out neighbors that belong to a *different* project. Module
+        # nodes (which are shared globally on purpose — `os`, `pathlib`, …)
+        # have no project_root property and pass through.
         cypher = (
             "MATCH (n) WHERE elementId(n) = $id OR toString(id(n)) = $id "
             f"OPTIONAL MATCH p = (n)-[*1..{depth}]-(m) "
+            "WHERE $project_root IS NULL "
+            "   OR m IS NULL "
+            "   OR m.project_root IS NULL "
+            "   OR m.project_root = $project_root "
             "WITH n, collect(DISTINCT m) AS neighbors, collect(DISTINCT relationships(p)) AS rels "
             "RETURN n, neighbors, rels"
         )
         try:
-            records = _run(factory.get(), database, cypher, id=node_id)
+            records = _run(
+                factory.get(),
+                database,
+                cypher,
+                id=node_id,
+                project_root=project_root,
+            )
         except Exception as exc:
             return JSONResponse(status_code=503, content={"error": str(exc)})
         nodes: dict[str, dict[str, Any]] = {}

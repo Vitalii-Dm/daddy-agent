@@ -46,6 +46,7 @@ import {
   KNOWLEDGE_GRAPH_GET_HEALTH,
   KNOWLEDGE_GRAPH_NEIGHBORS,
   KNOWLEDGE_GRAPH_QUERY,
+  KNOWLEDGE_GRAPH_REINDEX,
   KNOWLEDGE_GRAPH_SEARCH,
   KNOWLEDGE_GRAPH_START,
   KNOWLEDGE_GRAPH_STOP,
@@ -271,6 +272,8 @@ import type {
   KGHealth,
   KGNeighborsRequest,
   KGNeighborsResponse,
+  KGReindexRequest,
+  KGReindexResult,
   KGSearchRequest,
   KGSearchResponse,
   LeadActivitySnapshot,
@@ -849,6 +852,9 @@ const electronAPI: ElectronAPI = {
     },
     stop: async (): Promise<KGHealth> => {
       return invokeIpcWithResult<KGHealth>(KNOWLEDGE_GRAPH_STOP);
+    },
+    reindex: async (request: KGReindexRequest): Promise<KGReindexResult> => {
+      return invokeIpcWithResult<KGReindexResult>(KNOWLEDGE_GRAPH_REINDEX, request);
     },
     onEvent: (callback: (event: KGEvent) => void): (() => void) => {
       const listener = (_event: Electron.IpcRendererEvent, payload: KGEvent): void => {

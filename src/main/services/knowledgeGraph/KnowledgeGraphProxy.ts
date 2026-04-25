@@ -46,6 +46,7 @@ function buildGraphQuery(req: KGGraphRequest | undefined): string {
   appendParam(params, 'type', req.type);
   appendParam(params, 'community', req.community);
   appendParam(params, 'hub_threshold', req.hubThreshold);
+  appendParam(params, 'project_root', req.projectRoot);
   const qs = params.toString();
   return qs ? `?${qs}` : '';
 }
@@ -58,6 +59,7 @@ function buildSearchQuery(req: KGSearchRequest): string {
   // 4xx if it's missing.
   params.append('q', req.q);
   appendParam(params, 'limit', req.limit);
+  appendParam(params, 'project_root', req.projectRoot);
   return `?${params.toString()}`;
 }
 
@@ -65,6 +67,7 @@ function buildNeighborsQuery(req: KGNeighborsRequest): string {
   const params = new URLSearchParams();
   appendParam(params, 'db', req.db);
   appendParam(params, 'depth', req.depth);
+  appendParam(params, 'project_root', req.projectRoot);
   const qs = params.toString();
   return qs ? `?${qs}` : '';
 }

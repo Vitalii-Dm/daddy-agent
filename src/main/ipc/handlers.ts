@@ -66,6 +66,7 @@ import type {
   TeamProvisioningService,
 } from '../services';
 import type { HttpServer } from '../services/infrastructure/HttpServer';
+import type { KnowledgeGraphIndexer } from '../services/knowledgeGraph/KnowledgeGraphIndexer';
 import type {
   IKnowledgeGraphProxy,
   IPythonVizServer,
@@ -104,6 +105,7 @@ export function initializeIpcHandlers(
   knowledgeGraphDeps?: {
     server: IPythonVizServer;
     proxy: IKnowledgeGraphProxy;
+    indexer?: KnowledgeGraphIndexer;
   }
 ): void {
   initializeProjectHandlers(registry);
@@ -141,7 +143,11 @@ export function initializeIpcHandlers(
     initializeCrossTeamHandlers(crossTeamService);
   }
   if (knowledgeGraphDeps) {
-    initializeKnowledgeGraphHandlers(knowledgeGraphDeps.server, knowledgeGraphDeps.proxy);
+    initializeKnowledgeGraphHandlers(
+      knowledgeGraphDeps.server,
+      knowledgeGraphDeps.proxy,
+      knowledgeGraphDeps.indexer
+    );
   }
 
   registerProjectHandlers(ipcMain);

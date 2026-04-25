@@ -27,14 +27,14 @@ BATCH_NODE_LIMIT = 100
 # ---------------------------------------------------------------------------
 
 MERGE_FILE = """
-MERGE (f:File {path: $path})
+MERGE (f:File {path: $path, project_root: $project_root})
 SET f.language = $language,
     f.hash = $hash,
     f.last_modified = timestamp()
 """
 
 DELETE_FILE_CHILDREN = """
-MATCH (f:File {path: $path})
+MATCH (f:File {path: $path, project_root: $project_root})
 OPTIONAL MATCH (f)-[:HAS_FUNCTION]->(fn:Function)
 OPTIONAL MATCH (f)-[:HAS_CLASS]->(c:Class)
 OPTIONAL MATCH (c)-[:HAS_METHOD]->(m:Method)
@@ -45,13 +45,13 @@ DETACH DELETE fn, c, m
 # removing an import line would leave a stale edge to the old module — the
 # graph would say the file still depends on something it no longer uses.
 DELETE_FILE_IMPORTS = """
-MATCH (f:File {path: $path})-[r:IMPORTS]->()
+MATCH (f:File {path: $path, project_root: $project_root})-[r:IMPORTS]->()
 DELETE r
 """
 
 MERGE_FUNCTION = """
-MATCH (f:File {path: $path})
-MERGE (fn:Function {qualified_name: $qualified_name})
+MATCH (f:File {path: $path, project_root: $project_root})
+MERGE (fn:Function {qualified_name: $qualified_name, project_root: $project_root})
 SET fn.name = $name,
     fn.signature = $signature,
     fn.docstring = $docstring,
@@ -62,8 +62,8 @@ MERGE (f)-[:HAS_FUNCTION]->(fn)
 """
 
 MERGE_CLASS = """
-MATCH (f:File {path: $path})
-MERGE (c:Class {qualified_name: $qualified_name})
+MATCH (f:File {path: $path, project_root: $project_root})
+MERGE (c:Class {qualified_name: $qualified_name, project_root: $project_root})
 SET c.name = $name,
     c.docstring = $docstring,
     c.file_path = $path,
@@ -73,8 +73,8 @@ MERGE (f)-[:HAS_CLASS]->(c)
 """
 
 MERGE_METHOD = """
-MATCH (c:Class {qualified_name: $class_qname})
-MERGE (m:Method {qualified_name: $qualified_name})
+MATCH (c:Class {qualified_name: $class_qname, project_root: $project_root})
+MERGE (m:Method {qualified_name: $qualified_name, project_root: $project_root})
 SET m.name = $name,
     m.signature = $signature,
     m.docstring = $docstring,
@@ -85,24 +85,26 @@ SET m.name = $name,
 MERGE (c)-[:HAS_METHOD]->(m)
 """
 
+# Modules (e.g., `os`, `pathlib`) are deliberately kept globally unique by
+# name so cross-project module nodes can be shared and dedup.
 MERGE_IMPORT = """
 MERGE (m:Module {name: $module})
 WITH m
-MATCH (f:File {path: $path})
+MATCH (f:File {path: $path, project_root: $project_root})
 MERGE (f)-[r:IMPORTS]->(m)
 SET r.alias = $alias
 """
 
 MERGE_EXTENDS = """
-MATCH (child:Class {qualified_name: $child_qname})
-MERGE (parent:Class {qualified_name: $parent_qname})
+MATCH (child:Class {qualified_name: $child_qname, project_root: $project_root})
+MERGE (parent:Class {qualified_name: $parent_qname, project_root: $project_root})
   ON CREATE SET parent.name = $parent_name, parent.file_path = ''
 MERGE (child)-[:EXTENDS]->(parent)
 """
 
 MERGE_IMPLEMENTS = """
-MATCH (child:Class {qualified_name: $child_qname})
-MERGE (iface:Class {qualified_name: $parent_qname})
+MATCH (child:Class {qualified_name: $child_qname, project_root: $project_root})
+MERGE (iface:Class {qualified_name: $parent_qname, project_root: $project_root})
   ON CREATE SET iface.name = $parent_name, iface.file_path = ''
 MERGE (child)-[:IMPLEMENTS]->(iface)
 """
@@ -113,8 +115,8 @@ MERGE (child)-[:IMPLEMENTS]->(iface)
 # previously allowed the query to traverse unrelated nodes and silently drop
 # CALLS edges when a collision occurred.
 MERGE_CALL = """
-MATCH (caller:Function|Method {qualified_name: $caller_qname})
-MERGE (callee:Function {qualified_name: $callee_qname})
+MATCH (caller:Function|Method {qualified_name: $caller_qname, project_root: $project_root})
+MERGE (callee:Function {qualified_name: $callee_qname, project_root: $project_root})
   ON CREATE SET callee.name = $callee_name,
                 callee.signature = '',
                 callee.docstring = null,
@@ -128,10 +130,12 @@ SET r.callee_name = $callee_name
 # After an ingest pass we collapse ``external::<name>`` call targets into
 # the local definition if one exists.  Runs once per repository index,
 # fixing call-graph fragmentation caused by first-seen external names.
+# Scoped to the project so a `setup` function in project A doesn't get
+# wired up to an unrelated `setup` in project B.
 REWRITE_EXTERNAL_CALLS = """
-MATCH (ext:Function {qualified_name: $external_qname})
+MATCH (ext:Function {qualified_name: $external_qname, project_root: $project_root})
 WITH ext, ext.name AS nm
-MATCH (local:Function {name: nm})
+MATCH (local:Function {name: nm, project_root: $project_root})
 WHERE local.qualified_name <> $external_qname
   AND local.qualified_name STARTS WITH $path_prefix
 WITH ext, local
@@ -171,10 +175,21 @@ def _external_qname(name: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def ingest_file(session: Any, parsed: ParsedFile) -> int:
-    """Ingest a single :class:`ParsedFile`.
+# Sentinel for the "anonymous repo" so existing tests / ad-hoc ingestion
+# without a project root still produce queryable data. Real callers always
+# pass an absolute filesystem path.
+DEFAULT_PROJECT_ROOT = "__default__"
 
-    Returns the number of Cypher statements executed (useful for tests).
+
+def ingest_file(
+    session: Any, parsed: ParsedFile, *, project_root: str = DEFAULT_PROJECT_ROOT
+) -> int:
+    """Ingest a single :class:`ParsedFile` under ``project_root``.
+
+    ``project_root`` namespaces every node so the same repo-relative path
+    in a different project doesn't collide on the (path, project_root)
+    composite uniqueness constraint. Returns the number of Cypher
+    statements executed (useful for tests).
     """
 
     run = getattr(session, "run", None)
@@ -184,24 +199,48 @@ def ingest_file(session: Any, parsed: ParsedFile) -> int:
     count = 0
     # File node (and wipe previous structural children + import edges so
     # re-ingestion is idempotent — call/import edges get re-created below).
-    run(MERGE_FILE, path=parsed.path, language=parsed.language, hash=parsed.hash)
+    run(
+        MERGE_FILE,
+        path=parsed.path,
+        project_root=project_root,
+        language=parsed.language,
+        hash=parsed.hash,
+    )
     count += 1
-    run(DELETE_FILE_CHILDREN, path=parsed.path)
+    run(DELETE_FILE_CHILDREN, path=parsed.path, project_root=project_root)
     count += 1
-    run(DELETE_FILE_IMPORTS, path=parsed.path)
+    run(DELETE_FILE_IMPORTS, path=parsed.path, project_root=project_root)
     count += 1
 
-    # Imports
+    # Imports — Module nodes stay globally unique by name.
     for imp in parsed.imports:
-        run(MERGE_IMPORT, path=parsed.path, module=imp.module, alias=imp.alias)
+        run(
+            MERGE_IMPORT,
+            path=parsed.path,
+            project_root=project_root,
+            module=imp.module,
+            alias=imp.alias,
+        )
         count += 1
 
     # Top-level functions
     for fn in parsed.functions:
         qname = _file_qname(parsed.path, fn.name)
-        run(MERGE_FUNCTION, path=parsed.path, qualified_name=qname, **_fn_params(fn))
+        run(
+            MERGE_FUNCTION,
+            path=parsed.path,
+            project_root=project_root,
+            qualified_name=qname,
+            **_fn_params(fn),
+        )
         count += 1
-        count += _emit_calls(run, parsed.path, caller_qname=qname, calls=fn.calls)
+        count += _emit_calls(
+            run,
+            parsed.path,
+            caller_qname=qname,
+            calls=fn.calls,
+            project_root=project_root,
+        )
 
     # Classes + methods
     for cls in parsed.classes:
@@ -209,6 +248,7 @@ def ingest_file(session: Any, parsed: ParsedFile) -> int:
         run(
             MERGE_CLASS,
             path=parsed.path,
+            project_root=project_root,
             qualified_name=class_qname,
             name=cls.name,
             docstring=cls.docstring,
@@ -219,6 +259,7 @@ def ingest_file(session: Any, parsed: ParsedFile) -> int:
         for parent in cls.extends:
             run(
                 MERGE_EXTENDS,
+                project_root=project_root,
                 child_qname=class_qname,
                 parent_qname=_external_qname(parent),
                 parent_name=parent,
@@ -227,6 +268,7 @@ def ingest_file(session: Any, parsed: ParsedFile) -> int:
         for iface in cls.implements:
             run(
                 MERGE_IMPLEMENTS,
+                project_root=project_root,
                 child_qname=class_qname,
                 parent_qname=_external_qname(iface),
                 parent_name=iface,
@@ -237,6 +279,7 @@ def ingest_file(session: Any, parsed: ParsedFile) -> int:
             run(
                 MERGE_METHOD,
                 path=parsed.path,
+                project_root=project_root,
                 class_qname=class_qname,
                 qualified_name=method_qname,
                 name=method.name,
@@ -247,12 +290,23 @@ def ingest_file(session: Any, parsed: ParsedFile) -> int:
                 end_line=method.end_line,
             )
             count += 1
-            count += _emit_calls(run, parsed.path, caller_qname=method_qname, calls=method.calls)
+            count += _emit_calls(
+                run,
+                parsed.path,
+                caller_qname=method_qname,
+                calls=method.calls,
+                project_root=project_root,
+            )
 
     return count
 
 
-def ingest_many(session: Any, parsed_iter: Iterable[ParsedFile]) -> int:
+def ingest_many(
+    session: Any,
+    parsed_iter: Iterable[ParsedFile],
+    *,
+    project_root: str = DEFAULT_PROJECT_ROOT,
+) -> int:
     """Batch-ingest files. Returns total Cypher statements executed.
 
     We approximate "batching" by committing whenever we've run ``BATCH_NODE_LIMIT``
@@ -269,7 +323,7 @@ def ingest_many(session: Any, parsed_iter: Iterable[ParsedFile]) -> int:
         nonlocal batch, batch_stmts
         if not batch:
             return 0
-        written = _flush_batch(session, batch)
+        written = _flush_batch(session, batch, project_root=project_root)
         batch = []
         batch_stmts = 0
         return written
@@ -299,13 +353,21 @@ def _fn_params(fn: ParsedFunction) -> dict[str, Any]:
     return data
 
 
-def _emit_calls(run: Any, path: str, *, caller_qname: str, calls: Iterable[str]) -> int:
+def _emit_calls(
+    run: Any,
+    path: str,
+    *,
+    caller_qname: str,
+    calls: Iterable[str],
+    project_root: str = DEFAULT_PROJECT_ROOT,
+) -> int:
     count = 0
     for callee in calls:
         if not callee:
             continue
         run(
             MERGE_CALL,
+            project_root=project_root,
             caller_qname=caller_qname,
             callee_qname=_external_qname(callee),
             callee_name=callee,
@@ -314,7 +376,12 @@ def _emit_calls(run: Any, path: str, *, caller_qname: str, calls: Iterable[str])
     return count
 
 
-def _flush_batch(session: Any, batch: list[ParsedFile]) -> int:
+def _flush_batch(
+    session: Any,
+    batch: list[ParsedFile],
+    *,
+    project_root: str = DEFAULT_PROJECT_ROOT,
+) -> int:
     """Flush a batch of parsed files in a single write transaction if possible.
 
     If the session supports ``execute_write`` we run the batch atomically.
@@ -335,7 +402,7 @@ def _flush_batch(session: Any, batch: list[ParsedFile]) -> int:
         def _work(tx: Any) -> int:
             inner = 0
             for parsed in batch:
-                inner += ingest_file(tx, parsed)
+                inner += ingest_file(tx, parsed, project_root=project_root)
             return inner
 
         executed = write_tx(_work)
@@ -343,5 +410,5 @@ def _flush_batch(session: Any, batch: list[ParsedFile]) -> int:
 
     # Fallback path for test doubles / minimal sessions without execute_write.
     for parsed in batch:
-        executed += ingest_file(session, parsed)
+        executed += ingest_file(session, parsed, project_root=project_root)
     return executed

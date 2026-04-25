@@ -26,22 +26,28 @@ from collections.abc import Iterable
 # Constraints
 # ---------------------------------------------------------------------------
 
-# ``File`` is keyed by its repo-relative path. Every other node is keyed by a
-# synthetic ``qualified_name`` so that e.g. two methods named ``run`` on
-# different classes don't collide.
+# Multi-project scoping. Every code-graph node carries ``project_root`` —
+# the absolute filesystem path of the repo it was indexed from — so several
+# repos can share a Neo4j Community-Edition instance without identifier
+# collisions. ``File`` uniqueness is the composite (path, project_root); the
+# qualified_name keys for Function/Class/Method already embed the path, so
+# we extend them with project_root via composite constraints too.
 CONSTRAINTS: tuple[str, ...] = (
-    "CREATE CONSTRAINT file_path IF NOT EXISTS "
-    "FOR (f:File) REQUIRE f.path IS UNIQUE",
-    "CREATE CONSTRAINT function_qname IF NOT EXISTS "
-    "FOR (fn:Function) REQUIRE fn.qualified_name IS UNIQUE",
-    "CREATE CONSTRAINT class_qname IF NOT EXISTS "
-    "FOR (c:Class) REQUIRE c.qualified_name IS UNIQUE",
-    "CREATE CONSTRAINT method_qname IF NOT EXISTS "
-    "FOR (m:Method) REQUIRE m.qualified_name IS UNIQUE",
+    "CREATE CONSTRAINT file_path_project IF NOT EXISTS "
+    "FOR (f:File) REQUIRE (f.path, f.project_root) IS UNIQUE",
+    "CREATE CONSTRAINT function_qname_project IF NOT EXISTS "
+    "FOR (fn:Function) REQUIRE (fn.qualified_name, fn.project_root) IS UNIQUE",
+    "CREATE CONSTRAINT class_qname_project IF NOT EXISTS "
+    "FOR (c:Class) REQUIRE (c.qualified_name, c.project_root) IS UNIQUE",
+    "CREATE CONSTRAINT method_qname_project IF NOT EXISTS "
+    "FOR (m:Method) REQUIRE (m.qualified_name, m.project_root) IS UNIQUE",
+    # Modules are package-scoped concepts (typing, os, ...). Naming collides
+    # *intentionally* across projects — keep them globally unique by name so
+    # cross-project module nodes can be deduplicated and shared.
     "CREATE CONSTRAINT module_name IF NOT EXISTS "
     "FOR (m:Module) REQUIRE m.name IS UNIQUE",
-    "CREATE CONSTRAINT variable_qname IF NOT EXISTS "
-    "FOR (v:Variable) REQUIRE v.qualified_name IS UNIQUE",
+    "CREATE CONSTRAINT variable_qname_project IF NOT EXISTS "
+    "FOR (v:Variable) REQUIRE (v.qualified_name, v.project_root) IS UNIQUE",
     "CREATE CONSTRAINT community_id IF NOT EXISTS "
     "FOR (c:Community) REQUIRE c.id IS UNIQUE",
 )
@@ -53,9 +59,13 @@ CONSTRAINTS: tuple[str, ...] = (
 INDEXES: tuple[str, ...] = (
     "CREATE INDEX file_language IF NOT EXISTS FOR (f:File) ON (f.language)",
     "CREATE INDEX file_hash IF NOT EXISTS FOR (f:File) ON (f.hash)",
+    "CREATE INDEX file_project_root IF NOT EXISTS FOR (f:File) ON (f.project_root)",
     "CREATE INDEX function_name IF NOT EXISTS FOR (fn:Function) ON (fn.name)",
+    "CREATE INDEX function_project_root IF NOT EXISTS FOR (fn:Function) ON (fn.project_root)",
     "CREATE INDEX class_name IF NOT EXISTS FOR (c:Class) ON (c.name)",
+    "CREATE INDEX class_project_root IF NOT EXISTS FOR (c:Class) ON (c.project_root)",
     "CREATE INDEX method_name IF NOT EXISTS FOR (m:Method) ON (m.name)",
+    "CREATE INDEX method_project_root IF NOT EXISTS FOR (m:Method) ON (m.project_root)",
 )
 
 # Relationship-scoped indexes. Useful for heavy traversals like call-graph
