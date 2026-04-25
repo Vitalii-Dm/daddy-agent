@@ -43,12 +43,14 @@ import { shouldSuppressDesktopNotificationForInboxText } from '@shared/utils/idl
 import { parseInboxJson } from '@shared/utils/inboxNoise';
 import { createLogger } from '@shared/utils/logger';
 import { app, BrowserWindow } from 'electron';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 
 import { initializeIpcHandlers, removeIpcHandlers } from './ipc/handlers';
 import { startEventLoopLagMonitor } from './services/infrastructure/EventLoopLagMonitor';
 import { HttpServer } from './services/infrastructure/HttpServer';
+import { KnowledgeGraphProxy } from './services/knowledgeGraph/KnowledgeGraphProxy';
+import { PythonVizServer } from './services/knowledgeGraph/PythonVizServer';
 import {
   buildTeamControlApiBaseUrl,
   clearTeamControlApiState,
@@ -77,6 +79,7 @@ import {
   BoardTaskExactLogsService,
   BoardTaskLogStreamService,
   BranchStatusService,
+  CliInstallerService,
   configManager,
   LocalFileSystemProvider,
   MemberStatsComputer,
@@ -367,6 +370,60 @@ let sshConnectionManager: SshConnectionManager;
 let teamDataService: TeamDataService;
 let teamProvisioningService: TeamProvisioningService;
 let httpServer: HttpServer;
+let knowledgeGraphServer: PythonVizServer | null = null;
+let knowledgeGraphProxy: KnowledgeGraphProxy | null = null;
+
+/**
+ * Pick a Python interpreter for the knowledge-graph sidecar. Prefers a
+ * project-local venv (`.venv`, then `.venv-check` for legacy installs) so the
+ * `daddy_agent` package is on `sys.path` without contaminating system Python;
+ * falls back to plain `python3` from PATH.
+ */
+function resolveKgPythonBin(): string {
+  const cwd = process.cwd();
+  const candidates = ['.venv/bin/python3', '.venv-check/bin/python3'];
+  for (const rel of candidates) {
+    const abs = join(cwd, rel);
+    if (existsSync(abs)) return abs;
+  }
+  return 'python3';
+}
+
+/**
+ * Read NEO4J_* values from `.env` at the project root and merge them into
+ * process.env so the Python sidecar inherits the right credentials. Existing
+ * env vars take precedence (so the user can override per-launch). Lives here
+ * rather than as a global dotenv loader to keep the blast radius contained
+ * to the knowledge-graph subsystem.
+ */
+function loadKgDotenv(): void {
+  const envPath = join(process.cwd(), '.env');
+  if (!existsSync(envPath)) return;
+  let contents = '';
+  try {
+    contents = readFileSync(envPath, 'utf8');
+  } catch {
+    return;
+  }
+  for (const line of contents.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq < 0) continue;
+    const key = trimmed.slice(0, eq).trim();
+    if (!key.startsWith('NEO4J_')) continue;
+    if (process.env[key] !== undefined) continue;
+    let value = trimmed.slice(eq + 1).trim();
+    // Strip matching surrounding quotes.
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    process.env[key] = value;
+  }
+}
 let teamBackupService: TeamBackupService | null = null;
 let branchStatusService: BranchStatusService | null = null;
 let rendererRecoveryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -748,8 +805,9 @@ async function initializeServices(): Promise<void> {
   // Wire file watcher events for local context
   wireFileWatcherEvents(localContext);
 
-  // Initialize updater service
+  // Initialize updater and CLI installer services
   updaterService = new UpdaterService();
+  const cliInstallerService = new CliInstallerService();
   const teamMemberLogsFinder = new TeamMemberLogsFinder();
   const boardTaskActivityRecordSource = new BoardTaskActivityRecordSource();
   const boardTaskActivityService = new BoardTaskActivityService(boardTaskActivityRecordSource);
@@ -767,6 +825,12 @@ async function initializeServices(): Promise<void> {
   teamDataService = new TeamDataService();
   teamDataService.setMemberRuntimeAdvisoryService(teamMemberRuntimeAdvisoryService);
   teamProvisioningService = new TeamProvisioningService();
+  // Kill orphaned claude-multimodel processes from previous sessions
+  void teamProvisioningService
+    .killOrphanProcesses()
+    .catch((error: unknown) =>
+      logger.warn(`[Init] orphan process cleanup failed: ${String(error)}`)
+    );
   // Startup GC: remove stale MCP config files from previous sessions (best-effort)
   void new TeamMcpConfigBuilder().gcStaleConfigs();
   void teamDataService
@@ -807,6 +871,17 @@ async function initializeServices(): Promise<void> {
   // warmup() and ensureInstalled() are deferred to after window creation
   // (did-finish-load handler) to avoid thread pool contention at startup.
   httpServer = new HttpServer();
+  // Knowledge graph backend: spawn the Python `daddy_agent.viz` sidecar on
+  // demand (the renderer triggers .start() via IPC when the user opens the
+  // graph). Constructed eagerly so the proxy can be wired into the IPC
+  // handler init below; the actual subprocess only spawns on .start().
+  loadKgDotenv();
+  const kgPythonBin = resolveKgPythonBin();
+  knowledgeGraphServer = new PythonVizServer({
+    pythonBin: kgPythonBin,
+    cwd: process.cwd(),
+  });
+  knowledgeGraphProxy = new KnowledgeGraphProxy(knowledgeGraphServer);
   teamProvisioningService.setControlApiBaseUrlResolver(async () => {
     if (!httpServer.isRunning()) {
       await startHttpServer(handleModeSwitch);
@@ -875,8 +950,12 @@ async function initializeServices(): Promise<void> {
       httpServer,
       startHttpServer: () => startHttpServer(handleModeSwitch),
     },
+    cliInstallerService,
     crossTeamService,
-    teamBackupService ?? undefined
+    teamBackupService ?? undefined,
+    knowledgeGraphServer && knowledgeGraphProxy
+      ? { server: knowledgeGraphServer, proxy: knowledgeGraphProxy }
+      : undefined
   );
   // Forward SSH state changes to renderer and HTTP SSE clients
   sshStateChangeHandler = (status: unknown) => {
@@ -969,6 +1048,10 @@ function shutdownServices(): void {
   // Stop HTTP server
   if (httpServer?.isRunning()) {
     void httpServer.stop();
+  }
+  // Stop Python knowledge-graph sidecar (no-op if it never started).
+  if (knowledgeGraphServer) {
+    void knowledgeGraphServer.stop();
   }
   void clearTeamControlApiState();
 

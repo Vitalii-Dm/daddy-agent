@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 
 import { LiquidGlass } from '../LiquidGlass';
+import { KnowledgeGraphView } from './KnowledgeGraphView';
 
 // VITE_GRAPH=on opens the placeholder card; default keeps the slot collapsed
 // so the dashboard remains the bottom section. The container reserves the
@@ -40,14 +41,11 @@ export const GraphSectionPlaceholder = (): React.JSX.Element => {
               letterSpacing: '-0.025em',
             }}
           >
-            Knowledge graph — <em className="italic">coming soon.</em>
+            Knowledge graph
           </h2>
           <p className="mt-2 max-w-[560px] text-[14px] text-[color:var(--ink-2)]">
-            Future home for the agent-graph view. Drop in
-            <code className="mx-1 rounded bg-white/55 px-1 font-mono text-[12px] text-[color:var(--ink-1)]">
-              packages/agent-graph
-            </code>
-            and remove the veil.
+            Live view of the Neo4j codebase graph. Nodes are coloured by community; the summary view
+            culls stdlib hubs (typing, pathlib, …) so the structure stays readable.
           </p>
 
           <LiquidGlass
@@ -56,75 +54,7 @@ export const GraphSectionPlaceholder = (): React.JSX.Element => {
             shadow="lifted"
             className="relative mt-10 flex h-[420px] w-full items-center justify-center overflow-hidden"
           >
-            {/* Fake graph nodes — pure visual flair so the card feels alive */}
-            <svg
-              viewBox="0 0 1200 420"
-              className="absolute inset-0 h-full w-full opacity-65"
-              aria-hidden="true"
-            >
-              <defs>
-                <radialGradient id="graph-node-violet" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor="var(--a-violet)" />
-                  <stop offset="100%" stopColor="var(--a-violet)" stopOpacity="0" />
-                </radialGradient>
-                <radialGradient id="graph-node-cyan" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor="var(--a-cyan)" />
-                  <stop offset="100%" stopColor="var(--a-cyan)" stopOpacity="0" />
-                </radialGradient>
-                <radialGradient id="graph-node-peach" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor="var(--a-peach)" />
-                  <stop offset="100%" stopColor="var(--a-peach)" stopOpacity="0" />
-                </radialGradient>
-              </defs>
-              {[
-                [180, 220, 90, 'graph-node-violet'],
-                [600, 110, 70, 'graph-node-cyan'],
-                [820, 280, 80, 'graph-node-peach'],
-                [380, 320, 60, 'graph-node-cyan'],
-                [1020, 150, 75, 'graph-node-violet'],
-              ].map((n, i) => (
-                <circle
-                  key={i}
-                  cx={n[0] as number}
-                  cy={n[1] as number}
-                  r={n[2] as number}
-                  fill={`url(#${n[3]})`}
-                />
-              ))}
-              {[
-                [180, 220, 600, 110],
-                [600, 110, 820, 280],
-                [820, 280, 380, 320],
-                [600, 110, 1020, 150],
-                [180, 220, 380, 320],
-              ].map((p, i) => (
-                <line
-                  key={i}
-                  x1={p[0]}
-                  y1={p[1]}
-                  x2={p[2]}
-                  y2={p[3]}
-                  stroke="rgba(20,19,26,0.18)"
-                  strokeWidth="1"
-                  strokeDasharray="4 6"
-                />
-              ))}
-            </svg>
-
-            {/* Veil — frosts the preview so the "coming soon" copy reads first */}
-            <div
-              className="absolute inset-0"
-              style={{
-                background:
-                  'linear-gradient(180deg, rgba(255,255,255,0.45), rgba(255,255,255,0.65))',
-                backdropFilter: 'blur(6px)',
-              }}
-              aria-hidden="true"
-            />
-
-            <p className="relative z-10 max-w-[420px] text-center font-serif text-[24px] italic text-[color:var(--ink-2)]">
-              Knowledge graph — coming soon.
-            </p>
+            <KnowledgeGraphView />
           </LiquidGlass>
         </motion.div>
       </div>

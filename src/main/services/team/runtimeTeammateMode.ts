@@ -40,29 +40,18 @@ export async function resolveDesktopTeammateModeDecision(
   rawExtraCliArgs: string | undefined
 ): Promise<DesktopTeammateModeDecision> {
   const explicitMode = getExplicitTeammateMode(rawExtraCliArgs);
-  if (explicitMode === 'tmux') {
-    return {
-      injectedTeammateMode: null,
-      forceProcessTeammates: true,
-    };
-  }
 
-  if (explicitMode === 'auto' || explicitMode === 'in-process') {
+  if (explicitMode === 'in-process') {
     return {
       injectedTeammateMode: null,
       forceProcessTeammates: false,
     };
   }
 
-  if (!(await isTmuxAvailable())) {
-    return {
-      injectedTeammateMode: null,
-      forceProcessTeammates: false,
-    };
-  }
-
+  // Desktop app always forces process teammates since tmux is unavailable.
+  // This ensures claude-multimodel spawns teammates as separate CLI processes.
   return {
-    injectedTeammateMode: 'tmux',
+    injectedTeammateMode: null,
     forceProcessTeammates: true,
   };
 }
