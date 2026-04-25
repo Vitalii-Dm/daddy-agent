@@ -102,7 +102,10 @@ function layout(
   const { seed, anchorId } = options;
   const cx = width / 2;
   const cy = height / 2;
-  const seedR = Math.min(width, height) * 0.18;
+  // Smaller seed radius keeps community blobs starting closer to the centre
+  // — combined with the stronger center pull below this prevents clusters
+  // from drifting too far apart.
+  const seedR = Math.min(width, height) * 0.1;
   const rng = mulberry32(nodes.length * 7919 + edges.length);
 
   // Deterministic community ordering.
@@ -171,7 +174,11 @@ function layout(
     ej.push(b);
   }
 
-  // Fruchterman-Reingold parameters.
+  // Fruchterman-Reingold parameters. Note we deliberately do NOT hard-clamp
+  // node positions during simulation — that produces the wall-hugging row
+  // along the canvas edges. Instead we let nodes settle freely under
+  // repulsion + spring + a gentle center pull, and fit the result into the
+  // viewport in a post-processing step.
   const padding = 24;
   const xMin = padding;
   const yMin = padding;
@@ -227,14 +234,19 @@ function layout(
       dy[j] += fy;
     }
 
-    // Gentle pull toward the canvas center keeps disconnected components on screen.
-    const centerPull = 0.012;
+    // Pull toward the canvas center. Stronger than a typical FR run since
+    // we no longer have wall clamps as a backstop — and it disproportion-
+    // ately compresses the gap *between* clusters (their centres are far
+    // from the middle) without crushing the spacing *within* each cluster.
+    const centerPull = 0.05;
     for (let i = 0; i < nodes.length; i++) {
       dx[i] += (cx - px[i]) * centerPull;
       dy[i] += (cy - py[i]) * centerPull;
     }
 
-    // Apply, capped by current temperature, clamped to canvas.
+    // Apply, capped by current temperature. No wall clamp — the post-pass
+    // below fits the final bounding box into the viewport so nothing
+    // escapes off-canvas, and there's no boundary for nodes to stack on.
     for (let i = 0; i < nodes.length; i++) {
       const disp = Math.hypot(dx[i], dy[i]);
       if (disp > 0) {
@@ -242,13 +254,53 @@ function layout(
         px[i] += (dx[i] / disp) * limit;
         py[i] += (dy[i] / disp) * limit;
       }
-      if (px[i] < xMin) px[i] = xMin;
-      if (px[i] > xMax) px[i] = xMax;
-      if (py[i] < yMin) py[i] = yMin;
-      if (py[i] > yMax) py[i] = yMax;
     }
 
     temperature = Math.max(0.5, temperature - cooling);
+  }
+
+  // Post-pass: fit the simulation output into the viewport — but never so
+  // aggressively that edges become invisible because nodes are packed
+  // shoulder-to-shoulder. We compute the auto-fit scale, then a "minimum
+  // density" scale that keeps the average connected-node distance at least
+  // MIN_AVG_EDGE_PX. The larger of the two wins; if that means the graph
+  // overflows the viewport, that's expected — pan/zoom is right there.
+  // Skip on incremental seeded re-layouts so the user's pan isn't disturbed.
+  if (!seed && nodes.length > 0) {
+    let minX = px[0];
+    let maxX = px[0];
+    let minY = py[0];
+    let maxY = py[0];
+    for (let i = 1; i < nodes.length; i++) {
+      if (px[i] < minX) minX = px[i];
+      if (px[i] > maxX) maxX = px[i];
+      if (py[i] < minY) minY = py[i];
+      if (py[i] > maxY) maxY = py[i];
+    }
+    const bboxW = Math.max(1, maxX - minX);
+    const bboxH = Math.max(1, maxY - minY);
+    const targetW = xMax - xMin;
+    const targetH = yMax - yMin;
+    const fitScale = Math.min(targetW / bboxW, targetH / bboxH) * 0.92;
+
+    // Density floor: average edge length must stay ≥ MIN_AVG_EDGE_PX.
+    const MIN_AVG_EDGE_PX = 32;
+    let avgEdge = 0;
+    let edgeCount = 0;
+    for (let m = 0; m < ei.length; m++) {
+      avgEdge += Math.hypot(px[ei[m]] - px[ej[m]], py[ei[m]] - py[ej[m]]);
+      edgeCount++;
+    }
+    if (edgeCount > 0) avgEdge /= edgeCount;
+    const densityScale = avgEdge > 0 ? MIN_AVG_EDGE_PX / avgEdge : fitScale;
+    const scale = Math.max(fitScale, densityScale);
+
+    const bboxCx = (minX + maxX) / 2;
+    const bboxCy = (minY + maxY) / 2;
+    for (let i = 0; i < nodes.length; i++) {
+      px[i] = cx + (px[i] - bboxCx) * scale;
+      py[i] = cy + (py[i] - bboxCy) * scale;
+    }
   }
 
   const laid: LayoutNode[] = [];
