@@ -1,14 +1,11 @@
 import { useState } from 'react';
 
+import { inferMascotRole, inferMascotStatus, Mascot } from '@renderer/components/aurora/Mascot';
 import { Badge } from '@renderer/components/ui/badge';
 import { DialogDescription, DialogTitle } from '@renderer/components/ui/dialog';
 import { getTeamColorSet } from '@renderer/constants/teamColors';
 import { formatAgentRole } from '@renderer/utils/formatAgentRole';
-import {
-  agentAvatarUrl,
-  buildMemberLaunchPresentation,
-  displayMemberName,
-} from '@renderer/utils/memberHelpers';
+import { buildMemberLaunchPresentation, displayMemberName } from '@renderer/utils/memberHelpers';
 import { isLeadMember } from '@shared/utils/leadDetection';
 import { Pencil } from 'lucide-react';
 
@@ -59,6 +56,8 @@ export const MemberDetailHeader = ({
 
   const colors = getTeamColorSet(member.color ?? '');
   const role = member.role || formatAgentRole(member.agentType);
+  const mascotRole = inferMascotRole(member.role ?? member.agentType ?? null);
+  const mascotStatus = inferMascotStatus(member.status ?? null);
   const launchPresentation = buildMemberLaunchPresentation({
     member,
     spawnStatus,
@@ -79,18 +78,22 @@ export const MemberDetailHeader = ({
     !isLeadMember(member) && !member.removedAt && !isTeamProvisioning && !!onUpdateRole;
 
   return (
-    <div className="flex items-center gap-3">
-      <div className="relative shrink-0">
-        <img
-          src={agentAvatarUrl(member.name, 96)}
-          alt={member.name}
-          className="size-12 rounded-full bg-[var(--color-surface-raised)]"
-          loading="lazy"
+    <div className="flex items-center gap-4">
+      <div className="relative shrink-0" aria-label={presenceLabel}>
+        <Mascot
+          role={mascotRole}
+          size={96}
+          seed={member.name}
+          status={mascotStatus}
+          halo
+          ariaLabel={`${displayMemberName(member.name)} mascot`}
         />
-        <span
-          className={`absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-[var(--color-surface)] ${dotClass}`}
-          aria-label={presenceLabel}
-        />
+        {!mascotStatus && (
+          <span
+            className={`absolute bottom-1 right-1 size-3.5 rounded-full border-2 border-[var(--color-surface)] ${dotClass}`}
+            aria-hidden="true"
+          />
+        )}
       </div>
       <div className="min-w-0 flex-1">
         <DialogTitle className="truncate" style={{ color: colors.text }}>
