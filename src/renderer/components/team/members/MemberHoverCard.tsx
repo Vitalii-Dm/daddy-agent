@@ -1,3 +1,4 @@
+import { inferMascotRole, Mascot } from '@renderer/components/aurora/Mascot';
 import { Badge } from '@renderer/components/ui/badge';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@renderer/components/ui/hover-card';
 import {
@@ -10,11 +11,7 @@ import { useTheme } from '@renderer/hooks/useTheme';
 import { useStore } from '@renderer/store';
 import { getCurrentProvisioningProgressForTeam } from '@renderer/store/slices/teamSlice';
 import { formatAgentRole } from '@renderer/utils/formatAgentRole';
-import {
-  agentAvatarUrl,
-  buildMemberLaunchPresentation,
-  displayMemberName,
-} from '@renderer/utils/memberHelpers';
+import { buildMemberLaunchPresentation, displayMemberName } from '@renderer/utils/memberHelpers';
 import { isLeadMember } from '@shared/utils/leadDetection';
 import { ExternalLink } from 'lucide-react';
 
@@ -137,16 +134,16 @@ export const MemberHoverCard = ({
         <div className="flex flex-col gap-2.5">
           {/* Header: avatar + name + presence */}
           <div className="flex items-center gap-3">
-            <div className="relative shrink-0">
-              <img
-                src={agentAvatarUrl(member.name, 64)}
-                alt={member.name}
-                className="size-10 rounded-full bg-[var(--color-surface-raised)]"
-                loading="lazy"
+            <div className="relative shrink-0" aria-label={presenceLabel}>
+              <Mascot
+                role={inferMascotRole(member.role ?? member.agentType ?? null)}
+                size={48}
+                seed={member.name}
+                ariaLabel={`${displayMemberName(member.name)} mascot`}
               />
               <span
-                className={`absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-[var(--color-surface)] ${dotClass}`}
-                aria-label={presenceLabel}
+                className={`absolute bottom-0 right-0 size-3 rounded-full border-2 border-[var(--color-surface)] ${dotClass}`}
+                aria-hidden="true"
               />
             </div>
             <div className="min-w-0 flex-1">

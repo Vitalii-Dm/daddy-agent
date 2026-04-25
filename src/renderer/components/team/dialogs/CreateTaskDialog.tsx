@@ -4,6 +4,7 @@ import { inferMascotRole, Mascot } from '@renderer/components/aurora/Mascot';
 import { Badge } from '@renderer/components/ui/badge';
 import { Button } from '@renderer/components/ui/button';
 import { Checkbox } from '@renderer/components/ui/checkbox';
+import { GlassButton } from '@renderer/components/ui/GlassButton';
 import {
   Dialog,
   DialogContent,
@@ -479,12 +480,12 @@ export const CreateTaskDialog = ({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={onClose} disabled={submitting}>
+          <GlassButton variant="tertiary" onClick={onClose} disabled={submitting}>
             Cancel
-          </Button>
-          <Button size="sm" onClick={handleSubmit} disabled={!canSubmit}>
+          </GlassButton>
+          <GlassButton variant="primary" onClick={handleSubmit} disabled={!canSubmit}>
             {submitting ? 'Creating...' : 'Create'}
-          </Button>
+          </GlassButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

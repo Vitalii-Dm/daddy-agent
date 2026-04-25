@@ -7,6 +7,8 @@ import { isDemoTeamName } from '@renderer/utils/demoTeamFixture';
 import type { TeamSummary } from '@shared/types/team';
 
 import { HeroMascot } from '../HeroMascot';
+import { OrbitingMascots } from '../OrbitingMascots';
+import { SplineMascot } from '../SplineMascot';
 import { LiquidGlass } from '../LiquidGlass';
 import { LivePreviewStrip } from '../LivePreviewStrip';
 
@@ -39,12 +41,24 @@ export const HeroSection = (): React.JSX.Element => {
     <section
       ref={sectionRef}
       id="home"
-      className="relative isolate flex min-h-screen flex-col px-6 pb-24 pt-32 sm:px-10 lg:px-16"
+      className="relative isolate flex min-h-screen flex-col px-6 pb-8 pt-32 sm:px-10 lg:px-16"
       style={{ scrollMarginTop: '88px' }}
     >
+      {/* xl+ : Spline 3D robot with orbiting role mascots. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute right-8 top-[26%] z-0 hidden lg:block xl:right-16"
+        className="pointer-events-none absolute right-4 top-[18%] z-0 hidden xl:block"
+      >
+        <div className="relative" style={{ width: 560, height: 560 }}>
+          <SplineMascot className="absolute inset-0" size={520} />
+          <OrbitingMascots centerX={280} centerY={280} />
+        </div>
+      </div>
+      {/* lg : static glass-blob mascot (no WebGL, no orbits) for the
+          medium breakpoint where the orbits would clip the layout. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute right-8 top-[26%] z-0 hidden lg:block xl:hidden"
         style={{ transform: 'translateY(-12%)' }}
       >
         <HeroMascot size={420} />

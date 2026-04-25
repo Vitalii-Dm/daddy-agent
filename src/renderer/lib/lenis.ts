@@ -8,11 +8,16 @@ let instance: Lenis | null = null;
 
 export function initLenis(): Lenis {
   if (instance) return instance;
+  // v5: heavier, more cinematic feel — quartic ease-out decelerates
+  // harder at the end so the hero handoff feels deliberate. Duration
+  // is slightly longer; wheelMultiplier nudged to 1.0 so a full notch
+  // covers a meaningful chunk of the hero release.
   const lenis = new Lenis({
-    duration: 1.15,
-    easing: (t: number) => 1 - Math.pow(1 - t, 3),
+    duration: 1.6,
+    easing: (t: number) => 1 - Math.pow(1 - t, 4),
     smoothWheel: true,
-    wheelMultiplier: 0.9,
+    wheelMultiplier: 1.0,
+    touchMultiplier: 1.4,
   });
 
   function raf(time: number): void {

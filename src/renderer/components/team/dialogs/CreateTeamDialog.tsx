@@ -14,6 +14,7 @@ import {
 import { TeamRosterEditorSection } from '@renderer/components/team/members/TeamRosterEditorSection';
 import { AutoResizeTextarea } from '@renderer/components/ui/auto-resize-textarea';
 import { Button } from '@renderer/components/ui/button';
+import { GlassButton } from '@renderer/components/ui/GlassButton';
 import { Checkbox } from '@renderer/components/ui/checkbox';
 import {
   Dialog,
@@ -1873,11 +1874,11 @@ export const CreateTeamDialog = ({
                 Open Existing Team
               </Button>
             ) : null}
-            <Button variant="outline" size="sm" onClick={onClose}>
+            <GlassButton variant="tertiary" onClick={onClose}>
               Close
-            </Button>
-            <Button
-              size="sm"
+            </GlassButton>
+            <GlassButton
+              variant="primary"
               disabled={!canCreate || !draftLoaded || isSubmitting || hasCreateFormErrors}
               onClick={handleSubmit}
             >
@@ -1891,7 +1892,7 @@ export const CreateTeamDialog = ({
               ) : (
                 'Create'
               )}
-            </Button>
+            </GlassButton>
           </div>
         </DialogFooter>
       </DialogContent>

@@ -56,7 +56,6 @@ import { isTeamProviderId, normalizeOptionalTeamProviderId } from '@shared/utils
 import {
   AlertTriangle,
   Check,
-  CheckCircle2,
   ChevronDown,
   ChevronRight,
   Loader2,
@@ -1961,17 +1960,14 @@ export const LaunchTeamDialog = (props: LaunchTeamDialogProps): React.JSX.Elemen
 
               {prepareState === 'ready' ? (
                 <div>
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-400">
-                    <CheckCircle2 className="size-3.5 shrink-0" />
-                    <span>
-                      {prepareChecks.some((check) => check.status === 'notes') ||
-                      prepareWarnings.length > 0
-                        ? 'CLI environment ready (with notes)'
-                        : 'CLI environment ready'}
-                    </span>
-                  </div>
-                  {prepareMessage ? (
-                    <p className="mt-0.5 pl-5 text-[11px] text-[var(--color-text-muted)]">
+                  {/* The "CLI environment ready" green chip used to render
+                      here. v5 removes it as redundant noise — if the CLI
+                      weren't ready, the Launch button would already be
+                      disabled. Notes/warnings still surface below. */}
+                  {prepareMessage &&
+                  (prepareChecks.some((check) => check.status === 'notes') ||
+                    prepareWarnings.length > 0) ? (
+                    <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
                       {prepareMessage}
                     </p>
                   ) : null}

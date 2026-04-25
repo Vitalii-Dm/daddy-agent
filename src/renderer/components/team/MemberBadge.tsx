@@ -1,3 +1,4 @@
+import { inferMascotRole, Mascot } from '@renderer/components/aurora/Mascot';
 import {
   getTeamColorSet,
   getThemedBadge,
@@ -5,7 +6,8 @@ import {
   getThemedText,
 } from '@renderer/constants/teamColors';
 import { useTheme } from '@renderer/hooks/useTheme';
-import { agentAvatarUrl, displayMemberName } from '@renderer/utils/memberHelpers';
+import { useStore } from '@renderer/store';
+import { displayMemberName } from '@renderer/utils/memberHelpers';
 
 import { MemberHoverCard } from './members/MemberHoverCard';
 
@@ -40,8 +42,14 @@ export const MemberBadge = ({
 }: MemberBadgeProps): React.JSX.Element => {
   const colors = getTeamColorSet(color ?? '');
   const { isLight } = useTheme();
-  const avatarSize = size === 'md' ? 32 : size === 'sm' ? 24 : 18;
-  const avatarClass = size === 'md' ? 'size-6' : size === 'sm' ? 'size-5' : 'size-4';
+  // Resolve the member's role from the active team so the mascot
+  // identity matches the kanban / roster — ink-2's brown
+  // agentAvatarUrl figure used to produce a different character per
+  // surface. Falls back to "coder" when the member can't be located.
+  const member = useStore((s) => s.selectedTeamData?.members.find((m) => m.name === name));
+  const mascotRole = inferMascotRole(member?.role ?? member?.agentType ?? null);
+  // Mascot only accepts 24|32|48|64|96|128 — pick the closest match.
+  const mascotSize: 24 | 32 = size === 'md' ? 32 : 24;
   const textClass = size === 'md' ? 'text-xs' : size === 'sm' ? 'text-[10px]' : 'text-[9px]';
   const paddingClass = size === 'xs' ? 'px-1 py-0.5' : 'px-1.5 py-0.5';
 
@@ -52,11 +60,11 @@ export const MemberBadge = ({
   };
 
   const avatar = (
-    <img
-      src={agentAvatarUrl(name, avatarSize)}
-      alt=""
-      className={`${avatarClass} shrink-0 rounded-full bg-[var(--color-surface-raised)]`}
-      loading="lazy"
+    <Mascot
+      role={mascotRole}
+      size={mascotSize}
+      seed={name}
+      ariaLabel={`${displayMemberName(name)} mascot`}
     />
   );
 

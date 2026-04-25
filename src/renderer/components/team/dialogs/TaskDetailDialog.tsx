@@ -1033,7 +1033,7 @@ export const TaskDetailDialog = ({
                 </div>
               ) : currentTask.description ? (
                 <div
-                  className="group relative"
+                  className="group relative text-[14px] leading-relaxed text-[color:var(--ink-1)] [--prose-body:var(--ink-1)] [--prose-heading:var(--ink-1)] [--prose-link:var(--a-violet)] [--prose-muted:var(--ink-3)]"
                   onClickCapture={
                     onScrollToTask
                       ? (e) => {
