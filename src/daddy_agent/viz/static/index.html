@@ -194,29 +194,57 @@
           return "#444";
         }
 
-        function runLayout(graph) {
-          if (!graph.order) return;
+        // Cancellation token: when render() restarts, the previous
+        // layout loop checks token.cancelled and bails on its next yield.
+        function newLayoutToken() {
+          if (state.layoutToken) state.layoutToken.cancelled = true;
+          state.layoutToken = { cancelled: false };
+          return state.layoutToken;
+        }
+
+        // Run ForceAtlas2 in chunks, yielding to the browser between
+        // batches so the UI stays responsive and Sigma can repaint as
+        // the layout converges.  The user sees the graph "settle"
+        // instead of a frozen "loading…" message.
+        async function runLayoutChunked(graph, token, onProgress) {
+          if (!graph.order) {
+            onProgress(0, 0);
+            return;
+          }
           const FA2 = window.graphologyLibrary && window.graphologyLibrary.layoutForceAtlas2
             ? window.graphologyLibrary.layoutForceAtlas2
             : window.forceAtlas2;
           if (!FA2 || typeof FA2.assign !== "function") return;
-          // Tuned for 50–500 nodes: more iterations + barnesHut so big
-          // graphs don't take forever; LinLog mode spreads clusters.
-          const useBH = graph.order > 200;
-          FA2.assign(graph, {
-            iterations: 300,
-            settings: {
-              gravity: 1.4,
-              scalingRatio: 28,
-              slowDown: 4,
-              strongGravityMode: false,
-              linLogMode: true,
-              barnesHutOptimize: useBH,
-              barnesHutTheta: 0.6,
-              edgeWeightInfluence: 0.4,
-              adjustSizes: true,
-            },
-          });
+
+          // Adaptive: more nodes → more iterations needed, but each
+          // iteration is also more expensive.  Cap the wall-clock budget
+          // by shrinking the per-chunk size on big graphs.
+          const big = graph.order > 200;
+          const totalIters = big ? 200 : 300;
+          const chunkSize = graph.order > 500 ? 8 : graph.order > 200 ? 20 : 30;
+          const settings = {
+            gravity: 1.4,
+            scalingRatio: 28,
+            slowDown: 4,
+            strongGravityMode: false,
+            linLogMode: true,
+            barnesHutOptimize: big,
+            barnesHutTheta: 0.6,
+            edgeWeightInfluence: 0.4,
+            adjustSizes: true,
+          };
+
+          for (let i = 0; i < totalIters; i += chunkSize) {
+            if (token.cancelled) return;
+            const thisChunk = Math.min(chunkSize, totalIters - i);
+            FA2.assign(graph, { iterations: thisChunk, settings });
+            onProgress(i + thisChunk, totalIters);
+            // Yield to the browser so Sigma can repaint and the UI
+            // stays interactive (Apply button responsive, scroll OK).
+            await new Promise(function (resolve) {
+              requestAnimationFrame(function () { resolve(); });
+            });
+          }
         }
 
         function syncViewControls() {
@@ -229,7 +257,9 @@
         async function render() {
           syncTabs();
           syncViewControls();
-          setStatus("loading graph…");
+          const t0 = performance.now();
+          const token = newLayoutToken();
+          setStatus("fetching…");
           const view = document.getElementById("f-view").value;
           const params = new URLSearchParams({ db: state.db, view: view });
           if (view === "detail") {
@@ -247,8 +277,21 @@
             setStatus("error: " + err.message, "error");
             return;
           }
+          if (token.cancelled) return;
+
+          // Stage 2: build the graph object.  Show count immediately so
+          // the user has a sense of scale before layout starts.
+          setStatus(
+            "building · " + (payload.nodes || []).length + " nodes / " +
+              (payload.edges || []).length + " edges",
+          );
           const graph = buildGraph(payload);
-          runLayout(graph);
+          if (token.cancelled) return;
+
+          // Stage 3: render Sigma BEFORE running the layout, with the
+          // initial circle positions.  The user sees the graph appear
+          // right away and watches FA2 untangle it instead of staring
+          // at a frozen "loading…" message.
           if (state.renderer) state.renderer.kill();
           const container = document.getElementById("graph");
           container.innerHTML = "";
@@ -264,9 +307,26 @@
           state.renderer.on("clickNode", function (evt) {
             showNode(evt.node);
           });
+
+          // Stage 4: incremental layout.  Sigma observes the graph and
+          // repaints on each chunk.  Status reflects real progress.
+          const totalEdges = graph.size;
+          await runLayoutChunked(graph, token, function (done, total) {
+            if (token.cancelled) return;
+            const pct = total > 0 ? Math.round((done / total) * 100) : 100;
+            setStatus(
+              "layout " + pct + "% · " + graph.order + " nodes / " + totalEdges +
+                " edges",
+              "warn",
+            );
+          });
+          if (token.cancelled) return;
+
+          const ms = Math.round(performance.now() - t0);
           setStatus(
-            "ok · " + view + " · " + graph.order + " nodes, " + graph.size + " edges",
-            "ok"
+            "ok · " + view + " · " + graph.order + " nodes / " + totalEdges +
+              " edges · " + ms + "ms",
+            "ok",
           );
         }
 
