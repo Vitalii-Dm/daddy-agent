@@ -3,6 +3,7 @@ import { normalizePath } from '@renderer/utils/pathNormalize';
 import { createLogger } from '@shared/utils/logger';
 import { create } from 'zustand';
 
+import { createCliInstallerSlice } from './slices/cliInstallerSlice';
 import { createConfigSlice } from './slices/configSlice';
 import { createConnectionSlice } from './slices/connectionSlice';
 import { createContextSlice } from './slices/contextSlice';
@@ -27,6 +28,7 @@ import { createUISlice } from './slices/uiSlice';
 import type { AppState } from './types';
 import type {
   ActiveToolCall,
+  CliInstallerProgress,
   LeadContextUsage,
   TeamChangeEvent,
   ToolActivityEventPayload,
@@ -123,6 +125,7 @@ export const useStore = create<AppState>()((...args) => ({
   ...createConfigSlice(...args),
   ...createConnectionSlice(...args),
   ...createContextSlice(...args),
+  ...createCliInstallerSlice(...args),
 }));
 
 export function initializeNotificationListeners(): () => void {
@@ -132,8 +135,24 @@ export function initializeNotificationListeners(): () => void {
     useStore.getState().unsubscribeProvisioningProgress();
   });
 
+  let cliStatusTimer: ReturnType<typeof setTimeout> | null = null;
+
   void (async () => {
     await useStore.getState().fetchConfig();
+
+    if (api.cliInstaller) {
+      const delayMs = 0;
+      cliStatusTimer = setTimeout(() => {
+        const multimodelEnabled = useStore.getState().appConfig?.general?.multimodelEnabled ?? true;
+        if (multimodelEnabled) {
+          void useStore.getState().bootstrapCliStatus({ multimodelEnabled: true });
+        } else {
+          void useStore.getState().fetchCliStatus();
+        }
+        cliStatusTimer = null;
+      }, delayMs);
+    }
+
     await Promise.all([
       useStore.getState().fetchRepositoryGroups(),
       useStore.getState().fetchAllTasks(),
@@ -822,7 +841,88 @@ export function initializeNotificationListeners(): () => void {
     if (typeof cleanup === 'function') cleanupFns.push(cleanup);
   }
 
+  // Listen for CLI installer progress events from main process
+  let cliCompletedRevertTimer: ReturnType<typeof setTimeout> | null = null;
+  if (api.cliInstaller?.onProgress) {
+    const cleanup = api.cliInstaller.onProgress((_event: unknown, data: unknown) => {
+      const progress = data as CliInstallerProgress;
+
+      if (progress.type !== 'completed' && cliCompletedRevertTimer) {
+        clearTimeout(cliCompletedRevertTimer);
+        cliCompletedRevertTimer = null;
+      }
+
+      const detail = progress.detail ?? null;
+
+      switch (progress.type) {
+        case 'checking':
+          useStore.setState({ cliInstallerState: 'checking', cliInstallerDetail: detail });
+          break;
+        case 'downloading':
+          useStore.setState({
+            cliInstallerState: 'downloading',
+            cliDownloadProgress: progress.percent ?? 0,
+            cliDownloadTransferred: progress.transferred ?? 0,
+            cliDownloadTotal: progress.total ?? 0,
+            cliInstallerDetail: detail,
+          });
+          break;
+        case 'verifying':
+          useStore.setState({ cliInstallerState: 'verifying', cliInstallerDetail: detail });
+          break;
+        case 'installing': {
+          const prevLogs = useStore.getState().cliInstallerLogs;
+          const prevRaw = useStore.getState().cliInstallerRawChunks;
+          const newLogs = detail ? [...prevLogs, detail].slice(-50) : prevLogs;
+          const newRaw = progress.rawChunk ? [...prevRaw, progress.rawChunk].slice(-200) : prevRaw;
+          useStore.setState({
+            cliInstallerState: 'installing',
+            cliInstallerDetail: detail,
+            cliInstallerLogs: newLogs,
+            cliInstallerRawChunks: newRaw,
+          });
+          break;
+        }
+        case 'completed':
+          useStore.setState({
+            cliInstallerState: 'completed',
+            cliCompletedVersion: progress.version ?? null,
+            cliInstallerDetail: null,
+          });
+          void useStore.getState().fetchCliStatus();
+          cliCompletedRevertTimer = setTimeout(() => {
+            cliCompletedRevertTimer = null;
+            if (useStore.getState().cliInstallerState === 'completed') {
+              useStore.setState({ cliInstallerState: 'idle' });
+            }
+          }, 3000);
+          break;
+        case 'error':
+          useStore.setState({
+            cliInstallerState: 'error',
+            cliInstallerError: progress.error ?? 'Unknown error',
+          });
+          break;
+        case 'status':
+          if (progress.status) {
+            useStore.setState({ cliStatus: progress.status });
+          }
+          break;
+      }
+    });
+    if (typeof cleanup === 'function') {
+      cleanupFns.push(() => {
+        cleanup();
+        if (cliCompletedRevertTimer) {
+          clearTimeout(cliCompletedRevertTimer);
+          cliCompletedRevertTimer = null;
+        }
+      });
+    }
+  }
+
   return () => {
+    if (cliStatusTimer) clearTimeout(cliStatusTimer);
     for (const timer of pendingSessionRefreshTimers.values()) clearTimeout(timer);
     pendingSessionRefreshTimers.clear();
     for (const timer of pendingProjectRefreshTimers.values()) clearTimeout(timer);

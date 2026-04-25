@@ -11,6 +11,7 @@ import { SendMessageDialog } from '@renderer/components/team/dialogs/SendMessage
 import { TaskDetailDialog } from '@renderer/components/team/dialogs/TaskDetailDialog';
 import { TrashDialog } from '@renderer/components/team/kanban/TrashDialog';
 import { MemberDetailDialog } from '@renderer/components/team/members/MemberDetailDialog';
+import { TeamProvisioningPanel } from '@renderer/components/team/TeamProvisioningPanel';
 import { useStore } from '@renderer/store';
 
 import type { TaskRef } from '@shared/types/team';
@@ -225,6 +226,12 @@ export const DashboardSection = (): React.JSX.Element => {
             onSendMessage={() => setSendDialogOpen(true)}
             onTrash={teamName ? () => setTrashOpen(true) : undefined}
           />
+
+          {teamName && (
+            <div className="mt-6">
+              <TeamProvisioningPanel teamName={teamName} surface="raised" dismissible />
+            </div>
+          )}
 
           <motion.div
             initial={{ opacity: 0, y: 24 }}
