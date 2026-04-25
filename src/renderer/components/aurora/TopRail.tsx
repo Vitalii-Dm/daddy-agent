@@ -39,7 +39,6 @@ export const TopRail = (): React.JSX.Element => {
     };
   }, []);
 
-  const breadcrumb = teamName ? `Home · ${teamName}` : 'Home · Agents';
   const statusLabel =
     totalCount === 0
       ? 'Standby'
@@ -110,9 +109,21 @@ export const TopRail = (): React.JSX.Element => {
           aria-hidden="true"
         />
 
-        <span className="hidden flex-1 truncate text-center text-[13px] text-[color:var(--ink-2)] sm:block">
-          {breadcrumb}
-        </span>
+        <button
+          type="button"
+          onClick={() => useStore.setState({ selectedTeamName: null, selectedTeamData: null })}
+          className="hidden flex-1 truncate text-center text-[13px] text-[color:var(--ink-2)] transition-colors hover:text-[color:var(--ink-1)] sm:block"
+        >
+          {teamName ? (
+            <>
+              <span className="opacity-50 hover:opacity-100">Home</span>
+              <span className="mx-1.5 opacity-30">·</span>
+              <span>{teamName}</span>
+            </>
+          ) : (
+            'Home · Teams'
+          )}
+        </button>
 
         <div className="flex items-center gap-1">
           <button

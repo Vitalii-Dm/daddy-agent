@@ -44,6 +44,10 @@ export const DashboardSection = (): React.JSX.Element => {
   const messages = useStore((s) => s.selectedTeamData?.messages ?? []);
   const createTeamTask = useStore((s) => s.createTeamTask);
 
+  const deselectTeam = useCallback(() => {
+    useStore.setState({ selectedTeamName: null, selectedTeamData: null });
+  }, []);
+
   const {
     sendTeamMessage,
     restoreTask,
@@ -244,6 +248,7 @@ export const DashboardSection = (): React.JSX.Element => {
             onNewTeam={() => setCreateTeamOpen(true)}
             onSendMessage={() => setSendDialogOpen(true)}
             onTrash={teamName ? () => setTrashOpen(true) : undefined}
+            onDeselectTeam={deselectTeam}
           />
 
           {!teamName ? (
@@ -469,6 +474,7 @@ interface DashboardHeaderProps {
   onNewTeam: () => void;
   onSendMessage: () => void;
   onTrash?: () => void;
+  onDeselectTeam: () => void;
 }
 
 const DashboardHeader = ({
@@ -487,12 +493,23 @@ const DashboardHeader = ({
   onNewTeam,
   onSendMessage,
   onTrash,
+  onDeselectTeam,
 }: DashboardHeaderProps): React.JSX.Element => (
   <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
     <div className="min-w-0 max-w-[640px]">
-      <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-[color:var(--ink-3)]">
-        {teamName ?? 'No team selected'}
-      </p>
+      <button
+        type="button"
+        onClick={teamName ? onDeselectTeam : undefined}
+        className="font-mono text-[11px] uppercase tracking-[0.32em] text-[color:var(--ink-3)] transition-colors hover:text-[color:var(--ink-1)]"
+      >
+        {teamName ? (
+          <>
+            <span className="opacity-60">Teams /</span> {teamName}
+          </>
+        ) : (
+          'Select a team'
+        )}
+      </button>
       <h2
         className="mt-3 whitespace-normal break-words font-serif font-normal text-[color:var(--ink-1)]"
         style={{
