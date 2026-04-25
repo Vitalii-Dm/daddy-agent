@@ -120,18 +120,28 @@ export const SplineMascot = ({ className, size = 520 }: SplineMascotProps): Reac
         />
       </Suspense>
       {/* Overlay covering Spline's "Built with Spline" watermark in
-          the bottom-right corner of the canvas. The mask above already
-          fades that area, but the badge still renders above the mask
-          since it's a separate DOM node Spline injects into the canvas
-          container. This div sits on top of it with a soft radial
-          gradient that blends into the hero background. */}
+          the bottom-right corner of the canvas. Two-layer cover:
+          (1) an opaque pill that fully blocks the badge, and (2) a
+          larger soft radial fade behind it that blends the pill's
+          edges into the hero background so it doesn't read as a
+          sticker. The hero background at this position is the warm
+          paper canvas plus a faint violet aurora gradient — the inner
+          pill matches paper exactly, the radial blends both. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute bottom-2 right-2 h-12 w-44"
+        className="pointer-events-none absolute bottom-0 right-0 h-20 w-64"
         style={{
           background:
-            'radial-gradient(ellipse at center, var(--bg-base) 30%, rgba(246, 243, 238, 0.7) 70%, transparent 100%)',
-          filter: 'blur(4px)',
+            'radial-gradient(ellipse 70% 60% at 70% 60%, var(--bg-base) 0%, var(--bg-base) 35%, rgba(246, 243, 238, 0.85) 70%, transparent 100%)',
+          filter: 'blur(6px)',
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute bottom-3 right-3 h-10 w-48 rounded-full"
+        style={{
+          background: 'var(--bg-base)',
+          boxShadow: '0 0 24px 12px var(--bg-base), 0 0 48px 24px rgba(246, 243, 238, 0.6)',
         }}
       />
     </div>
