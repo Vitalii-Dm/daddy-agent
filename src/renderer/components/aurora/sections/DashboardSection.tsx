@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react';
 import { useShallow } from 'zustand/react/shallow';
 
-import { isElectronMode } from '@renderer/api';
+import { api, isElectronMode } from '@renderer/api';
 import { GlassButton } from '@renderer/components/ui/GlassButton';
 import { CreateTaskDialog } from '@renderer/components/team/dialogs/CreateTaskDialog';
 import { CreateTeamDialog } from '@renderer/components/team/dialogs/CreateTeamDialog';
@@ -79,6 +79,21 @@ export const DashboardSection = (): React.JSX.Element => {
 
   const [view, setView] = useState<ViewTab>('Kanban');
   const [filter, setFilter] = useState<FilterChip>('All');
+  const [stoppingTeam, setStoppingTeam] = useState(false);
+  const refreshTeamData = useStore((s) => s.refreshTeamData);
+
+  const handleStopTeam = useCallback(async () => {
+    if (!teamName || stoppingTeam) return;
+    setStoppingTeam(true);
+    try {
+      await api.teams.stop(teamName);
+      await refreshTeamData(teamName);
+    } catch (err) {
+      console.error('Failed to stop team:', err);
+    } finally {
+      setStoppingTeam(false);
+    }
+  }, [teamName, stoppingTeam, refreshTeamData]);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [creatingTask, setCreatingTask] = useState(false);
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
@@ -216,12 +231,15 @@ export const DashboardSection = (): React.JSX.Element => {
             teamName={teamName}
             runningCount={runningCount}
             totalCount={totalCount}
+            isAlive={isAlive}
+            stoppingTeam={stoppingTeam}
             view={view}
             onViewChange={setView}
             filter={filter}
             onFilterChange={setFilter}
             onCreateTask={() => setCreateTaskOpen(true)}
             onLaunchTeam={() => setLaunchDialogOpen(true)}
+            onStopTeam={handleStopTeam}
             onNewTeam={() => setCreateTeamOpen(true)}
             onSendMessage={() => setSendDialogOpen(true)}
             onTrash={teamName ? () => setTrashOpen(true) : undefined}
@@ -420,12 +438,15 @@ interface DashboardHeaderProps {
   teamName: string | null;
   runningCount: number;
   totalCount: number;
+  isAlive: boolean;
+  stoppingTeam: boolean;
   view: ViewTab;
   onViewChange: (v: ViewTab) => void;
   filter: FilterChip;
   onFilterChange: (f: FilterChip) => void;
   onCreateTask: () => void;
   onLaunchTeam: () => void;
+  onStopTeam: () => void;
   onNewTeam: () => void;
   onSendMessage: () => void;
   onTrash?: () => void;
@@ -435,12 +456,15 @@ const DashboardHeader = ({
   teamName,
   runningCount,
   totalCount,
+  isAlive,
+  stoppingTeam,
   view,
   onViewChange,
   filter,
   onFilterChange,
   onCreateTask,
   onLaunchTeam,
+  onStopTeam,
   onNewTeam,
   onSendMessage,
   onTrash,
@@ -483,9 +507,15 @@ const DashboardHeader = ({
       >
         New Task
       </GlassButton>
-      <GlassButton variant="secondary" onClick={onLaunchTeam}>
-        Launch Team
-      </GlassButton>
+      {isAlive ? (
+        <GlassButton variant="danger" onClick={onStopTeam} disabled={stoppingTeam}>
+          {stoppingTeam ? 'Stopping…' : 'Stop Team'}
+        </GlassButton>
+      ) : (
+        <GlassButton variant="secondary" onClick={onLaunchTeam}>
+          Launch Team
+        </GlassButton>
+      )}
       <GlassButton variant="tertiary" onClick={onNewTeam}>
         New Team
       </GlassButton>

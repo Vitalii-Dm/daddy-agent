@@ -21,7 +21,10 @@ def _write(path, content: str) -> None:
 
 
 def _seed_known_hashes(fake_session, paths_and_hashes):
-    fake_session.query_results["MATCH (f:File) RETURN f.path"] = [
+    # Substring match against the indexer's `_known_hashes` query — keep
+    # this loose so a future refactor of the projection (e.g. adding
+    # project_root filtering) doesn't silently break the seed.
+    fake_session.query_results["RETURN f.path"] = [
         {"path": p, "hash": h} for p, h in paths_and_hashes
     ]
 

@@ -200,6 +200,9 @@ export const KNOWLEDGE_GRAPH_START = 'knowledgeGraph:start';
 /** Stop the Python sidecar (idempotent). */
 export const KNOWLEDGE_GRAPH_STOP = 'knowledgeGraph:stop';
 
+/** Index/re-index a project (spawns `daddy-index <projectRoot>`). */
+export const KNOWLEDGE_GRAPH_REINDEX = 'knowledgeGraph:reindex';
+
 /** Event: graph-updated / error / connection (main → renderer). */
 export const KNOWLEDGE_GRAPH_EVENT = 'knowledgeGraph:event';
 

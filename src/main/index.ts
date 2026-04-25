@@ -49,6 +49,7 @@ import { join } from 'path';
 import { initializeIpcHandlers, removeIpcHandlers } from './ipc/handlers';
 import { startEventLoopLagMonitor } from './services/infrastructure/EventLoopLagMonitor';
 import { HttpServer } from './services/infrastructure/HttpServer';
+import { KnowledgeGraphIndexer } from './services/knowledgeGraph/KnowledgeGraphIndexer';
 import { KnowledgeGraphProxy } from './services/knowledgeGraph/KnowledgeGraphProxy';
 import { PythonVizServer } from './services/knowledgeGraph/PythonVizServer';
 import {
@@ -372,6 +373,7 @@ let teamProvisioningService: TeamProvisioningService;
 let httpServer: HttpServer;
 let knowledgeGraphServer: PythonVizServer | null = null;
 let knowledgeGraphProxy: KnowledgeGraphProxy | null = null;
+let knowledgeGraphIndexer: KnowledgeGraphIndexer | null = null;
 
 /**
  * Pick a Python interpreter for the knowledge-graph sidecar. Prefers a
@@ -882,6 +884,10 @@ async function initializeServices(): Promise<void> {
     cwd: process.cwd(),
   });
   knowledgeGraphProxy = new KnowledgeGraphProxy(knowledgeGraphServer);
+  knowledgeGraphIndexer = new KnowledgeGraphIndexer({
+    pythonBin: kgPythonBin,
+    cwd: process.cwd(),
+  });
   teamProvisioningService.setControlApiBaseUrlResolver(async () => {
     if (!httpServer.isRunning()) {
       await startHttpServer(handleModeSwitch);
@@ -954,7 +960,11 @@ async function initializeServices(): Promise<void> {
     crossTeamService,
     teamBackupService ?? undefined,
     knowledgeGraphServer && knowledgeGraphProxy
-      ? { server: knowledgeGraphServer, proxy: knowledgeGraphProxy }
+      ? {
+          server: knowledgeGraphServer,
+          proxy: knowledgeGraphProxy,
+          indexer: knowledgeGraphIndexer ?? undefined,
+        }
       : undefined
   );
   // Forward SSH state changes to renderer and HTTP SSE clients

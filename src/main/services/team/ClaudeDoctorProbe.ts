@@ -90,8 +90,58 @@ export function extractDoctorInvokedCandidates(output: string): string[] {
   return candidates;
 }
 
+/** Walk `$PATH` and return the absolute path of `commandName` if executable
+ * — no spawning, so this can't itself trigger `posix_spawnp` failures. */
+function findOnPath(commandName: string): string | null {
+  // Bare-name only — if the caller already passed an absolute or relative
+  // path it's not our job to second-guess them.
+  if (commandName.includes('/') || commandName.includes('\\')) {
+    return commandName;
+  }
+  const pathEnv = process.env.PATH ?? '';
+  if (!pathEnv) return null;
+  const sep = process.platform === 'win32' ? ';' : ':';
+  const exts =
+    process.platform === 'win32'
+      ? (process.env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';')
+      : [''];
+  // Lazy-import fs/path to avoid a top-level import dance in this hot module.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const fs = require('node:fs') as typeof import('node:fs');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const path = require('node:path') as typeof import('node:path');
+  for (const entry of pathEnv.split(sep)) {
+    if (!entry) continue;
+    for (const ext of exts) {
+      const candidate = path.join(entry, commandName + ext);
+      try {
+        // X_OK is fine on POSIX; on Windows fs.access ignores the X bit but
+        // returns success for any readable file, which is what we want here.
+        fs.accessSync(candidate, fs.constants.X_OK);
+        return candidate;
+      } catch {
+        /* keep searching */
+      }
+    }
+  }
+  return null;
+}
+
 async function captureDoctorOutput(commandName: string): Promise<string | null> {
   if (!nodePty) {
+    return null;
+  }
+
+  // Pre-flight: if the doctor binary can't be found on PATH, spawning it
+  // produces a confusing `posix_spawnp failed` exception. Surface a
+  // clearer log line and skip the doctor fallback — the caller's resolver
+  // will continue to its other strategies (runtime cache, install hint).
+  if (!findOnPath(commandName)) {
+    logger.info(
+      `Skipping doctor fallback: '${commandName}' not on PATH. ` +
+        `Install it (e.g. via 'npm install -g @anthropic-ai/claude-multimodel') ` +
+        `or ensure the runtime cache at ~/.agent-teams/runtime-cache is populated.`
+    );
     return null;
   }
 

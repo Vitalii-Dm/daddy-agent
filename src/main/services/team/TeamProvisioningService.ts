@@ -7884,6 +7884,8 @@ export class TeamProvisioningService {
       return;
     }
     if (run.processKilled || run.cancelRequested) {
+      // Process already killed (e.g. exited on its own) — still clean up run state
+      this.cleanupRun(run);
       return;
     }
     run.processKilled = true;

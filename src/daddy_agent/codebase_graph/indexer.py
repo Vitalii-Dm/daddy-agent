@@ -111,8 +111,8 @@ def _iter_source_files(root: Path, spec: Any) -> Iterator[Path]:
 # ---------------------------------------------------------------------------
 
 
-def _known_hashes(session: Any) -> dict[str, str]:
-    """Query Neo4j for ``(File.path, File.hash)`` tuples."""
+def _known_hashes(session: Any, project_root: str) -> dict[str, str]:
+    """Query Neo4j for ``(File.path, File.hash)`` tuples in this project."""
 
     if session is None:
         return {}
@@ -120,7 +120,11 @@ def _known_hashes(session: Any) -> dict[str, str]:
     if not callable(run):
         return {}
     try:
-        result = run("MATCH (f:File) RETURN f.path AS path, f.hash AS hash")
+        result = run(
+            "MATCH (f:File {project_root: $project_root}) "
+            "RETURN f.path AS path, f.hash AS hash",
+            project_root=project_root,
+        )
     except Exception as exc:  # pragma: no cover - depends on driver
         log.warning("could not load existing hashes: %s", exc)
         return {}
@@ -153,8 +157,13 @@ def index_repository(
     full: bool = False,
     session: Any | None = None,
     apply_schema_on_start: bool = True,
+    project_root: str | None = None,
 ) -> IndexResult:
-    """Walk ``root`` and ingest changed files.
+    """Walk ``root`` and ingest changed files under ``project_root``.
+
+    ``project_root`` defaults to the absolute path of ``root`` and is
+    written onto every ingested node, scoping the data to this repo so
+    multiple projects can cohabit a single Neo4j instance.
 
     If ``session`` is ``None`` we connect to Neo4j using env vars, so tests can
     pass a fake/mock session directly.
@@ -163,6 +172,7 @@ def index_repository(
     root_path = Path(root).resolve()
     if not root_path.is_dir():
         raise NotADirectoryError(root_path)
+    resolved_project_root = project_root or str(root_path)
 
     owned_session = session is None
     if owned_session:
@@ -176,7 +186,7 @@ def index_repository(
             apply_schema(session)
 
         spec = _load_pathspec(root_path)
-        existing = {} if full else _known_hashes(session)
+        existing = {} if full else _known_hashes(session, resolved_project_root)
 
         indexed: list[str] = []
         skipped: list[str] = []
@@ -205,13 +215,13 @@ def index_repository(
                 classes=parsed.classes,
                 imports=parsed.imports,
             )
-            ingest_file(session, parsed)
+            ingest_file(session, parsed, project_root=resolved_project_root)
             indexed.append(rel)
 
-        # Remove files that disappeared from disk.
+        # Remove files that disappeared from disk (scoped to this project).
         removed = [p for p in existing if p not in seen]
         for path in removed:
-            _remove_file(session, path)
+            _remove_file(session, path, resolved_project_root)
 
         return IndexResult(indexed=indexed, skipped=skipped, removed=removed)
     finally:
@@ -227,19 +237,20 @@ def index_repository(
                     log.warning("neo4j session close failed: %s", exc)
 
 
-def _remove_file(session: Any, path: str) -> None:
+def _remove_file(session: Any, path: str, project_root: str) -> None:
     run = getattr(session, "run", None)
     if not callable(run):
         return
     run(
         """
-        MATCH (f:File {path: $path})
+        MATCH (f:File {path: $path, project_root: $project_root})
         OPTIONAL MATCH (f)-[:HAS_FUNCTION]->(fn:Function)
         OPTIONAL MATCH (f)-[:HAS_CLASS]->(c:Class)
         OPTIONAL MATCH (c)-[:HAS_METHOD]->(m:Method)
         DETACH DELETE f, fn, c, m
         """,
         path=path,
+        project_root=project_root,
     )
 
 
@@ -279,6 +290,15 @@ def main(argv: Iterable[str] | None = None) -> int:
         action="store_true",
         help="incremental mode (default); kept for CLI ergonomics",
     )
+    parser.add_argument(
+        "--project-root",
+        default=None,
+        help=(
+            "Project namespace tag written onto every node so multiple repos "
+            "can cohabit a single Neo4j DB. Defaults to the absolute path of "
+            "<root>."
+        ),
+    )
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args(list(argv) if argv is not None else None)
 
@@ -288,7 +308,9 @@ def main(argv: Iterable[str] | None = None) -> int:
     )
 
     try:
-        result = index_repository(args.root, full=args.full)
+        result = index_repository(
+            args.root, full=args.full, project_root=args.project_root
+        )
     except Exception as exc:  # pragma: no cover - depends on env
         log.error("indexing failed: %s", exc)
         return 1

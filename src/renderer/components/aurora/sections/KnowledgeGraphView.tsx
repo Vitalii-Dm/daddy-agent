@@ -1,6 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import type { KGDatabase, KGEdge, KGGraphResponse, KGHealth, KGNode, KGView } from '@shared/types';
+import { useStore } from '@renderer/store';
+
+import type {
+  KGDatabase,
+  KGEdge,
+  KGGraphResponse,
+  KGHealth,
+  KGNode,
+  KGView,
+} from '@shared/types';
 
 // ---------------------------------------------------------------------------
 // Self-contained graph view that drops into the Aurora `KnowledgeGraph` slot.
@@ -350,9 +359,21 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
   const [view, setView] = useState<KGView>('summary');
   const [augment, setAugment] = useState<Augment>(EMPTY_AUGMENT);
   const [expanding, setExpanding] = useState(false);
+  const [reindexing, setReindexing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<KGNode[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
+
+  // Active project drives which repo's graph we display. The codebase tab
+  // scopes by the project root so several repos can share one Neo4j DB
+  // without overlapping; the memory tab is project-agnostic for now.
+  const activeProject = useStore((s) => {
+    const id = s.selectedProjectId;
+    if (!id) return null;
+    return s.projects.find((p) => p.id === id) ?? null;
+  });
+  const projectRoot = activeProject?.path ?? null;
+  const effectiveProjectRoot = database === 'memory' ? undefined : projectRoot ?? undefined;
   const [transform, setTransform] = useState<Transform>(IDENTITY_TRANSFORM);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -369,51 +390,57 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
   } | null>(null);
 
   // -- Bring up the sidecar + first query.
-  const loadGraph = useCallback(async (db: KGDatabase, kgView: KGView): Promise<void> => {
-    const api = window.electronAPI?.knowledgeGraph;
-    if (!api) {
-      setState({
-        kind: 'error',
-        message: 'Knowledge graph API not available in this build.',
-        canRetry: false,
-      });
-      return;
-    }
-    try {
-      setState({ kind: 'starting', message: 'Starting knowledge graph service…' });
-      const health: KGHealth = await api.start();
-      if (health.serverStatus !== 'running') {
+  const loadGraph = useCallback(
+    async (db: KGDatabase, kgView: KGView, scopedRoot: string | undefined): Promise<void> => {
+      const api = window.electronAPI?.knowledgeGraph;
+      if (!api) {
         setState({
           kind: 'error',
-          message: health.lastError ?? `Sidecar failed to start (status: ${health.serverStatus}).`,
-          canRetry: true,
+          message: 'Knowledge graph API not available in this build.',
+          canRetry: false,
         });
         return;
       }
-      if (health.neo4jStatus === 'unreachable') {
-        setState({
-          kind: 'error',
-          message: 'Neo4j is not reachable. Run `docker compose up -d neo4j` and retry.',
-          canRetry: true,
+      try {
+        setState({ kind: 'starting', message: 'Starting knowledge graph service…' });
+        const health: KGHealth = await api.start();
+        if (health.serverStatus !== 'running') {
+          setState({
+            kind: 'error',
+            message:
+              health.lastError ??
+              `Sidecar failed to start (status: ${health.serverStatus}).`,
+            canRetry: true,
+          });
+          return;
+        }
+        if (health.neo4jStatus === 'unreachable') {
+          setState({
+            kind: 'error',
+            message: 'Neo4j is not reachable. Run `docker compose up -d neo4j` and retry.',
+            canRetry: true,
+          });
+          return;
+        }
+        setState({ kind: 'loading', message: 'Loading graph…' });
+        const data = await api.query({
+          db,
+          view: kgView,
+          limit: kgView === 'detail' ? 600 : 300,
+          projectRoot: scopedRoot,
         });
-        return;
+        // Fresh query → drop augmentation + cached positions so the new
+        // graph lays out from scratch.
+        setAugment(EMPTY_AUGMENT);
+        layoutCacheRef.current = null;
+        setState({ kind: 'ready', data });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setState({ kind: 'error', message, canRetry: true });
       }
-      setState({ kind: 'loading', message: 'Loading graph…' });
-      const data = await api.query({
-        db,
-        view: kgView,
-        limit: kgView === 'detail' ? 600 : 300,
-      });
-      // Fresh query → drop augmentation + cached positions so the new
-      // graph lays out from scratch.
-      setAugment(EMPTY_AUGMENT);
-      layoutCacheRef.current = null;
-      setState({ kind: 'ready', data });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setState({ kind: 'error', message, canRetry: true });
-    }
-  }, []);
+    },
+    []
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -421,12 +448,12 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
     setHovered(null);
     void (async () => {
       if (cancelled) return;
-      await loadGraph(database, view);
+      await loadGraph(database, view, effectiveProjectRoot);
     })();
     return (): void => {
       cancelled = true;
     };
-  }, [database, view, loadGraph]);
+  }, [database, view, effectiveProjectRoot, loadGraph]);
 
   // -- Track container size for responsive SVG.
   useEffect(() => {
@@ -465,7 +492,12 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
     const timer = setTimeout(() => {
       void (async () => {
         try {
-          const result = await api.search({ db: database, q: trimmed, limit: 8 });
+          const result = await api.search({
+            db: database,
+            q: trimmed,
+            limit: 8,
+            projectRoot: effectiveProjectRoot,
+          });
           if (!cancelled) setSearchResults(result.results);
         } catch {
           if (!cancelled) setSearchResults([]);
@@ -476,7 +508,7 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [searchQuery, database]);
+  }, [searchQuery, database, effectiveProjectRoot]);
 
   // -- Merge base graph + augmentation (deduped by id).
   const merged = useMemo(() => {
@@ -682,7 +714,12 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
       if (!api) return;
       setExpanding(true);
       try {
-        const result = await api.neighbors({ nodeId: id, db: database, depth: 1 });
+        const result = await api.neighbors({
+          nodeId: id,
+          db: database,
+          depth: 1,
+          projectRoot: effectiveProjectRoot,
+        });
         setAugment((prev) => {
           const existingNodeIds = new Set(prev.nodes.map((n) => n.id));
           const existingEdgeIds = new Set(prev.edges.map((e) => e.id));
@@ -712,7 +749,7 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
         setExpanding(false);
       }
     },
-    [database, state]
+    [database, effectiveProjectRoot, state]
   );
 
   // -- Pick a node from search results: pin + center; if it's not in the
@@ -735,6 +772,37 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
     [centerOn, expandNode, layoutResult]
   );
 
+  // -- Trigger an index pass against the active project. Used by the
+  //    empty-state CTA when a project hasn't been ingested yet.
+  const triggerReindex = useCallback(async (): Promise<void> => {
+    const api = window.electronAPI?.knowledgeGraph;
+    if (!api || !projectRoot) return;
+    setReindexing(true);
+    try {
+      const result = await api.reindex({ projectRoot });
+      if (result.exitCode !== 0) {
+        setState({
+          kind: 'error',
+          message:
+            result.stderrTail.trim().split('\n').slice(-3).join('\n') ||
+            `Indexer exited with code ${result.exitCode}.`,
+          canRetry: true,
+        });
+        return;
+      }
+      // Re-query the (now hopefully populated) graph.
+      await loadGraph(database, view, effectiveProjectRoot);
+    } catch (err) {
+      setState({
+        kind: 'error',
+        message: err instanceof Error ? err.message : String(err),
+        canRetry: true,
+      });
+    } finally {
+      setReindexing(false);
+    }
+  }, [database, effectiveProjectRoot, loadGraph, projectRoot, view]);
+
   // After expansion adds a pinned node, recenter once the layout settles.
   useEffect(() => {
     if (!pinned) return;
@@ -754,9 +822,55 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pinned, augment.expandedFrom, layoutResult]);
 
+  // No project picked yet → tell the user how to get one. Memory tab is
+  // project-agnostic so we only show this on the codebase side.
+  const needsProjectPick = database === 'codebase' && !projectRoot;
+  // Graph fetched OK but the active project isn't indexed yet.
+  const isEmptyAfterFetch =
+    state.kind === 'ready' && (merged?.nodes.length ?? 0) === 0 && !needsProjectPick;
+
   return (
     <div ref={containerRef} className="relative h-full w-full">
-      {state.kind === 'ready' && layoutResult ? (
+      {needsProjectPick ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-8 text-center">
+          <p className="font-serif text-[18px] text-[color:var(--ink-1)]">
+            Pick a project to see its graph.
+          </p>
+          <p className="max-w-[480px] text-[13px] text-[color:var(--ink-2)]">
+            The codebase graph follows the active project. Open one from the
+            command bar (⌘K) — or switch to the <em className="italic">memory</em>{' '}
+            tab to see global agent memory.
+          </p>
+        </div>
+      ) : isEmptyAfterFetch ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-8 text-center">
+          <p className="font-serif text-[18px] text-[color:var(--ink-1)]">
+            {projectRoot
+              ? "This project hasn't been indexed yet."
+              : 'No graph data yet.'}
+          </p>
+          {projectRoot ? (
+            <p className="max-w-[480px] truncate text-[12px] text-[color:var(--ink-3)]">
+              {projectRoot}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            onClick={(): void => {
+              void triggerReindex();
+            }}
+            disabled={reindexing || !projectRoot}
+            className="mt-2 rounded-full bg-[color:var(--ink-1)] px-4 py-1.5 text-[12px] text-white transition hover:opacity-90 disabled:opacity-50"
+          >
+            {reindexing ? 'Indexing…' : 'Index this project'}
+          </button>
+          <p className="max-w-[420px] text-[11px] text-[color:var(--ink-3)]">
+            Tree-sitter walks every file under the project root and writes the
+            symbol graph into Neo4j. First pass on a 100-file repo takes a few
+            seconds.
+          </p>
+        </div>
+      ) : state.kind === 'ready' && layoutResult ? (
         <>
           <svg
             ref={svgRef}
@@ -1030,7 +1144,7 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
             <button
               type="button"
               onClick={(): void => {
-                void loadGraph(database, view);
+                void loadGraph(database, view, effectiveProjectRoot);
               }}
               className="mt-2 rounded-full bg-[color:var(--ink-1)] px-4 py-1.5 text-[12px] text-white hover:opacity-90"
             >

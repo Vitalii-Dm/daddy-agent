@@ -18,6 +18,8 @@ import type {
   KGHealth,
   KGNeighborsRequest,
   KGNeighborsResponse,
+  KGReindexRequest,
+  KGReindexResult,
   KGSearchRequest,
   KGSearchResponse,
 } from './knowledgeGraph';
@@ -443,6 +445,8 @@ export interface KnowledgeGraphAPI {
   getHealth: () => Promise<KGHealth>;
   start: () => Promise<KGHealth>;
   stop: () => Promise<KGHealth>;
+  /** Index a project. Spawns `daddy-index <projectRoot>` in main. */
+  reindex: (request: KGReindexRequest) => Promise<KGReindexResult>;
   /**
    * Subscribe to live updates from the Python `/events` SSE stream.
    * Returns an unsubscribe function.

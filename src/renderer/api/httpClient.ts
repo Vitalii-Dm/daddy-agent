@@ -35,6 +35,7 @@ import type {
   KGHealth,
   KGNeighborsRequest,
   KGNeighborsResponse,
+  KGReindexResult,
   KGSearchRequest,
   KGSearchResponse,
   KnowledgeGraphAPI,
@@ -702,6 +703,9 @@ export class HttpAPIClient implements ElectronAPI {
     },
     stop: (): Promise<KGHealth> => {
       return Promise.reject(new Error('Knowledge graph cannot be stopped from browser mode'));
+    },
+    reindex: (): Promise<KGReindexResult> => {
+      return Promise.reject(new Error('Knowledge graph reindex is not available in browser mode'));
     },
     onEvent: (_callback: (event: KGEvent) => void): (() => void) => {
       // No-op in browser mode — no event source for KG yet.

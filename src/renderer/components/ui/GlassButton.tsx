@@ -11,10 +11,20 @@ import { cn } from '@renderer/lib/utils';
 // dashboard. All variants share geometry (999px radius, h-11, px-6)
 // and the four-layer glass stack. The fill differs per variant.
 //
+// - primary:   violet→cyan gradient, white text (the hero "Get Started")
+// - secondary: aurora-cyan tinted glass, ink text
+// - tertiary:  pure clear glass, ink text
+// - mono:      compact mono-cased clear pill for utility actions
+// - danger:    red gradient for destructive actions
+//
+// Hover lifts ~1.5%, brightens the inner specular, deepens the shadow.
+// Active sinks ~1.5% with an inset shadow. Same interaction language
+// across every variant.
+//
 // Glass-critical properties (backdrop-filter, box-shadow, background)
-// are applied via inline styles so they render reliably regardless
-// of how Tailwind's JIT scans long arbitrary-value class strings.
-export type GlassButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'mono';
+// are applied via inline styles so they render reliably regardless of
+// how Tailwind's JIT scans long arbitrary-value class strings.
+export type GlassButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'mono' | 'danger';
 
 type GlassButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: GlassButtonVariant;
@@ -36,6 +46,12 @@ const PRIMARY_SHADOW =
 const PRIMARY_HOVER_SHADOW =
   'inset 0 1px 0 0 rgba(255,255,255,0.65), 0 18px 44px -10px rgba(124,92,255,0.62), 0 2px 6px -2px rgba(20,19,26,0.10)';
 
+const DANGER_SHADOW =
+  'inset 0 1px 0 0 rgba(255,255,255,0.25), 0 10px 30px -10px rgba(239,68,68,0.45), 0 2px 6px -2px rgba(20,19,26,0.10)';
+
+const DANGER_HOVER_SHADOW =
+  'inset 0 1px 0 0 rgba(255,255,255,0.35), 0 16px 40px -10px rgba(239,68,68,0.55), 0 2px 6px -2px rgba(20,19,26,0.10)';
+
 const VARIANT_BG: Record<GlassButtonVariant, string> = {
   // Violet→cyan gradient — same as the hero "Get started" CTA
   primary: 'linear-gradient(135deg, var(--a-violet) 0%, var(--a-cyan) 100%)',
@@ -48,6 +64,8 @@ const VARIANT_BG: Record<GlassButtonVariant, string> = {
   tertiary: 'rgba(255,255,255,0.62)',
   // Mono pill — quieter clear glass for utility actions
   mono: 'rgba(255,255,255,0.46)',
+  // Red gradient for destructive actions (Delete / Remove)
+  danger: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
 };
 
 const VARIANT_TEXT: Record<GlassButtonVariant, string> = {
@@ -55,6 +73,7 @@ const VARIANT_TEXT: Record<GlassButtonVariant, string> = {
   secondary: 'var(--ink-1)',
   tertiary: 'var(--ink-1)',
   mono: 'var(--ink-2)',
+  danger: '#ffffff',
 };
 
 const VARIANT_BORDER: Record<GlassButtonVariant, string> = {
@@ -62,6 +81,7 @@ const VARIANT_BORDER: Record<GlassButtonVariant, string> = {
   secondary: '1px solid rgba(255,255,255,0.7)',
   tertiary: '1px solid rgba(255,255,255,0.7)',
   mono: '1px solid rgba(255,255,255,0.65)',
+  danger: '1px solid rgba(255,255,255,0.30)',
 };
 
 const baseClass =
@@ -93,15 +113,26 @@ export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
     ref
   ) => {
     const isPrimary = variant === 'primary';
-    const baseShadow = isPrimary ? PRIMARY_SHADOW : GLASS_BASE_SHADOW;
-    const hoverShadow = isPrimary ? PRIMARY_HOVER_SHADOW : GLASS_HOVER_SHADOW;
+    const isDanger = variant === 'danger';
+    const isGradient = isPrimary || isDanger;
+    const baseShadow = isPrimary
+      ? PRIMARY_SHADOW
+      : isDanger
+        ? DANGER_SHADOW
+        : GLASS_BASE_SHADOW;
+    const hoverShadow = isPrimary
+      ? PRIMARY_HOVER_SHADOW
+      : isDanger
+        ? DANGER_HOVER_SHADOW
+        : GLASS_HOVER_SHADOW;
 
     const style: CSSProperties = {
       background: VARIANT_BG[variant],
       color: VARIANT_TEXT[variant],
       border: VARIANT_BORDER[variant],
-      backdropFilter: isPrimary ? undefined : 'blur(24px) saturate(180%)',
-      WebkitBackdropFilter: isPrimary ? undefined : 'blur(24px) saturate(180%)',
+      // Gradient variants don't use backdrop blur — the gradient is fully opaque.
+      backdropFilter: isGradient ? undefined : 'blur(24px) saturate(180%)',
+      WebkitBackdropFilter: isGradient ? undefined : 'blur(24px) saturate(180%)',
       boxShadow: baseShadow,
     };
 
@@ -130,9 +161,10 @@ export const GlassButton = forwardRef<HTMLButtonElement, GlassButtonProps>(
         {...rest}
       >
         {/* Inner specular highlight — sits on top of the fill, gives
-            the surface its glass curvature reading. Hidden on primary
-            because the gradient already carries the highlight. */}
-        {!isPrimary && (
+            the surface its glass curvature reading. Hidden on the
+            gradient variants (primary, danger) because the gradient
+            already carries the highlight. */}
+        {!isGradient && (
           <span
             aria-hidden="true"
             className="pointer-events-none absolute inset-x-2 top-px h-[40%] rounded-full"
