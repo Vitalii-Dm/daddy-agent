@@ -1,11 +1,6 @@
 import { createLogger } from '@shared/utils/logger';
 import { ipcMain } from 'electron';
 
-import {
-  initializeCliInstallerHandlers,
-  registerCliInstallerHandlers,
-  removeCliInstallerHandlers,
-} from './cliInstaller';
 import { initializeConfigHandlers, registerConfigHandlers, removeConfigHandlers } from './config';
 import {
   initializeContextHandlers,
@@ -22,11 +17,6 @@ import {
   registerHttpServerHandlers,
   removeHttpServerHandlers,
 } from './httpServer';
-import {
-  initializeKnowledgeGraphHandlers,
-  registerKnowledgeGraphHandlers,
-  removeKnowledgeGraphHandlers,
-} from './knowledgeGraph';
 import {
   initializeProjectHandlers,
   registerProjectHandlers,
@@ -55,7 +45,6 @@ import type {
   BoardTaskExactLogsService,
   BoardTaskLogStreamService,
   BranchStatusService,
-  CliInstallerService,
   MemberStatsComputer,
   ServiceContext,
   ServiceContextRegistry,
@@ -66,7 +55,6 @@ import type {
   TeamProvisioningService,
 } from '../services';
 import type { HttpServer } from '../services/infrastructure/HttpServer';
-import type { IKnowledgeGraphProxy, IPythonVizServer } from '../services/knowledgeGraph/types';
 import type { CrossTeamService } from '../services/team/CrossTeamService';
 import type { TeamBackupService } from '../services/team/TeamBackupService';
 
@@ -95,13 +83,8 @@ export function initializeIpcHandlers(
     httpServer: HttpServer;
     startHttpServer: () => Promise<void>;
   },
-  cliInstaller?: CliInstallerService,
   crossTeamService?: CrossTeamService,
-  teamBackupService?: TeamBackupService,
-  knowledgeGraphDeps?: {
-    server: IPythonVizServer;
-    proxy: IKnowledgeGraphProxy;
-  }
+  teamBackupService?: TeamBackupService
 ): void {
   initializeProjectHandlers(registry);
   initializeSessionHandlers(registry);
@@ -131,14 +114,8 @@ export function initializeIpcHandlers(
   if (httpServerDeps) {
     initializeHttpServerHandlers(httpServerDeps.httpServer, httpServerDeps.startHttpServer);
   }
-  if (cliInstaller) {
-    initializeCliInstallerHandlers(cliInstaller);
-  }
   if (crossTeamService) {
     initializeCrossTeamHandlers(crossTeamService);
-  }
-  if (knowledgeGraphDeps) {
-    initializeKnowledgeGraphHandlers(knowledgeGraphDeps.server, knowledgeGraphDeps.proxy);
   }
 
   registerProjectHandlers(ipcMain);
@@ -154,14 +131,8 @@ export function initializeIpcHandlers(
   if (httpServerDeps) {
     registerHttpServerHandlers(ipcMain);
   }
-  if (cliInstaller) {
-    registerCliInstallerHandlers(ipcMain);
-  }
   if (crossTeamService) {
     registerCrossTeamHandlers(ipcMain);
-  }
-  if (knowledgeGraphDeps) {
-    registerKnowledgeGraphHandlers(ipcMain);
   }
 
   logger.info('All handlers registered');
@@ -178,10 +149,8 @@ export function removeIpcHandlers(): void {
   removeContextHandlers(ipcMain);
   removeTeamHandlers(ipcMain);
   removeWindowHandlers(ipcMain);
-  removeCliInstallerHandlers(ipcMain);
   removeHttpServerHandlers(ipcMain);
   removeCrossTeamHandlers(ipcMain);
-  removeKnowledgeGraphHandlers(ipcMain);
 
   logger.info('All handlers removed');
 }

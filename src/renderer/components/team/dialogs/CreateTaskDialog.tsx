@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { inferMascotRole, Mascot } from '@renderer/components/aurora/Mascot';
 import { Badge } from '@renderer/components/ui/badge';
 import { Button } from '@renderer/components/ui/button';
 import { Checkbox } from '@renderer/components/ui/checkbox';
@@ -14,6 +13,7 @@ import {
 } from '@renderer/components/ui/dialog';
 import { Input } from '@renderer/components/ui/input';
 import { Label } from '@renderer/components/ui/label';
+import { MemberSelect } from '@renderer/components/ui/MemberSelect';
 import { MentionableTextarea } from '@renderer/components/ui/MentionableTextarea';
 import { TiptapEditor } from '@renderer/components/ui/tiptap';
 import { useChipDraftPersistence } from '@renderer/hooks/useChipDraftPersistence';
@@ -204,10 +204,11 @@ export const CreateTaskDialog = ({
       <Label className={requiresOwner ? undefined : 'label-optional'}>
         {requiresOwner ? 'Assignee' : 'Assignee (optional)'}
       </Label>
-      <AssigneeMascotRow
+      <MemberSelect
         members={members}
         value={owner || null}
-        onChange={(name) => setOwner(name ?? '')}
+        onChange={(v) => setOwner(v ?? '')}
+        placeholder={requiresOwner ? 'Select a member' : 'Select member...'}
         allowUnassigned={!requiresOwner}
       />
     </div>
@@ -490,97 +491,3 @@ export const CreateTaskDialog = ({
     </Dialog>
   );
 };
-
-interface AssigneeMascotRowProps {
-  members: ResolvedTeamMember[];
-  value: string | null;
-  onChange: (name: string | null) => void;
-  allowUnassigned: boolean;
-}
-
-// Horizontal scrollable row of mascots. Tap to assign; the active mascot
-// gets a violet ring + tint. When allowUnassigned is true the first chip
-// is an "Unassigned" choice that clears the selection.
-const AssigneeMascotRow = ({
-  members,
-  value,
-  onChange,
-  allowUnassigned,
-}: AssigneeMascotRowProps): React.JSX.Element => {
-  const visibleMembers = members.filter((m) => !m.removedAt);
-  return (
-    <div
-      className="flex items-stretch gap-1 overflow-x-auto rounded-[12px] border border-[var(--color-border)] bg-[var(--color-surface)] p-2"
-      style={{ scrollbarWidth: 'thin' }}
-      role="radiogroup"
-      aria-label="Assignee"
-    >
-      <span className="flex shrink-0 items-center px-2 font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
-        Pick ›
-      </span>
-      {allowUnassigned && (
-        <AssigneeChip
-          label="Unassigned"
-          active={!value}
-          onClick={() => onChange(null)}
-          mascot={null}
-        />
-      )}
-      {visibleMembers.map((m) => (
-        <AssigneeChip
-          key={m.name}
-          label={m.name}
-          active={value === m.name}
-          onClick={() => onChange(m.name)}
-          mascot={
-            <Mascot
-              role={inferMascotRole(m.role ?? m.agentType ?? null)}
-              size={32}
-              seed={m.name}
-              ariaLabel={`${m.name} mascot`}
-            />
-          }
-        />
-      ))}
-    </div>
-  );
-};
-
-interface AssigneeChipProps {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  mascot: React.ReactNode;
-}
-
-const AssigneeChip = ({ label, active, onClick, mascot }: AssigneeChipProps): React.JSX.Element => (
-  <button
-    type="button"
-    role="radio"
-    aria-checked={active}
-    onClick={onClick}
-    className={
-      'flex shrink-0 flex-col items-center gap-1 rounded-[10px] border px-2 py-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)] ' +
-      (active
-        ? 'border-[color:var(--a-violet)] bg-[rgba(124,92,255,0.10)]'
-        : 'border-transparent hover:bg-[var(--color-surface-raised)]')
-    }
-  >
-    {mascot ?? (
-      <span
-        className="flex size-8 items-center justify-center rounded-full border border-dashed border-[var(--color-border-emphasis)] text-[var(--color-text-muted)]"
-        aria-hidden="true"
-      >
-        —
-      </span>
-    )}
-    <span
-      className={
-        'max-w-[64px] truncate font-mono text-[9.5px] uppercase tracking-[0.10em] ' +
-        (active ? 'text-[color:var(--ink-1)]' : 'text-[var(--color-text-muted)]')
-      }
-    >
-      {label}
-    </span>
-  </button>
-);

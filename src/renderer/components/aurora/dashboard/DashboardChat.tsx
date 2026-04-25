@@ -3,7 +3,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { InboxMessage } from '@shared/types/team';
 
 import { useStore } from '@renderer/store';
-import { stripAgentBlocks } from '@shared/constants/agentBlocks';
 
 import { LiquidGlass } from '../LiquidGlass';
 import { Mascot, inferMascotRole } from '../Mascot';
@@ -92,14 +91,9 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
           </p>
         ) : (
           <ul className="flex flex-col gap-3">
-            {messages
-              .filter((msg) => {
-                if (typeof msg.text !== 'string') return true;
-                return stripAgentBlocks(msg.text).trim().length > 0;
-              })
-              .map((msg, idx) => (
-                <ChatBubble key={msg.messageId ?? `msg-${idx}`} msg={msg} />
-              ))}
+            {messages.map((msg, idx) => (
+              <ChatBubble key={msg.messageId ?? `msg-${idx}`} msg={msg} />
+            ))}
           </ul>
         )}
       </div>
@@ -166,9 +160,7 @@ const ChatBubble = ({ msg }: { msg: InboxMessage }): React.JSX.Element => {
           }
           style={isUser ? undefined : { boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.85)' }}
         >
-          {typeof msg.text === 'string'
-            ? stripAgentBlocks(msg.text).trim() || '[message]'
-            : '[message]'}
+          {typeof msg.text === 'string' ? msg.text : '[message]'}
         </span>
       </div>
     </li>

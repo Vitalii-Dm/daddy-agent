@@ -35,8 +35,8 @@ import { useViewportCommentRead } from '@renderer/hooks/useViewportCommentRead';
 import { getLegacyCutoff, getReadCommentIds } from '@renderer/services/commentReadStorage';
 import { useStore } from '@renderer/store';
 import { isImageMimeType } from '@renderer/utils/attachmentUtils';
-import { inferMascotRole, Mascot } from '@renderer/components/aurora/Mascot';
 import {
+  agentAvatarUrl,
   buildMemberColorMap,
   displayMemberName,
   KANBAN_COLUMN_DISPLAY,
@@ -674,16 +674,11 @@ export const TaskDetailDialog = ({
                         className="inline-flex items-center gap-1 rounded-r-full px-1.5 py-0.5 text-[10px] font-medium"
                         style={reviewerBadgeStyle}
                       >
-                        <Mascot
-                          role={inferMascotRole(
-                            members.find((m) => m.name === currentTask.reviewer)?.role ??
-                              members.find((m) => m.name === currentTask.reviewer)?.agentType ??
-                              null
-                          )}
-                          size={24}
-                          seed={currentTask.reviewer}
-                          ariaLabel={`${displayMemberName(currentTask.reviewer)} mascot`}
-                          className="size-4 shrink-0"
+                        <img
+                          src={agentAvatarUrl(currentTask.reviewer, 18)}
+                          alt=""
+                          className="size-4 shrink-0 rounded-full bg-[var(--color-surface-raised)]"
+                          loading="lazy"
                         />
                         {displayMemberName(currentTask.reviewer)}
                       </span>

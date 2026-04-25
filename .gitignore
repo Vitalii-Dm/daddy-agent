@@ -1,92 +1,51 @@
-# =============================================================================
-# Python (Neo4j knowledge graph backend)
-# =============================================================================
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-*.egg
-*.egg-info/
-.eggs/
-pip-wheel-metadata/
-
-# Virtual environments
-.venv/
-venv/
-env/
-.python-version
-
-# Test / type / lint caches
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.tox/
-.coverage
-.coverage.*
-htmlcov/
-.hypothesis/
-
-# =============================================================================
-# Node / Electron (Aurora frontend)
-# =============================================================================
+# Dependencies
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-.pnpm-store/
-/package-lock.json
-*.tsbuildinfo
-.eslintcache
-eslint-fix/
-remotion/*
 
 # Build output
 dist/
 dist-electron/
 dist-standalone/
-build/
 out/
 release/
 coverage/
 
-# =============================================================================
-# Environment / secrets
-# =============================================================================
-.env
-.env.local
-.env.*.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# =============================================================================
-# Neo4j local data (if bind-mounted instead of named volumes)
-# =============================================================================
-neo4j/data/
-neo4j/logs/
-neo4j/plugins/
-neo4j/import/
-
-# =============================================================================
-# Editors / OS
-# =============================================================================
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+
+# OS
 .DS_Store
 Thumbs.db
 
-# =============================================================================
-# Misc
-# =============================================================================
+# Logs
 logs/
 *.log
-.venv-check/
-.claude/
-.claude/worktrees/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# TypeScript
+*.tsbuildinfo
+
+.pnpm-store/
+/package-lock.json
 notification_example/
 temp/
+.claude/
+
+
+eslint-fix/
+.eslintcache
+remotion/*
+
 .home/

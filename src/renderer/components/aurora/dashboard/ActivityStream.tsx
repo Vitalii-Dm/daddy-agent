@@ -5,7 +5,6 @@ import type { InboxMessage } from '@shared/types/team';
 
 import { useStore } from '@renderer/store';
 
-import { AuroraButton } from '../Button';
 import { LiquidGlass } from '../LiquidGlass';
 import { Mascot, inferMascotRole } from '../Mascot';
 
@@ -63,12 +62,16 @@ export const ActivityStream = ({
       )}
 
       {onSendMessage && (
-        <AuroraButton variant="send" onClick={onSendMessage} className="mt-1 w-full">
+        <button
+          type="button"
+          onClick={onSendMessage}
+          className="mt-1 inline-flex h-8 w-full items-center justify-center gap-2 rounded-full border border-white/55 bg-white/40 px-4 text-[12px] font-medium text-[color:var(--ink-2)] transition-colors hover:bg-white/60 hover:text-[color:var(--ink-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)]"
+        >
           <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
             <path d="M2 2h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H9l-4 3v-3H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" />
           </svg>
           Send Message
-        </AuroraButton>
+        </button>
       )}
     </LiquidGlass>
   );

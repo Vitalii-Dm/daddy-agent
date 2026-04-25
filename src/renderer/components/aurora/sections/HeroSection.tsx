@@ -6,7 +6,6 @@ import { useStore } from '@renderer/store';
 import { isDemoTeamName } from '@renderer/utils/demoTeamFixture';
 import type { TeamSummary } from '@shared/types/team';
 
-import { HeroMascot } from '../HeroMascot';
 import { LiquidGlass } from '../LiquidGlass';
 import { LivePreviewStrip } from '../LivePreviewStrip';
 
@@ -42,14 +41,7 @@ export const HeroSection = (): React.JSX.Element => {
       className="relative isolate flex min-h-screen flex-col px-6 pb-24 pt-32 sm:px-10 lg:px-16"
       style={{ scrollMarginTop: '88px' }}
     >
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute right-8 top-[26%] z-0 hidden lg:block xl:right-16"
-        style={{ transform: 'translateY(-12%)' }}
-      >
-        <HeroMascot size={420} />
-      </div>
-      <div className="relative z-10 mx-auto flex w-full max-w-[1240px] flex-1 flex-col">
+      <div className="mx-auto flex w-full max-w-[1240px] flex-1 flex-col">
         <motion.p
           initial={reduceMotion ? false : { opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}

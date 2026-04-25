@@ -14,7 +14,6 @@ import {
 
 import { MarkdownViewer } from '../chat/viewers/MarkdownViewer';
 
-import { CliLogsRichView } from './CliLogsRichView';
 import { DISPLAY_STEPS } from './provisioningSteps';
 import { StepProgressBar } from './StepProgressBar';
 
@@ -361,7 +360,9 @@ export const ProvisioningProgressBlock = ({
             CLI logs
           </button>
           {logsOpen ? (
-            <CliLogsRichView cliLogsTail={cliLogsTail} order="newest-first" className="mt-1" />
+            <pre className="mt-1 max-h-48 overflow-auto rounded bg-black/30 p-2 text-xs text-gray-300">
+              {cliLogsTail}
+            </pre>
           ) : null}
         </div>
       ) : null}

@@ -12,16 +12,6 @@ import type { CliInstallerAPI } from './cliInstaller';
 import type { EditorAPI, EditorFileChangeEvent, ProjectAPI } from './editor';
 import type { ApiKeysAPI, McpCatalogAPI, PluginCatalogAPI, SkillsCatalogAPI } from './extensions';
 import type {
-  KGEvent,
-  KGGraphRequest,
-  KGGraphResponse,
-  KGHealth,
-  KGNeighborsRequest,
-  KGNeighborsResponse,
-  KGSearchRequest,
-  KGSearchResponse,
-} from './knowledgeGraph';
-import type {
   AppConfig,
   DetectedError,
   NotificationTrigger,
@@ -425,29 +415,6 @@ export interface HttpServerAPI {
   start: () => Promise<HttpServerStatus>;
   stop: () => Promise<HttpServerStatus>;
   getStatus: () => Promise<HttpServerStatus>;
-}
-
-// =============================================================================
-// Knowledge Graph API
-// =============================================================================
-
-/**
- * Renderer-facing surface for the Neo4j knowledge graph. Every call goes
- * through Electron IPC; the main process proxies to a locally-spawned Python
- * FastAPI server (`daddy_agent.viz`). Shapes mirror that server's JSON.
- */
-export interface KnowledgeGraphAPI {
-  query: (request?: KGGraphRequest) => Promise<KGGraphResponse>;
-  search: (request: KGSearchRequest) => Promise<KGSearchResponse>;
-  neighbors: (request: KGNeighborsRequest) => Promise<KGNeighborsResponse>;
-  getHealth: () => Promise<KGHealth>;
-  start: () => Promise<KGHealth>;
-  stop: () => Promise<KGHealth>;
-  /**
-   * Subscribe to live updates from the Python `/events` SSE stream.
-   * Returns an unsubscribe function.
-   */
-  onEvent: (callback: (event: KGEvent) => void) => () => void;
 }
 
 // =============================================================================
@@ -872,9 +839,6 @@ export interface ElectronAPI {
 
   // HTTP Server API
   httpServer: HttpServerAPI;
-
-  // Neo4j Knowledge Graph API (Python FastAPI sidecar)
-  knowledgeGraph: KnowledgeGraphAPI;
 
   // Team management API
   teams: TeamsAPI;

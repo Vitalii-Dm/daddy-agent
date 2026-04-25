@@ -176,34 +176,6 @@ export const HTTP_SERVER_STOP = 'httpServer:stop';
 export const HTTP_SERVER_GET_STATUS = 'httpServer:getStatus';
 
 // =============================================================================
-// Knowledge Graph API Channels
-// =============================================================================
-// The renderer never speaks HTTP directly — these channels proxy to a locally-
-// spawned Python FastAPI server (`daddy_agent.viz`). See
-// `src/main/services/knowledgeGraph/` for the lifecycle + proxy implementation.
-
-/** Fetch the graph (summary or detail view). */
-export const KNOWLEDGE_GRAPH_QUERY = 'knowledgeGraph:query';
-
-/** Substring search across `name` / `path` properties. */
-export const KNOWLEDGE_GRAPH_SEARCH = 'knowledgeGraph:search';
-
-/** Expand neighbors (1..3 hops) around a node. */
-export const KNOWLEDGE_GRAPH_NEIGHBORS = 'knowledgeGraph:neighbors';
-
-/** Health snapshot of the Python sidecar + Neo4j driver. */
-export const KNOWLEDGE_GRAPH_GET_HEALTH = 'knowledgeGraph:getHealth';
-
-/** Start the Python sidecar (idempotent). */
-export const KNOWLEDGE_GRAPH_START = 'knowledgeGraph:start';
-
-/** Stop the Python sidecar (idempotent). */
-export const KNOWLEDGE_GRAPH_STOP = 'knowledgeGraph:stop';
-
-/** Event: graph-updated / error / connection (main → renderer). */
-export const KNOWLEDGE_GRAPH_EVENT = 'knowledgeGraph:event';
-
-// =============================================================================
 // Window Controls API (Windows / Linux — native title bar is hidden)
 // =============================================================================
 

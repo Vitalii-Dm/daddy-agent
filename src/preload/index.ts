@@ -42,13 +42,6 @@ import {
   HTTP_SERVER_GET_STATUS,
   HTTP_SERVER_START,
   HTTP_SERVER_STOP,
-  KNOWLEDGE_GRAPH_EVENT,
-  KNOWLEDGE_GRAPH_GET_HEALTH,
-  KNOWLEDGE_GRAPH_NEIGHBORS,
-  KNOWLEDGE_GRAPH_QUERY,
-  KNOWLEDGE_GRAPH_SEARCH,
-  KNOWLEDGE_GRAPH_START,
-  KNOWLEDGE_GRAPH_STOP,
   MCP_GITHUB_STARS,
   MCP_REGISTRY_BROWSE,
   MCP_REGISTRY_DIAGNOSE,
@@ -265,14 +258,6 @@ import type {
   HunkDecision,
   IpcResult,
   KanbanColumnId,
-  KGEvent,
-  KGGraphRequest,
-  KGGraphResponse,
-  KGHealth,
-  KGNeighborsRequest,
-  KGNeighborsResponse,
-  KGSearchRequest,
-  KGSearchResponse,
   LeadActivitySnapshot,
   LeadContextUsageSnapshot,
   MemberFullStats,
@@ -827,43 +812,6 @@ const electronAPI: ElectronAPI = {
     },
     getStatus: async (): Promise<HttpServerStatus> => {
       return invokeIpcWithResult<HttpServerStatus>(HTTP_SERVER_GET_STATUS);
-    },
-  },
-
-  // Knowledge Graph API (Python FastAPI sidecar)
-  knowledgeGraph: {
-    query: async (request?: KGGraphRequest): Promise<KGGraphResponse> => {
-      return invokeIpcWithResult<KGGraphResponse>(KNOWLEDGE_GRAPH_QUERY, request);
-    },
-    search: async (request: KGSearchRequest): Promise<KGSearchResponse> => {
-      return invokeIpcWithResult<KGSearchResponse>(KNOWLEDGE_GRAPH_SEARCH, request);
-    },
-    neighbors: async (request: KGNeighborsRequest): Promise<KGNeighborsResponse> => {
-      return invokeIpcWithResult<KGNeighborsResponse>(KNOWLEDGE_GRAPH_NEIGHBORS, request);
-    },
-    getHealth: async (): Promise<KGHealth> => {
-      return invokeIpcWithResult<KGHealth>(KNOWLEDGE_GRAPH_GET_HEALTH);
-    },
-    start: async (): Promise<KGHealth> => {
-      return invokeIpcWithResult<KGHealth>(KNOWLEDGE_GRAPH_START);
-    },
-    stop: async (): Promise<KGHealth> => {
-      return invokeIpcWithResult<KGHealth>(KNOWLEDGE_GRAPH_STOP);
-    },
-    onEvent: (callback: (event: KGEvent) => void): (() => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, payload: KGEvent): void => {
-        callback(payload);
-      };
-      ipcRenderer.on(
-        KNOWLEDGE_GRAPH_EVENT,
-        listener as (event: Electron.IpcRendererEvent, ...args: unknown[]) => void
-      );
-      return (): void => {
-        ipcRenderer.removeListener(
-          KNOWLEDGE_GRAPH_EVENT,
-          listener as (event: Electron.IpcRendererEvent, ...args: unknown[]) => void
-        );
-      };
     },
   },
 
