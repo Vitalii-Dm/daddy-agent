@@ -44,6 +44,7 @@ import {
   removeSubagentHandlers,
 } from './subagents';
 import { initializeTeamHandlers, registerTeamHandlers, removeTeamHandlers } from './teams';
+import { initializeReviewHandlers, registerReviewHandlers, removeReviewHandlers } from './review';
 import { registerUtilityHandlers, removeUtilityHandlers } from './utility';
 import { registerValidationHandlers, removeValidationHandlers } from './validation';
 import { registerWindowHandlers, removeWindowHandlers } from './window';
@@ -55,8 +56,12 @@ import type {
   BoardTaskExactLogsService,
   BoardTaskLogStreamService,
   BranchStatusService,
+  ChangeExtractorService,
   CliInstallerService,
+  FileContentResolver,
+  GitDiffFallback,
   MemberStatsComputer,
+  ReviewApplierService,
   ServiceContext,
   ServiceContextRegistry,
   SshConnectionManager,
@@ -106,6 +111,12 @@ export function initializeIpcHandlers(
     server: IPythonVizServer;
     proxy: IKnowledgeGraphProxy;
     indexer?: KnowledgeGraphIndexer;
+  },
+  reviewDeps?: {
+    extractor: ChangeExtractorService;
+    applier?: ReviewApplierService;
+    contentResolver?: FileContentResolver;
+    gitFallback?: GitDiffFallback;
   }
 ): void {
   initializeProjectHandlers(registry);
@@ -149,6 +160,14 @@ export function initializeIpcHandlers(
       knowledgeGraphDeps.indexer
     );
   }
+  if (reviewDeps) {
+    initializeReviewHandlers({
+      extractor: reviewDeps.extractor,
+      applier: reviewDeps.applier,
+      contentResolver: reviewDeps.contentResolver,
+      gitFallback: reviewDeps.gitFallback,
+    });
+  }
 
   registerProjectHandlers(ipcMain);
   registerSessionHandlers(ipcMain);
@@ -172,6 +191,9 @@ export function initializeIpcHandlers(
   if (knowledgeGraphDeps) {
     registerKnowledgeGraphHandlers(ipcMain);
   }
+  if (reviewDeps) {
+    registerReviewHandlers(ipcMain);
+  }
 
   logger.info('All handlers registered');
 }
@@ -191,6 +213,7 @@ export function removeIpcHandlers(): void {
   removeHttpServerHandlers(ipcMain);
   removeCrossTeamHandlers(ipcMain);
   removeKnowledgeGraphHandlers(ipcMain);
+  removeReviewHandlers(ipcMain);
 
   logger.info('All handlers removed');
 }

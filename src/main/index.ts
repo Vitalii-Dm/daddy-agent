@@ -80,14 +80,19 @@ import {
   BoardTaskExactLogsService,
   BoardTaskLogStreamService,
   BranchStatusService,
+  ChangeExtractorService,
   CliInstallerService,
   configManager,
+  FileContentResolver,
+  GitDiffFallback,
   LocalFileSystemProvider,
   MemberStatsComputer,
   NotificationManager,
+  ReviewApplierService,
   ServiceContext,
   ServiceContextRegistry,
   SshConnectionManager,
+  TaskBoundaryParser,
   TeamDataService,
   TeamLogSourceTracker,
   TeammateToolTracker,
@@ -821,6 +826,11 @@ async function initializeServices(): Promise<void> {
     boardTaskActivityRecordSource
   );
   const boardTaskLogStreamService = new BoardTaskLogStreamService(boardTaskActivityRecordSource);
+  const taskBoundaryParser = new TaskBoundaryParser();
+  const changeExtractor = new ChangeExtractorService(teamMemberLogsFinder, taskBoundaryParser);
+  const gitDiffFallback = new GitDiffFallback();
+  const fileContentResolver = new FileContentResolver(teamMemberLogsFinder, gitDiffFallback);
+  const reviewApplier = new ReviewApplierService();
   const teamMemberRuntimeAdvisoryService = new TeamMemberRuntimeAdvisoryService(
     teamMemberLogsFinder
   );
@@ -965,7 +975,13 @@ async function initializeServices(): Promise<void> {
           proxy: knowledgeGraphProxy,
           indexer: knowledgeGraphIndexer ?? undefined,
         }
-      : undefined
+      : undefined,
+    {
+      extractor: changeExtractor,
+      applier: reviewApplier,
+      contentResolver: fileContentResolver,
+      gitFallback: gitDiffFallback,
+    }
   );
   // Forward SSH state changes to renderer and HTTP SSE clients
   sshStateChangeHandler = (status: unknown) => {

@@ -1,3 +1,4 @@
+import type { ChangeReviewSlice } from './slices/changeReviewSlice';
 import type { CliInstallerSlice } from './slices/cliInstallerSlice';
 import type { ConfigSlice } from './slices/configSlice';
 import type { ConnectionSlice } from './slices/connectionSlice';
@@ -51,4 +52,5 @@ export type AppState = ProjectSlice &
   ConfigSlice &
   ConnectionSlice &
   ContextSlice &
-  CliInstallerSlice;
+  CliInstallerSlice &
+  ChangeReviewSlice;

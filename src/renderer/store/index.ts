@@ -3,6 +3,7 @@ import { normalizePath } from '@renderer/utils/pathNormalize';
 import { createLogger } from '@shared/utils/logger';
 import { create } from 'zustand';
 
+import { createChangeReviewSlice } from './slices/changeReviewSlice';
 import { createCliInstallerSlice } from './slices/cliInstallerSlice';
 import { createConfigSlice } from './slices/configSlice';
 import { createConnectionSlice } from './slices/connectionSlice';
@@ -126,6 +127,7 @@ export const useStore = create<AppState>()((...args) => ({
   ...createConnectionSlice(...args),
   ...createContextSlice(...args),
   ...createCliInstallerSlice(...args),
+  ...createChangeReviewSlice(...args),
 }));
 
 export function initializeNotificationListeners(): () => void {
