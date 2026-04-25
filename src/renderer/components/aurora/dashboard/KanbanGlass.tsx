@@ -143,7 +143,7 @@ export const KanbanGlass = ({
     >
       <LiquidGlass
         radius={26}
-        className="relative flex w-full flex-col gap-4 overflow-hidden p-4 sm:p-5"
+        className="relative flex min-h-0 w-full flex-col gap-4 overflow-hidden p-4 sm:p-5"
       >
         {isEmpty && (
           <p className="px-1 pb-1 text-[12px] text-[color:var(--ink-3)]">
@@ -151,7 +151,7 @@ export const KanbanGlass = ({
           </p>
         )}
         <div
-          className="flex w-full snap-x gap-4 overflow-x-auto pb-2 [scrollbar-width:thin]"
+          className="glass-scroll flex min-h-0 w-full snap-x gap-4 overflow-x-auto pb-2"
           style={{ scrollSnapType: 'x mandatory', overscrollBehavior: 'contain' }}
         >
           {COLUMNS.map((col) => (
@@ -232,7 +232,7 @@ const Column = ({
 
       <div
         className={
-          'flex min-h-[140px] flex-col gap-2 rounded-[14px] p-1 transition-colors duration-200 ' +
+          'glass-scroll flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-[14px] p-1 transition-colors duration-200 ' +
           (isOver ? 'bg-white/55' : 'bg-transparent')
         }
         style={isOver ? { boxShadow: '0 0 0 1px rgba(124, 92, 255, 0.4)' } : undefined}
