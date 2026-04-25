@@ -72,6 +72,7 @@ import { join } from 'path';
 import { initializeIpcHandlers, removeIpcHandlers } from './ipc/handlers';
 import { startEventLoopLagMonitor } from './services/infrastructure/EventLoopLagMonitor';
 import { HttpServer } from './services/infrastructure/HttpServer';
+import { CodebaseIndexer } from './services/knowledgeGraph/CodebaseIndexer';
 import { KnowledgeGraphProxy } from './services/knowledgeGraph/KnowledgeGraphProxy';
 import { PythonVizServer } from './services/knowledgeGraph/PythonVizServer';
 import {
@@ -940,6 +941,30 @@ async function initializeServices(): Promise<void> {
   });
 
   teamProvisioningService.setMainWindow(mainWindow);
+
+  // Wire the codebase-graph indexer so a team launch refreshes the graph for
+  // its project root. The indexer reuses the same Python interpreter as the
+  // knowledge-graph sidecar.
+  const codebaseIndexer = new CodebaseIndexer({ pythonBin: kgPythonBin });
+  teamProvisioningService.setCodebaseIndexerTrigger((projectRoot) => {
+    void codebaseIndexer
+      .index(projectRoot)
+      .then((result) => {
+        if (result.exitCode !== 0) {
+          logger.warn(
+            `[CodebaseIndexer] non-zero exit for ${projectRoot}: ` +
+              `code=${String(result.exitCode)} timedOut=${result.timedOut}`
+          );
+        }
+      })
+      .catch((err: unknown) => {
+        logger.warn(
+          `[CodebaseIndexer] index threw for ${projectRoot}: ${
+            err instanceof Error ? err.message : String(err)
+          }`
+        );
+      });
+  });
 
   // startProcessHealthPolling() is deferred to after window creation
   // (did-finish-load handler) to avoid thread pool contention at startup.

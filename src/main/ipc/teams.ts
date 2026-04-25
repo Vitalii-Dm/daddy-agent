@@ -1993,13 +1993,28 @@ async function handleSendMessage(
     //   }
     // }
 
-    // Best-effort relay for lead via inbox
+    // Relay the inbox entry to the lead's stdin so the lead sees it as a turn.
+    // Awaited so callers get a deterministic ordering: the IPC return implies
+    // the message has been handed to the CLI (or queued for replay if the team
+    // is mid-provisioning — see relayLeadInboxMessages's provisioningComplete
+    // guard, which is replayed from the launch-complete path).
     if (isLeadRecipient && isAlive) {
-      void provisioning
-        .relayLeadInboxMessages(tn)
-        .catch((e: unknown) =>
-          logger.warn(`Relay after sendMessage failed for ${tn}: ${String(e)}`)
-        );
+      try {
+        const relayed = await provisioning.relayLeadInboxMessages(tn);
+        if (relayed === 0) {
+          logger.info(
+            `[${tn}] sendMessage relay returned 0 — lead may still be provisioning; ` +
+              `message will replay once provisioning completes.`
+          );
+        }
+      } catch (e: unknown) {
+        logger.warn(`Relay after sendMessage failed for ${tn}: ${String(e)}`);
+      }
+    } else if (isLeadRecipient && !isAlive) {
+      logger.warn(
+        `[${tn}] sendMessage to lead but team is not alive. ` +
+          `The message is persisted to the inbox; launch the team to deliver it.`
+      );
     }
 
     return result;

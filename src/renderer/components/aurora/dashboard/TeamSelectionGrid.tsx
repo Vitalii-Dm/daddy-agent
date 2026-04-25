@@ -27,17 +27,22 @@ export const TeamSelectionGrid = (): React.JSX.Element => {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {visibleTeams.map((team, i) => (
-        <motion.div
-          key={team.teamName}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: APPLE_EASE, delay: i * 0.05 }}
-        >
-          <TeamCard team={team} onSelect={() => void selectTeam(team.teamName)} />
-        </motion.div>
-      ))}
+    <div
+      className="overflow-y-auto pr-1 [scrollbar-gutter:stable]"
+      style={{ maxHeight: 'min(560px, calc(100vh - 240px))' }}
+    >
+      <div className="grid gap-4 pb-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {visibleTeams.map((team, i) => (
+          <motion.div
+            key={team.teamName}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: APPLE_EASE, delay: Math.min(i, 8) * 0.05 }}
+          >
+            <TeamCard team={team} onSelect={() => void selectTeam(team.teamName)} />
+          </motion.div>
+        ))}
+      </div>
     </div>
   );
 };

@@ -61,10 +61,18 @@ const AuroraChatPanel = ({
   const sendingMessage = useStore((s) => s.sendingMessage);
 
   const messages = useMemo(() => {
+    // The team data pipeline emits messages newest-first; chat surfaces want
+    // oldest-at-top, newest-at-bottom. Reverse a local copy so render order +
+    // scroll-to-bottom both give the expected reading order.
     // Full-chat view shows the entire team feed (matches DashboardChat).
     // Per-member view filters to the user ↔ recipient thread + broadcasts to lead.
-    if (fullscreen) return allMessages.slice(-200);
-    return allMessages.filter((m) => isMessageBetween(m, recipient)).slice(-100);
+    const filtered = fullscreen
+      ? allMessages
+      : allMessages.filter((m) => isMessageBetween(m, recipient));
+    const cap = fullscreen ? 200 : 100;
+    // slice(0, cap) keeps the newest `cap` from the newest-first array, then
+    // reverse → oldest…newest in display order.
+    return filtered.slice(0, cap).reverse();
   }, [allMessages, recipient, fullscreen]);
 
   // Auto-resize the composer textarea up to a cap
