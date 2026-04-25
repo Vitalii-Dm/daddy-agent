@@ -1,12 +1,12 @@
-# Python
+# =============================================================================
+# Python (Neo4j knowledge graph backend)
+# =============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 *.egg
 *.egg-info/
-dist/
-build/
 .eggs/
 pip-wheel-metadata/
 
@@ -26,30 +26,67 @@ env/
 htmlcov/
 .hypothesis/
 
-# Environment
-.env
-.env.local
-.env.*.local
-
-# Neo4j local data (if bind-mounted instead of named volumes)
-neo4j/data/
-neo4j/logs/
-neo4j/plugins/
-neo4j/import/
-
-# Node
+# =============================================================================
+# Node / Electron (Aurora frontend)
+# =============================================================================
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+.pnpm-store/
+/package-lock.json
+*.tsbuildinfo
+.eslintcache
+eslint-fix/
+remotion/*
 
+# Build output
+dist/
+dist-electron/
+dist-standalone/
+build/
+out/
+release/
+coverage/
+
+# =============================================================================
+# Environment / secrets
+# =============================================================================
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# =============================================================================
+# Neo4j local data (if bind-mounted instead of named volumes)
+# =============================================================================
+neo4j/data/
+neo4j/logs/
+neo4j/plugins/
+neo4j/import/
+
+# =============================================================================
 # Editors / OS
+# =============================================================================
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 .DS_Store
 Thumbs.db
+
+# =============================================================================
+# Misc
+# =============================================================================
+logs/
+*.log
 .venv-check/
+.claude/
 .claude/worktrees/
+notification_example/
+temp/
+.home/

@@ -1,0 +1,8 @@
+{
+  "name": "agent-teams-mcp",
+  "version": "0.0.0-stub",
+  "private": true,
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "description": "Minimal stub MCP server. Satisfies TeamMcpConfigBuilder so team launch can complete; team-coordination tools come from Claude CLI's built-in agent-teams feature."
+}

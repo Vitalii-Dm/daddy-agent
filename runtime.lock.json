@@ -1,0 +1,29 @@
+{
+  "version": "0.0.2",
+  "sourceRef": "v0.0.2",
+  "sourceRepository": "Vitalii-Dm/daddy-agent",
+  "releaseRepository": "Vitalii-Dm/daddy-agent",
+  "releaseTag": "v1.2.0",
+  "assets": {
+    "darwin-arm64": {
+      "file": "agent-teams-runtime-darwin-arm64-v0.0.2.tar.gz",
+      "archiveKind": "tar.gz",
+      "binaryName": "claude-multimodel"
+    },
+    "darwin-x64": {
+      "file": "agent-teams-runtime-darwin-x64-v0.0.2.tar.gz",
+      "archiveKind": "tar.gz",
+      "binaryName": "claude-multimodel"
+    },
+    "linux-x64": {
+      "file": "agent-teams-runtime-linux-x64-v0.0.2.tar.gz",
+      "archiveKind": "tar.gz",
+      "binaryName": "claude-multimodel"
+    },
+    "win32-x64": {
+      "file": "agent-teams-runtime-win32-x64-v0.0.2.zip",
+      "archiveKind": "zip",
+      "binaryName": "claude-multimodel.exe"
+    }
+  }
+}
