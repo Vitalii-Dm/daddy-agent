@@ -40,7 +40,7 @@ export const AgentRoster = ({
   const cards = members.map((m) => toAgentMember(m, tasks));
 
   return (
-    <LiquidGlass radius={26} className="flex flex-col gap-3 p-4">
+    <LiquidGlass radius={22} className="flex flex-col gap-2 p-3">
       <header className="flex items-baseline justify-between px-1">
         <h3 className="font-mono text-[11px] uppercase tracking-[0.18em] text-[color:var(--ink-3)]">
           Roster
@@ -56,10 +56,7 @@ export const AgentRoster = ({
         </p>
       ) : (
         <>
-          <p className="px-1 text-[12px] text-[color:var(--ink-3)]">
-            {`Active in ${teamName ?? 'this team'}.`}
-          </p>
-          <ul className="flex flex-col gap-2">
+          <ul className="glass-scroll flex gap-3 overflow-x-auto pb-1">
             {cards.map((m, idx) => (
               <motion.li
                 key={m.name}
@@ -75,6 +72,11 @@ export const AgentRoster = ({
               </motion.li>
             ))}
           </ul>
+          {teamName && (
+            <p className="px-1 font-mono text-[10px] uppercase tracking-[0.14em] text-[color:var(--ink-4)]">
+              {`Active in ${teamName}`}
+            </p>
+          )}
         </>
       )}
     </LiquidGlass>
@@ -96,6 +98,12 @@ const RosterCard = ({
   const progress = member.tasksTotal === 0 ? 0 : Math.min(1, member.tasksDone / member.tasksTotal);
   const isInactive = INACTIVE_STATUSES.includes(member.status);
 
+  const progressPct = Math.round(progress * 100);
+  const taskLine =
+    member.tasksTotal > 0
+      ? `${member.tasksDone}/${member.tasksTotal} · ${progressPct}%`
+      : member.role;
+
   return (
     <div
       onClick={() => onMemberClick?.(member.name)}
@@ -111,75 +119,51 @@ const RosterCard = ({
             }
           : undefined
       }
+      title={member.currentTask}
       className={
-        'group flex flex-col gap-3 rounded-[18px] border border-white/55 bg-white/55 p-3 transition-all duration-300 hover:-translate-y-px hover:bg-white/65 hover:shadow-[0_10px_24px_-12px_rgba(20,19,26,0.18)]' +
+        'glass-inner group relative flex h-[96px] w-[200px] shrink-0 items-center gap-3 overflow-hidden rounded-[16px] transition-all duration-200 hover:scale-[1.015]' +
         (onMemberClick ? ' cursor-pointer' : '') +
         (isInactive ? ' opacity-70' : '')
       }
-      style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.85)' }}
+      style={{ padding: '12px 16px' }}
     >
-      <div className="flex items-start gap-3">
-        <Mascot role={role} size={48} seed={member.name} status={member.status} />
-        <div className="min-w-0 flex-1">
-          {/* Row 1 — name + send button + status */}
-          <div className="flex items-center gap-2">
-            <p className="min-w-0 flex-1 truncate text-[13px] font-medium leading-tight text-[color:var(--ink-1)]">
-              {member.name}
-            </p>
-            {onSendMessage && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSendMessage(member.name);
-                }}
-                aria-label={`Send message to ${member.name}`}
-                className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[color:var(--ink-3)] opacity-0 transition-opacity hover:bg-white/60 hover:text-[color:var(--ink-1)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)] group-hover:opacity-100"
-              >
-                <svg
-                  width="11"
-                  height="11"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path d="M2 2h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H9l-4 3v-3H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" />
-                </svg>
-              </button>
-            )}
-            <StatusChip status={member.status} />
-          </div>
-
-          {/* Row 2 — role label + provider chip on the right */}
-          <div className="mt-1 flex items-center justify-between gap-2">
-            <p className="min-w-0 truncate font-mono text-[10.5px] uppercase tracking-[0.14em] text-[color:var(--ink-3)]">
-              {member.role}
-            </p>
-            {member.providerId ? (
-              <ProviderChip providerId={member.providerId} model={member.model} />
-            ) : null}
-          </div>
-
-          {/* Row 3 — current task */}
-          <p className="mt-1.5 line-clamp-2 text-[12px] text-[color:var(--ink-2)]">
-            {member.currentTask}
-          </p>
-        </div>
+      <Mascot role={role} size={32} seed={member.name} status={member.status} />
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
+        <p className="truncate text-[14px] font-medium leading-tight text-[color:var(--ink-1)]">
+          {member.name}
+        </p>
+        <p className="truncate font-mono text-[12px] tabular-nums text-[color:var(--ink-2)]">
+          {taskLine}
+        </p>
       </div>
-
-      <div className="flex items-center gap-2">
-        <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-[color:var(--bg-sunk)]">
-          <motion.div
-            className="absolute inset-y-0 left-0 rounded-full"
-            style={{ background: 'linear-gradient(90deg, var(--a-violet), var(--a-cyan))' }}
-            initial={{ width: 0 }}
-            animate={{ width: `${progress * 100}%` }}
-            transition={{ duration: 0.7, ease: APPLE_EASE }}
-          />
-        </div>
-        <span className="font-mono text-[10.5px] tabular-nums text-[color:var(--ink-3)]">
-          {member.tasksDone}/{member.tasksTotal}
-        </span>
+      {onSendMessage && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSendMessage(member.name);
+          }}
+          aria-label={`Send message to ${member.name}`}
+          className="inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[color:var(--ink-3)] opacity-0 transition-opacity hover:bg-white/60 hover:text-[color:var(--ink-1)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)] group-hover:opacity-100"
+        >
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M2 2h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H9l-4 3v-3H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" />
+          </svg>
+        </button>
+      )}
+      <div
+        className="pointer-events-none absolute bottom-0 left-4 right-4 h-[2px] overflow-hidden rounded-full"
+        style={{ background: 'rgba(20,19,26,0.06)' }}
+      >
+        <motion.div
+          className="h-full"
+          style={{
+            background: 'linear-gradient(90deg, var(--a-violet), var(--a-cyan))',
+          }}
+          initial={{ width: 0 }}
+          animate={{ width: `${progressPct}%` }}
+          transition={{ duration: 0.6, ease: APPLE_EASE }}
+        />
       </div>
     </div>
   );

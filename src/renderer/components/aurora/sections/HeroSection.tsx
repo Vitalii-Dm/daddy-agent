@@ -7,6 +7,8 @@ import { isDemoTeamName } from '@renderer/utils/demoTeamFixture';
 import type { TeamSummary } from '@shared/types/team';
 
 import { HeroMascot } from '../HeroMascot';
+import { OrbitingMascots } from '../OrbitingMascots';
+import { SplineMascot } from '../SplineMascot';
 import { LiquidGlass } from '../LiquidGlass';
 import { LivePreviewStrip } from '../LivePreviewStrip';
 
@@ -39,12 +41,24 @@ export const HeroSection = (): React.JSX.Element => {
     <section
       ref={sectionRef}
       id="home"
-      className="relative isolate flex min-h-screen flex-col px-6 pb-24 pt-32 sm:px-10 lg:px-16"
+      className="relative isolate flex min-h-screen flex-col px-6 pb-8 pt-32 sm:px-10 lg:px-16"
       style={{ scrollMarginTop: '88px' }}
     >
+      {/* xl+ : Spline 3D robot with orbiting role mascots. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute right-8 top-[26%] z-0 hidden lg:block xl:right-16"
+        className="pointer-events-none absolute right-4 top-[18%] z-0 hidden xl:block"
+      >
+        <div className="relative" style={{ width: 560, height: 560 }}>
+          <SplineMascot className="absolute inset-0" size={520} />
+          <OrbitingMascots centerX={280} centerY={280} />
+        </div>
+      </div>
+      {/* lg : static glass-blob mascot (no WebGL, no orbits) for the
+          medium breakpoint where the orbits would clip the layout. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute right-8 top-[26%] z-0 hidden lg:block xl:hidden"
         style={{ transform: 'translateY(-12%)' }}
       >
         <HeroMascot size={420} />
@@ -169,11 +183,9 @@ interface PrimaryCtaProps {
 
 const PrimaryCta = ({ teams, onSelectTeam }: PrimaryCtaProps): React.JSX.Element => {
   const [showPicker, setShowPicker] = useState(false);
-  const [deletingTeam, setDeletingTeam] = useState<string | null>(null);
   const pickerRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const reduceMotion = useReducedMotion();
-  const deleteTeam = useStore((s) => s.deleteTeam);
 
   // Dismiss picker on outside click
   useEffect(() => {
@@ -210,23 +222,6 @@ const PrimaryCta = ({ teams, onSelectTeam }: PrimaryCtaProps): React.JSX.Element
   const handleCreateNew = (): void => {
     setShowPicker(false);
     window.dispatchEvent(new CustomEvent('aurora:create-team'));
-  };
-
-  const handleDeleteTeam = async (
-    e: React.MouseEvent<HTMLButtonElement>,
-    teamName: string,
-    displayName: string
-  ): Promise<void> => {
-    e.stopPropagation();
-    if (deletingTeam) return;
-    const confirmed = window.confirm(`Delete team "${displayName}"? This can't be undone.`);
-    if (!confirmed) return;
-    setDeletingTeam(teamName);
-    try {
-      await deleteTeam(teamName);
-    } finally {
-      setDeletingTeam(null);
-    }
   };
 
   const label = teams.length > 0 ? 'Get started' : 'Create your first team';
@@ -279,65 +274,35 @@ const PrimaryCta = ({ teams, onSelectTeam }: PrimaryCtaProps): React.JSX.Element
               <ul className="flex flex-col gap-1">
                 {teams.map((team) => {
                   const isRunning = team.teamLaunchState === 'clean_success';
-                  const displayName = team.displayName || team.teamName;
-                  const isDeleting = deletingTeam === team.teamName;
                   return (
                     <li key={team.teamName}>
-                      <div
-                        className="group flex w-full items-center gap-2 rounded-[12px] border border-white/55 bg-white/55 pr-1 transition-colors duration-150 hover:bg-white/70"
+                      <button
+                        type="button"
+                        onClick={() => handleSelectTeam(team.teamName)}
+                        className="flex w-full items-center gap-3 rounded-[12px] border border-white/55 bg-white/55 px-3 py-2.5 text-left transition-colors duration-150 hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)]"
                         style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.85)' }}
                       >
-                        <button
-                          type="button"
-                          onClick={() => handleSelectTeam(team.teamName)}
-                          className="flex min-w-0 flex-1 items-center gap-3 rounded-[12px] px-3 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)]"
-                        >
-                          <span
-                            className="inline-flex h-2 w-2 shrink-0 rounded-full"
-                            style={{ background: isRunning ? 'var(--ok)' : 'var(--ink-4)' }}
-                            aria-hidden="true"
-                          />
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[13px] font-medium text-[color:var(--ink-1)]">
-                              {displayName}
-                            </span>
-                            <span className="block text-[11px] text-[color:var(--ink-3)]">
-                              {team.memberCount} {team.memberCount === 1 ? 'agent' : 'agents'}
-                              {isRunning ? ' · live' : ''}
-                            </span>
+                        <span
+                          className="inline-flex h-2 w-2 shrink-0 rounded-full"
+                          style={{ background: isRunning ? 'var(--ok)' : 'var(--ink-4)' }}
+                          aria-hidden="true"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[13px] font-medium text-[color:var(--ink-1)]">
+                            {team.displayName || team.teamName}
                           </span>
-                          <span
-                            aria-hidden="true"
-                            className="text-[color:var(--ink-3)] transition-transform duration-200 group-hover:translate-x-0.5"
-                          >
-                            →
+                          <span className="block text-[11px] text-[color:var(--ink-3)]">
+                            {team.memberCount} {team.memberCount === 1 ? 'agent' : 'agents'}
+                            {isRunning ? ' · live' : ''}
                           </span>
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={`Delete team ${displayName}`}
-                          title="Delete team"
-                          disabled={isDeleting}
-                          onClick={(e) => void handleDeleteTeam(e, team.teamName, displayName)}
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[color:var(--ink-3)] opacity-0 transition-all duration-150 hover:bg-red-500/15 hover:text-red-500 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:cursor-not-allowed disabled:opacity-40 group-hover:opacity-100"
+                        </span>
+                        <span
+                          aria-hidden="true"
+                          className="text-[color:var(--ink-3)] transition-transform duration-200 group-hover:translate-x-0.5"
                         >
-                          <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 14 14"
-                            fill="none"
-                            aria-hidden="true"
-                          >
-                            <path
-                              d="M2.5 3.5h9M5.5 3.5V2.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1M3.5 3.5l.5 8a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l.5-8M6 6v4M8 6v4"
-                              stroke="currentColor"
-                              strokeWidth="1.3"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
-                      </div>
+                          →
+                        </span>
+                      </button>
                     </li>
                   );
                 })}

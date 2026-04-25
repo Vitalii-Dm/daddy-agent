@@ -22,7 +22,7 @@ import { LiquidGlass } from '../LiquidGlass';
 import { Mascot, inferMascotRole } from '../Mascot';
 import { useAuroraTeam } from '../hooks/useAuroraTeam';
 
-type ColumnId = 'todo' | 'in_progress' | 'review' | 'done';
+type ColumnId = 'todo' | 'in_progress' | 'review' | 'blocked' | 'done';
 
 interface ColumnDef {
   id: ColumnId;
@@ -32,9 +32,10 @@ interface ColumnDef {
 }
 
 const COLUMNS: ColumnDef[] = [
-  { id: 'todo', title: 'Backlog', hint: 'Queued', accent: 'var(--ink-3)' },
+  { id: 'todo', title: 'Backlog', hint: 'Queued', accent: '#9CB8FF' },
   { id: 'in_progress', title: 'In progress', hint: 'Active', accent: 'var(--a-violet)' },
-  { id: 'review', title: 'Review', hint: 'Awaiting sign-off', accent: 'var(--a-cyan)' },
+  { id: 'review', title: 'Review', hint: 'Awaiting sign-off', accent: 'var(--a-peach)' },
+  { id: 'blocked', title: 'Blocked', hint: 'Waiting', accent: 'var(--err)' },
   { id: 'done', title: 'Done', hint: 'Shipped', accent: 'var(--ok)' },
 ];
 
@@ -94,7 +95,13 @@ export const KanbanGlass = ({
   }, [overrides, overridesStorageKey]);
 
   const grouped = useMemo<Record<ColumnId, CardItem[]>>(() => {
-    const acc: Record<ColumnId, CardItem[]> = { todo: [], in_progress: [], review: [], done: [] };
+    const acc: Record<ColumnId, CardItem[]> = {
+      todo: [],
+      in_progress: [],
+      review: [],
+      blocked: [],
+      done: [],
+    };
     for (const task of realTasks) {
       const baseCol = mapTaskToColumn(task);
       const col = overrides[task.id] ?? baseCol;
@@ -143,45 +150,25 @@ export const KanbanGlass = ({
     >
       <LiquidGlass
         radius={26}
-        className="relative flex h-full min-h-[400px] w-full flex-col gap-4 overflow-hidden p-4 sm:p-5"
+        className="relative flex min-h-0 w-full flex-col gap-4 overflow-hidden p-4 sm:p-5"
       >
         {isEmpty && (
           <p className="px-1 pb-1 text-[12px] text-[color:var(--ink-3)]">
             No tasks yet. Create a task to get started.
           </p>
         )}
-        <div
-          className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden pb-2"
-          style={{ overscrollBehavior: 'contain' }}
-        >
-          {/* Top row: 2 columns */}
-          <div className="flex min-h-0 flex-1 basis-0 gap-3">
-            {COLUMNS.slice(0, 2).map((col) => (
-              <Column
-                key={col.id}
-                def={col}
-                cards={grouped[col.id]}
-                activeId={activeId}
-                realTasks={realTasks}
-                onTaskClick={onTaskClick}
-                onCreateTask={onCreateTask}
-              />
-            ))}
-          </div>
-          {/* Bottom row: 3 columns */}
-          <div className="flex min-h-0 flex-1 basis-0 gap-3">
-            {COLUMNS.slice(2).map((col) => (
-              <Column
-                key={col.id}
-                def={col}
-                cards={grouped[col.id]}
-                activeId={activeId}
-                realTasks={realTasks}
-                onTaskClick={onTaskClick}
-                onCreateTask={onCreateTask}
-              />
-            ))}
-          </div>
+        <div className="flex min-h-0 w-full gap-3 pb-2" style={{ overscrollBehavior: 'contain' }}>
+          {COLUMNS.map((col) => (
+            <Column
+              key={col.id}
+              def={col}
+              cards={grouped[col.id]}
+              activeId={activeId}
+              realTasks={realTasks}
+              onTaskClick={onTaskClick}
+              onCreateTask={onCreateTask}
+            />
+          ))}
         </div>
       </LiquidGlass>
 
@@ -213,31 +200,42 @@ const Column = ({
   return (
     <div
       ref={setNodeRef}
-      className="relative flex h-full min-w-0 flex-1 flex-col rounded-[20px] border border-white/55 bg-white/35 p-3"
+      className="relative flex min-h-0 min-w-0 flex-1 flex-col rounded-[20px] border border-white/55 bg-white/35 p-3"
       style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.85)' }}
     >
-      <header className="mb-3 flex items-center justify-between px-1">
-        <div className="flex items-center gap-2">
+      <header className="glass-inner sticky top-0 z-10 mb-3 flex flex-col gap-1 rounded-[12px] px-3 py-2">
+        {/* Row 1: status dot + full column name. Name is on its own row
+            so column-narrow widths (1280–1440 with 5 columns) don't
+            truncate it to a single letter. */}
+        <div className="flex min-w-0 items-center gap-2">
           <span
-            className="inline-flex h-1.5 w-1.5 rounded-full"
-            style={{ background: def.accent }}
+            className="inline-flex size-2 shrink-0 rounded-full"
+            style={{ background: def.accent, boxShadow: `0 0 8px ${def.accent}` }}
             aria-hidden="true"
           />
-          <h4 className="text-[12px] font-medium text-[color:var(--ink-1)]">{def.title}</h4>
-          <span className="font-mono text-[10.5px] tabular-nums text-[color:var(--ink-3)]">
-            {cards.length}
-          </span>
+          <h4 className="min-w-0 flex-1 text-[14px] font-semibold leading-tight tracking-[-0.01em] text-[color:var(--ink-1)]">
+            {def.title}
+          </h4>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[color:var(--ink-3)]">
-            {def.hint}
+        {/* Row 2: count + add button. Quiet count text (no pill) so the
+            row stays light. */}
+        <div className="flex items-center justify-between">
+          <span className="font-mono text-[11px] tabular-nums text-[color:var(--ink-3)]">
+            {cards.length} {cards.length === 1 ? 'task' : 'tasks'}
           </span>
           {onCreateTask && (
             <button
               type="button"
               onClick={onCreateTask}
               aria-label={`Add task to ${def.title}`}
-              className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[color:var(--ink-3)] transition-colors hover:bg-white/60 hover:text-[color:var(--ink-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)]"
+              className="inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-white/65 text-[color:var(--ink-2)] transition-all duration-200 hover:scale-[1.06] hover:text-[color:var(--ink-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)]"
+              style={{
+                background: 'rgba(255,255,255,0.55)',
+                backdropFilter: 'blur(18px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(18px) saturate(180%)',
+                boxShadow:
+                  'inset 0 1px 0 rgba(255,255,255,0.9), 0 4px 12px -6px rgba(20,19,26,0.18)',
+              }}
             >
               <span aria-hidden="true" className="text-[12px] leading-none">
                 +
@@ -254,12 +252,22 @@ const Column = ({
         }
         style={isOver ? { boxShadow: '0 0 0 1px rgba(124, 92, 255, 0.4)' } : undefined}
       >
-        {cards.length === 0 ? (
+        {cards.length === 0 && isOver ? (
           <div
-            className="flex flex-1 items-center justify-center rounded-[12px] border border-dashed px-3 py-6 text-center font-mono text-[10.5px] uppercase tracking-[0.14em] text-[color:var(--ink-3)]"
-            style={{ borderColor: 'rgba(20, 19, 26, 0.18)' }}
+            className="flex flex-1 items-center justify-center rounded-[12px] border border-dashed px-3 py-6 text-center font-mono text-[10.5px] uppercase tracking-[0.14em]"
+            style={{
+              borderColor: 'rgba(124, 92, 255, 0.45)',
+              color: 'var(--a-violet)',
+            }}
           >
             Drop here
+          </div>
+        ) : cards.length === 0 ? (
+          <div
+            className="flex flex-1 items-center justify-center px-3 py-6 text-center text-[18px] text-[color:var(--ink-4)]"
+            aria-hidden="true"
+          >
+            —
           </div>
         ) : (
           cards.map((card) => (
@@ -366,17 +374,17 @@ const CardSurface = ({
       <p className="line-clamp-2 text-[13px] font-medium leading-snug text-[color:var(--ink-1)]">
         {card.subject}
       </p>
-      <div className="flex items-center justify-between">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-w-0 items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <Mascot role={role} size={24} seed={card.owner} />
-          <span className="truncate text-[11.5px] text-[color:var(--ink-2)]">{card.owner}</span>
+          <span className="truncate text-[12px] text-[color:var(--ink-2)]">{card.owner}</span>
         </div>
         {card.blockedBy && card.blockedBy.length > 0 && (
           <span
-            className="inline-flex h-5 items-center rounded-full px-1.5 text-[10px] font-medium uppercase tracking-[0.08em]"
-            style={{ background: 'rgba(255,90,90,0.16)', color: '#A4262C' }}
+            className="shrink-0 rounded-md px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.04em]"
+            style={{ background: 'rgba(255,90,90,0.12)', color: 'var(--err)' }}
           >
-            blocked
+            BLOCKED
           </span>
         )}
       </div>
@@ -473,7 +481,13 @@ const GraphView = (): React.JSX.Element => (
 );
 
 function isColumnId(value: string): value is ColumnId {
-  return value === 'todo' || value === 'in_progress' || value === 'review' || value === 'done';
+  return (
+    value === 'todo' ||
+    value === 'in_progress' ||
+    value === 'review' ||
+    value === 'blocked' ||
+    value === 'done'
+  );
 }
 
 function loadOverridesFromStorage(key: string | null): Record<string, ColumnId> {
@@ -494,8 +508,9 @@ function loadOverridesFromStorage(key: string | null): Record<string, ColumnId> 
 }
 
 function mapTaskToColumn(task: TeamTaskWithKanban): ColumnId {
-  if (task.kanbanColumn === 'review') return 'review';
   if (task.kanbanColumn === 'approved' || task.status === 'completed') return 'done';
+  if (task.kanbanColumn === 'review') return 'review';
+  if (task.blockedBy && task.blockedBy.length > 0) return 'blocked';
   if (task.status === 'in_progress') return 'in_progress';
   return 'todo';
 }
@@ -510,19 +525,22 @@ function filterCards(
   acc: Record<ColumnId, CardItem[]>,
   filter: string
 ): Record<ColumnId, CardItem[]> {
+  const empty = (): Record<ColumnId, CardItem[]> => ({
+    todo: [],
+    in_progress: [],
+    review: [],
+    blocked: [],
+    done: [],
+  });
   if (filter === 'All') return acc;
   if (filter === 'In progress') {
-    return { todo: [], in_progress: acc.in_progress, review: [], done: [] };
+    return { ...empty(), in_progress: acc.in_progress };
   }
   if (filter === 'Review') {
-    return { todo: [], in_progress: [], review: acc.review, done: [] };
+    return { ...empty(), review: acc.review };
   }
   if (filter === 'Blocked') {
-    const out: Record<ColumnId, CardItem[]> = { todo: [], in_progress: [], review: [], done: [] };
-    for (const col of Object.keys(acc) as ColumnId[]) {
-      out[col] = acc[col].filter((c) => c.blockedBy && c.blockedBy.length > 0);
-    }
-    return out;
+    return { ...empty(), blocked: acc.blocked };
   }
   return acc;
 }
