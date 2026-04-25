@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { api } from '@renderer/api';
+import { useDocumentVisible } from '@renderer/hooks/useDocumentVisible';
 import { asEnhancedChunkArray } from '@renderer/types/data';
 import { enhanceAIGroup } from '@renderer/utils/aiGroupEnhancer';
 import { transformChunksToConversation } from '@renderer/utils/groupTransformer';
@@ -268,6 +269,7 @@ export const TaskActivitySection = ({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const documentVisible = useDocumentVisible();
 
   const fetchDetail = useCallback(
     async (entry: BoardTaskActivityEntry): Promise<void> => {
@@ -358,15 +360,17 @@ export const TaskActivitySection = ({
     };
 
     void load(true);
-    const intervalId = window.setInterval(() => {
-      void load(false);
-    }, 8000);
+    const intervalId = documentVisible
+      ? window.setInterval(() => {
+          void load(false);
+        }, 8000)
+      : null;
 
     return () => {
       cancelled = true;
-      window.clearInterval(intervalId);
+      if (intervalId !== null) window.clearInterval(intervalId);
     };
-  }, [teamName, taskId]);
+  }, [teamName, taskId, documentVisible]);
 
   const visibleEntries = useMemo(
     () =>

@@ -28,7 +28,10 @@ function normalizeMember(member: TeamMember): TeamMember | null {
     providerId: normalizeOptionalTeamProviderId(member.providerId),
     model: typeof member.model === 'string' ? member.model.trim() || undefined : undefined,
     effort:
-      member.effort === 'low' || member.effort === 'medium' || member.effort === 'high'
+      member.effort === 'low' ||
+      member.effort === 'medium' ||
+      member.effort === 'high' ||
+      member.effort === 'extra-high'
         ? member.effort
         : undefined,
     agentType:

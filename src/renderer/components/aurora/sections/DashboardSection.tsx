@@ -11,6 +11,7 @@ import { SendMessageDialog } from '@renderer/components/team/dialogs/SendMessage
 import { TaskDetailDialog } from '@renderer/components/team/dialogs/TaskDetailDialog';
 import { TrashDialog } from '@renderer/components/team/kanban/TrashDialog';
 import { MemberDetailDialog } from '@renderer/components/team/members/MemberDetailDialog';
+import { TeamProvisioningPanel } from '@renderer/components/team/TeamProvisioningPanel';
 import { useStore } from '@renderer/store';
 
 import type { TaskRef } from '@shared/types/team';
@@ -226,6 +227,12 @@ export const DashboardSection = (): React.JSX.Element => {
             onTrash={teamName ? () => setTrashOpen(true) : undefined}
           />
 
+          {teamName && (
+            <div className="mt-6">
+              <TeamProvisioningPanel teamName={teamName} surface="raised" dismissible />
+            </div>
+          )}
+
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -438,7 +445,7 @@ const DashboardHeader = ({
   onSendMessage,
   onTrash,
 }: DashboardHeaderProps): React.JSX.Element => (
-  <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+  <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
     <div className="min-w-0 max-w-[640px]">
       <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-[color:var(--ink-3)]">
         {teamName ?? 'No team selected'}
@@ -446,18 +453,20 @@ const DashboardHeader = ({
       <h2
         className="mt-3 whitespace-normal break-words font-serif font-normal text-[color:var(--ink-1)]"
         style={{
-          fontSize: 'clamp(36px, 4vw, 56px)',
-          lineHeight: 1.05,
+          fontSize: 'clamp(32px, 3.6vw, 52px)',
+          lineHeight: 1.08,
           letterSpacing: '-0.025em',
         }}
       >
-        Your agents, <em className="italic">right now</em>.
+        Your agents,
+        <br />
+        <em className="italic">right now</em>
       </h2>
-      <p className="mt-2 text-[14px] text-[color:var(--ink-2)]">
-        {totalCount === 0
-          ? 'Spin up a team to fill this surface.'
-          : `${runningCount} of ${totalCount} ${totalCount === 1 ? 'agent' : 'agents'} working in parallel.`}
-      </p>
+      {totalCount > 0 ? (
+        <p className="mt-2 text-[14px] text-[color:var(--ink-2)]">
+          {`${runningCount} of ${totalCount} ${totalCount === 1 ? 'agent' : 'agents'} working in parallel.`}
+        </p>
+      ) : null}
     </div>
 
     <div className="flex flex-wrap items-center gap-3">

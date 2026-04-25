@@ -29,6 +29,15 @@ import type {
   HttpServerAPI,
   HttpServerStatus,
   KanbanColumnId,
+  KGEvent,
+  KGGraphRequest,
+  KGGraphResponse,
+  KGHealth,
+  KGNeighborsRequest,
+  KGNeighborsResponse,
+  KGSearchRequest,
+  KGSearchResponse,
+  KnowledgeGraphAPI,
   NotificationsAPI,
   NotificationTrigger,
   PaginatedSessionsResult,
@@ -664,6 +673,40 @@ export class HttpAPIClient implements ElectronAPI {
     },
     getStatus: (): Promise<HttpServerStatus> =>
       Promise.resolve({ running: true, port: parseInt(new URL(this.baseUrl).port, 10) }),
+  };
+
+  // Knowledge Graph API — not yet wired through the HTTP bridge.
+  // The Python sidecar is local-only; browser mode would need its own
+  // proxy route. For now, surface a clear error so renderer fallbacks
+  // can degrade gracefully.
+  knowledgeGraph: KnowledgeGraphAPI = {
+    query: (_request?: KGGraphRequest): Promise<KGGraphResponse> => {
+      return Promise.reject(new Error('Knowledge graph is not available in browser mode'));
+    },
+    search: (_request: KGSearchRequest): Promise<KGSearchResponse> => {
+      return Promise.reject(new Error('Knowledge graph is not available in browser mode'));
+    },
+    neighbors: (_request: KGNeighborsRequest): Promise<KGNeighborsResponse> => {
+      return Promise.reject(new Error('Knowledge graph is not available in browser mode'));
+    },
+    getHealth: (): Promise<KGHealth> =>
+      Promise.resolve({
+        serverStatus: 'stopped',
+        neo4jStatus: 'unknown',
+        port: null,
+        pid: null,
+        lastError: 'Knowledge graph is not available in browser mode',
+      }),
+    start: (): Promise<KGHealth> => {
+      return Promise.reject(new Error('Knowledge graph cannot be started from browser mode'));
+    },
+    stop: (): Promise<KGHealth> => {
+      return Promise.reject(new Error('Knowledge graph cannot be stopped from browser mode'));
+    },
+    onEvent: (_callback: (event: KGEvent) => void): (() => void) => {
+      // No-op in browser mode — no event source for KG yet.
+      return (): void => {};
+    },
   };
 
   teams: TeamsAPI = {

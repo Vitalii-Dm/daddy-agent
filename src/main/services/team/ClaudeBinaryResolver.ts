@@ -299,6 +299,27 @@ export class ClaudeBinaryResolver {
         return cachedPath;
       }
 
+      // Scan ~/.agent-teams/runtime-cache for downloaded orchestrator binaries.
+      const runtimeCacheDir = path.join(getShellPreferredHome(), '.agent-teams', 'runtime-cache');
+      try {
+        const versions = await fs.promises.readdir(runtimeCacheDir);
+        const platformArch =
+          process.platform === 'win32' ? 'win32-x64' : `${process.platform}-${process.arch}`;
+        const runtimeBinaryName =
+          process.platform === 'win32' ? 'claude-multimodel.exe' : 'claude-multimodel';
+        // Check versions in reverse order (newest first)
+        for (const version of versions.sort().reverse()) {
+          const candidate = path.join(runtimeCacheDir, version, platformArch, runtimeBinaryName);
+          if (await isExecutable(candidate)) {
+            cachedPath = candidate;
+            cacheVerifiedAt = Date.now();
+            return cachedPath;
+          }
+        }
+      } catch {
+        // runtime-cache dir doesn't exist — continue
+      }
+
       // agent_teams_orchestrator mode is explicit. If the configured local
       // runtime is missing, fail closed instead of silently falling back to a
       // different CLI.

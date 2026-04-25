@@ -100,9 +100,8 @@ import type {
 
 function getStoredTeamProvider(): TeamProviderId {
   const stored = localStorage.getItem('team:lastSelectedProvider');
-  // return stored === 'codex' || stored === 'gemini' ? stored : 'anthropic';
   return normalizeCreateLaunchProviderForUi(
-    stored === 'codex' || stored === 'gemini' ? stored : 'anthropic',
+    stored === 'anthropic' || stored === 'codex' || stored === 'gemini' ? stored : 'gemini',
     true
   );
 }
@@ -197,7 +196,7 @@ import { CUSTOM_ROLE, PRESET_ROLES } from '@renderer/constants/teamRoles';
 type TeamTemplateMember = { name: string; roleSelection: string; workflow?: string };
 
 interface TeamTemplate {
-  id: 'engineering' | 'design-eng' | 'solo';
+  id: 'engineering' | 'design-eng' | 'traders' | 'growth-lab' | 'newsroom' | 'solo';
   label: string;
   description: string;
   members: TeamTemplateMember[];
@@ -207,44 +206,150 @@ const TEAM_TEMPLATES: TeamTemplate[] = [
   {
     id: 'engineering',
     label: 'Engineering',
-    description: 'Reviewer + 3 developers, ready to ship features in parallel.',
+    description: 'Architect, two developers, and a reviewer — built to ship features in parallel.',
     members: [
+      {
+        name: 'ada',
+        roleSelection: 'architect',
+        workflow:
+          'Break product asks into shippable tasks. Define interfaces, sketch the system, and route concrete tickets to developers. Unblock the team and keep the architecture coherent.',
+      },
+      { name: 'tom', roleSelection: 'developer' },
+      { name: 'bob', roleSelection: 'developer' },
       {
         name: 'alice',
         roleSelection: 'reviewer',
         workflow:
-          'Review every completed task in the project. Read the code changes, check for correctness, style, and potential issues. Approve the task or request changes with clear feedback.',
+          'Review every completed task. Read the code changes, check correctness, style, and edge cases. Approve or request changes with clear, actionable feedback.',
       },
-      { name: 'tom', roleSelection: 'developer' },
-      { name: 'bob', roleSelection: 'developer' },
-      { name: 'jack', roleSelection: 'developer' },
     ],
   },
   {
     id: 'design-eng',
     label: 'Design + Eng',
-    description: 'Designer pairs with two developers and a reviewer.',
+    description: 'A designer paired with two developers, a QA, and a reviewer.',
     members: [
       {
         name: 'maya',
         roleSelection: 'designer',
         workflow:
-          'Translate product requirements into clear UI specs. Hand off mockups and rationales to developers, then review the rendered result.',
+          'Translate product requirements into clear UI specs. Hand off mockups and rationales to developers, then review the rendered result against the spec.',
       },
       { name: 'leo', roleSelection: 'developer' },
       { name: 'iris', roleSelection: 'developer' },
       {
+        name: 'kai',
+        roleSelection: 'qa',
+        workflow:
+          'Exercise every shipped flow end-to-end. File reproducible bugs, verify accessibility, and gate release on green smoke runs.',
+      },
+      {
         name: 'noor',
         roleSelection: 'reviewer',
         workflow:
-          'Review every completed task: check correctness, accessibility, and visual fidelity against the designer’s spec.',
+          'Review every completed task: correctness, accessibility, and visual fidelity to maya’s spec.',
+      },
+    ],
+  },
+  {
+    id: 'traders',
+    label: 'Traders',
+    description:
+      'Solana on-chain trading desk: strategist, two execution traders, and a risk auditor.',
+    members: [
+      {
+        name: 'satoshi',
+        roleSelection: 'researcher',
+        workflow:
+          'Monitor Solana markets, DEX liquidity (Jupiter, Raydium, Orca), and on-chain signals. Surface trade ideas with entry/exit, size, and rationale. Hand off approved setups to execution traders.',
+      },
+      {
+        name: 'vitalik',
+        roleSelection: 'developer',
+        workflow:
+          'Execute approved Solana trades via the trading MCP/CLI: build the transaction, simulate, then submit to RPC. Manage open positions, set stops, and report fills back to the desk.',
+      },
+      {
+        name: 'hayek',
+        roleSelection: 'developer',
+        workflow:
+          'Run blockchain trading bots and arbitrage strategies on Solana. Watch for cross-DEX price gaps, MEV opportunities, and SPL token launches. Coordinate execution with vitalik.',
+      },
+      {
+        name: 'taleb',
+        roleSelection: 'auditor',
+        workflow:
+          'Audit every proposed trade for risk: position sizing, slippage, contract/program safety, and exposure limits. Block or downsize trades that breach risk policy and document why.',
+      },
+    ],
+  },
+  {
+    id: 'growth-lab',
+    label: 'Growth Lab',
+    description: 'Marketing-meets-product squad: analyst, copywriter, designer, and an optimizer.',
+    members: [
+      {
+        name: 'pixie',
+        roleSelection: 'researcher',
+        workflow:
+          'Analyze funnel data, run SQL on the warehouse, and surface the top three growth levers each cycle. Frame every insight as a testable hypothesis with expected lift and effort.',
+      },
+      {
+        name: 'wordsmith',
+        roleSelection: 'docs',
+        workflow:
+          'Write landing-page copy, lifecycle emails, and ad creative based on pixie’s hypotheses. Keep tone consistent and ship A/B variants designers can lay out.',
+      },
+      {
+        name: 'rae',
+        roleSelection: 'designer',
+        workflow:
+          'Turn copy briefs into landing pages, ads, and lifecycle visuals. Ship variants tagged for A/B testing and review render fidelity post-deploy.',
+      },
+      {
+        name: 'flux',
+        roleSelection: 'optimizer',
+        workflow:
+          'Run experiments end-to-end: configure flags, monitor stats, call winners, and decommission losers. Block any rollout that fails significance or violates UX guardrails.',
+      },
+    ],
+  },
+  {
+    id: 'newsroom',
+    label: 'Newsroom',
+    description:
+      'Editorial bureau: investigative reporter, editor, fact-checker, and a research archivist.',
+    members: [
+      {
+        name: 'lois',
+        roleSelection: 'researcher',
+        workflow:
+          'Chase leads, interview sources, and draft investigative stories. File drafts with citations and unresolved questions called out at the top.',
+      },
+      {
+        name: 'perry',
+        roleSelection: 'reviewer',
+        workflow:
+          'Edit every draft for clarity, structure, and angle. Push back on weak sourcing and send back rewrites with margin notes before any story goes live.',
+      },
+      {
+        name: 'arden',
+        roleSelection: 'auditor',
+        workflow:
+          'Verify every claim, quote, and figure against primary sources. Block publication on any unverified assertion and log corrections post-publish.',
+      },
+      {
+        name: 'mira',
+        roleSelection: 'docs',
+        workflow:
+          'Maintain the newsroom archive: tag stories, link sources, and keep a searchable record of past coverage so reporters can build on prior threads.',
       },
     ],
   },
   {
     id: 'solo',
     label: 'Solo',
-    description: 'One agent, manages its own task list. Easiest to demo.',
+    description: 'One agent that manages its own task list. The easiest way to demo.',
     members: [],
   },
 ];
@@ -359,11 +464,11 @@ export const CreateTeamDialog = ({
   onOpenTeam,
 }: CreateTeamDialogProps): React.JSX.Element => {
   const { isLight } = useTheme();
-  const multimodelEnabled = useStore((s) => s.appConfig?.general?.multimodelEnabled ?? true);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cliStatus = null as any;
-  const cliStatusLoading = false;
-  const fetchCliStatus = async (): Promise<void> => {};
+  // Multimodel is always enabled in this build — Codex/Gemini stay unlocked.
+  const multimodelEnabled = true;
+  const cliStatus = useStore((s) => s.cliStatus);
+  const cliStatusLoading = useStore((s) => s.cliStatusLoading);
+  const fetchCliStatus = useStore((s) => s.fetchCliStatus);
 
   // ── Persisted draft state (survives tab navigation) ──────────────────
   const {
@@ -400,9 +505,7 @@ export const CreateTeamDialog = ({
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectsError, setProjectsError] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [prepareState, setPrepareState] = useState<'idle' | 'loading' | 'ready' | 'failed'>(
-    'ready'
-  );
+  const [prepareState, setPrepareState] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle');
   const [prepareMessage, setPrepareMessage] = useState<string | null>(null);
   const [prepareWarnings, setPrepareWarnings] = useState<string[]>([]);
   const [prepareChecks, setPrepareChecks] = useState<ProvisioningProviderCheck[]>([]);
@@ -511,7 +614,7 @@ export const CreateTeamDialog = ({
     setLocalError(null);
     setFieldErrors({});
     setIsSubmitting(false);
-    setPrepareState('ready');
+    setPrepareState('idle');
     setPrepareMessage(null);
     setPrepareWarnings([]);
     setPrepareChecks([]);
@@ -567,7 +670,7 @@ export const CreateTeamDialog = ({
 
   const runtimeBackendSummaryByProvider = useMemo(() => {
     const entries: (readonly [TeamProviderId, string | null])[] = (cliStatus?.providers ?? []).map(
-      (provider: any) =>
+      (provider) =>
         [
           provider.providerId as TeamProviderId,
           getProvisioningProviderBackendSummary(provider),
@@ -617,16 +720,206 @@ export const CreateTeamDialog = ({
     void fetchCliStatus();
   }, [open, cliStatus, cliStatusLoading, fetchCliStatus]);
 
-  // CLI pre-flight check bypassed — always ready.
   useEffect(() => {
     if (!open || !canCreate || !launchTeam) {
       return;
     }
-    setPrepareState('ready');
-    setPrepareMessage(null);
+
+    if (typeof api.teams.prepareProvisioning !== 'function') {
+      setPrepareState('failed');
+      setPrepareWarnings([]);
+      setPrepareChecks([]);
+      setPrepareMessage(
+        'Current preload version does not support team:prepareProvisioning. Restart the dev app.'
+      );
+      return;
+    }
+
+    if (!effectiveCwd) {
+      setPrepareState('idle');
+      setPrepareWarnings([]);
+      setPrepareChecks([]);
+      setPrepareMessage('Select a working directory to validate the launch environment.');
+      return;
+    }
+
+    let cancelled = false;
+    const requestSeq = ++prepareRequestSeqRef.current;
+    const initialChecks = alignProvisioningChecks(
+      prepareChecksRef.current,
+      selectedMemberProviders
+    );
+    setPrepareState('loading');
+    setPrepareMessage('Checking selected providers in parallel...');
     setPrepareWarnings([]);
-    setPrepareChecks([]);
-  }, [open, canCreate, launchTeam]);
+    setPrepareChecks(initialChecks);
+
+    const timer = setTimeout(() => {
+      void (async () => {
+        let checks = initialChecks;
+        const providerPlans = selectedMemberProviders.map((providerId) => {
+          const selectedModelChecks = (() => {
+            const next = new Set<string>();
+            let hasDefaultSelection = false;
+            const supportsProviderDefaultCheck =
+              providerId === 'codex' ||
+              providerId === 'gemini' ||
+              (providerId === 'anthropic' && selectedProviderId === 'anthropic');
+            const leadModel = computeEffectiveTeamModel(
+              selectedModel,
+              limitContext,
+              selectedProviderId
+            );
+            if (selectedProviderId === providerId && selectedModel.trim()) {
+              if (leadModel?.trim()) {
+                next.add(leadModel.trim());
+              }
+            } else if (selectedProviderId === providerId && supportsProviderDefaultCheck) {
+              hasDefaultSelection = true;
+            }
+            for (const member of effectiveMemberDrafts) {
+              if (member.removedAt) {
+                continue;
+              }
+              const memberProviderId =
+                normalizeOptionalTeamProviderId(member.providerId) ?? selectedProviderId;
+              if (memberProviderId !== providerId) {
+                continue;
+              }
+              const memberModel = member.model?.trim();
+              if (memberModel) {
+                next.add(memberModel);
+              } else if (supportsProviderDefaultCheck) {
+                hasDefaultSelection = true;
+              }
+            }
+            if (supportsProviderDefaultCheck && hasDefaultSelection) {
+              next.add(DEFAULT_PROVIDER_MODEL_SELECTION);
+            }
+            return Array.from(next);
+          })();
+          const backendSummary = runtimeBackendSummaryByProviderRef.current.get(providerId) ?? null;
+          const cacheKey = buildPrepareModelCacheKey(effectiveCwd, providerId, backendSummary);
+          const cachedModelResultsById = prepareModelResultsCacheRef.current.get(cacheKey) ?? {};
+          const cachedSnapshot = getProviderPrepareCachedSnapshot({
+            providerId,
+            selectedModelIds: selectedModelChecks,
+            cachedModelResultsById,
+          });
+          return {
+            providerId,
+            selectedModelChecks,
+            backendSummary,
+            cacheKey,
+            cachedModelResultsById,
+            cachedSnapshot,
+          };
+        });
+
+        try {
+          for (const plan of providerPlans) {
+            checks = updateProviderCheck(checks, plan.providerId, {
+              status: plan.selectedModelChecks.length > 0 ? plan.cachedSnapshot.status : 'checking',
+              backendSummary: plan.backendSummary,
+              details: plan.cachedSnapshot.details,
+            });
+          }
+          if (!cancelled && prepareRequestSeqRef.current === requestSeq) {
+            setPrepareChecks(checks);
+          }
+          const providerResults = await Promise.all(
+            providerPlans.map(async (plan) => {
+              const prepResult = await runProviderPrepareDiagnostics({
+                cwd: effectiveCwd,
+                providerId: plan.providerId,
+                selectedModelIds: plan.selectedModelChecks,
+                prepareProvisioning: api.teams.prepareProvisioning,
+                limitContext,
+                cachedModelResultsById: plan.cachedModelResultsById,
+                onModelProgress: ({ details }) => {
+                  checks = updateProviderCheck(checks, plan.providerId, {
+                    status: 'checking',
+                    backendSummary: plan.backendSummary,
+                    details,
+                  });
+                  if (!cancelled && prepareRequestSeqRef.current === requestSeq) {
+                    setPrepareChecks(checks);
+                  }
+                },
+              });
+              return { ...plan, prepResult };
+            })
+          );
+          let anyFailure = false;
+          let anyNotes = false;
+          const collectedWarnings: string[] = [];
+          for (const plan of providerResults) {
+            if (plan.prepResult.warnings.length > 0) {
+              anyNotes = true;
+              collectedWarnings.push(
+                ...plan.prepResult.warnings.map(
+                  (warning) => `${getProviderLabel(plan.providerId)}: ${warning}`
+                )
+              );
+            }
+            if (plan.prepResult.status === 'failed') {
+              anyFailure = true;
+            } else if (plan.prepResult.status === 'notes') {
+              anyNotes = true;
+            }
+            prepareModelResultsCacheRef.current.set(
+              plan.cacheKey,
+              plan.prepResult.modelResultsById
+            );
+            checks = updateProviderCheck(checks, plan.providerId, {
+              status: plan.prepResult.status,
+              backendSummary: plan.backendSummary,
+              details: plan.prepResult.details,
+            });
+          }
+          if (!cancelled && prepareRequestSeqRef.current === requestSeq) {
+            setPrepareChecks(checks);
+          }
+          if (cancelled || prepareRequestSeqRef.current !== requestSeq) return;
+          const failureMessage =
+            getPrimaryProvisioningFailureDetail(checks) ??
+            'Some selected providers need attention.';
+          setPrepareState(anyFailure ? 'failed' : 'ready');
+          setPrepareMessage(
+            anyFailure
+              ? failureMessage
+              : anyNotes
+                ? 'Selected providers are ready with notes.'
+                : 'Selected providers are ready.'
+          );
+          setPrepareWarnings(collectedWarnings);
+        } catch (error) {
+          if (cancelled || prepareRequestSeqRef.current !== requestSeq) return;
+          const failureMessage =
+            error instanceof Error ? error.message : 'Failed to warm up Claude CLI environment';
+          setPrepareState('failed');
+          setPrepareWarnings([]);
+          setPrepareChecks(failIncompleteProviderChecks(checks, failureMessage));
+          setPrepareMessage(failureMessage);
+        }
+      })();
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [
+    open,
+    canCreate,
+    launchTeam,
+    effectiveCwd,
+    effectiveMemberDrafts,
+    limitContext,
+    selectedModel,
+    selectedProviderId,
+    selectedMemberProviders,
+  ]);
 
   useEffect(() => {
     if (!open) {
@@ -816,9 +1109,7 @@ export const CreateTeamDialog = ({
   const runtimeProviderStatusById = useMemo(
     () =>
       new Map(
-        (cliStatus?.providers ?? []).map(
-          (provider: any) => [provider.providerId, provider] as const
-        )
+        (cliStatus?.providers ?? []).map((provider) => [provider.providerId, provider] as const)
       ),
     [cliStatus?.providers]
   );
@@ -871,7 +1162,7 @@ export const CreateTeamDialog = ({
     const leadError = getTeamModelSelectionError(
       selectedProviderId,
       selectedModel,
-      runtimeProviderStatusById.get(selectedProviderId) as any
+      runtimeProviderStatusById.get(selectedProviderId)
     );
     if (leadError) {
       return leadError;
@@ -886,7 +1177,7 @@ export const CreateTeamDialog = ({
       const memberError = getTeamModelSelectionError(
         providerId,
         member.model,
-        runtimeProviderStatusById.get(providerId) as any
+        runtimeProviderStatusById.get(providerId)
       );
       if (!memberError) {
         continue;

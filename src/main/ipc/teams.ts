@@ -1026,7 +1026,7 @@ function isProvisioningTeamName(teamName: string): boolean {
   return parts.every((p) => /^[a-z0-9]+$/.test(p));
 }
 
-const VALID_EFFORT_LEVELS: readonly string[] = ['low', 'medium', 'high'];
+const VALID_EFFORT_LEVELS: readonly string[] = ['low', 'medium', 'high', 'extra-high'];
 
 function isValidEffort(value: unknown): value is EffortLevel {
   return typeof value === 'string' && VALID_EFFORT_LEVELS.includes(value);
@@ -1055,7 +1055,7 @@ function parseOptionalMemberEffort(
   if (isValidEffort(value)) {
     return { valid: true, value };
   }
-  return { valid: false, error: 'member effort must be low, medium, or high' };
+  return { valid: false, error: 'member effort must be low, medium, high, or extra-high' };
 }
 
 async function validateProvisioningRequest(
@@ -2893,7 +2893,7 @@ async function handleReplaceMembers(
     workflow?: string;
     providerId?: 'anthropic' | 'codex' | 'gemini';
     model?: string;
-    effort?: 'low' | 'medium' | 'high';
+    effort?: 'low' | 'medium' | 'high' | 'extra-high';
   }[] = [];
   for (const item of payload.members) {
     if (!item || typeof item !== 'object') {

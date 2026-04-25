@@ -6,6 +6,13 @@ import { InsightsBadge } from './InsightsBadge';
 import { LiquidGlass } from './LiquidGlass';
 import { useAuroraTeam } from './hooks/useAuroraTeam';
 
+const goBack = (): void => {
+  if (typeof window !== 'undefined') window.history.back();
+};
+const goForward = (): void => {
+  if (typeof window !== 'undefined') window.history.forward();
+};
+
 const SHRINK_AT = 80;
 
 // Glass pill anchored to the top of the viewport. Width and padding
@@ -57,6 +64,46 @@ export const TopRail = (): React.JSX.Element => {
             daddy.agent
           </span>
         </span>
+
+        <span
+          className="hidden h-4 w-px bg-[color:var(--glass-shade)] sm:block"
+          aria-hidden="true"
+        />
+
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            aria-label="Back"
+            onClick={goBack}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[color:var(--ink-2)] transition-colors hover:bg-white/10 hover:text-[color:var(--ink-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)]"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path
+                d="M7.5 2 3.5 6l4 4"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          <button
+            type="button"
+            aria-label="Forward"
+            onClick={goForward}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[color:var(--ink-2)] transition-colors hover:bg-white/10 hover:text-[color:var(--ink-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)]"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path
+                d="m4.5 2 4 4-4 4"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
 
         <span
           className="hidden h-4 w-px bg-[color:var(--glass-shade)] sm:block"

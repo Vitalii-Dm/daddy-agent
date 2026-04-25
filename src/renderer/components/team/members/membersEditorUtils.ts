@@ -129,7 +129,7 @@ export function normalizeMemberDraftForProviderMode(
 }
 
 function normalizeDraftEffort(value: string | undefined): EffortLevel | undefined {
-  if (value === 'low' || value === 'medium' || value === 'high') {
+  if (value === 'low' || value === 'medium' || value === 'high' || value === 'extra-high') {
     return value;
   }
   return undefined;

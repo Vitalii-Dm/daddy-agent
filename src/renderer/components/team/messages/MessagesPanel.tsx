@@ -5,6 +5,7 @@ import { api } from '@renderer/api';
 import { Badge } from '@renderer/components/ui/badge';
 import { Button } from '@renderer/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip';
+import { useDocumentVisible } from '@renderer/hooks/useDocumentVisible';
 import { useStableTeamMentionMeta } from '@renderer/hooks/useStableTeamMentionMeta';
 import { useTeamMessagesExpanded } from '@renderer/hooks/useTeamMessagesExpanded';
 import { useTeamMessagesRead } from '@renderer/hooks/useTeamMessagesRead';
@@ -177,10 +178,13 @@ export const MessagesPanel = memo(function MessagesPanel({
     })();
   }, [teamName]); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally only on teamName change
 
+  const documentVisible = useDocumentVisible();
+
   // Auto-refresh: poll for NEW messages only (prepend to head).
   // Does NOT touch nextCursor/hasMore — those belong to the "Load older" flow.
   useEffect(() => {
     if (!isTeamAlive && leadActivity !== 'active') return;
+    if (!documentVisible) return;
     const interval = setInterval(async () => {
       try {
         const page = await api.teams.getMessagesPage(teamName, { limit: PAGE_SIZE });
@@ -190,7 +194,7 @@ export const MessagesPanel = memo(function MessagesPanel({
       }
     }, 5000);
     return () => clearInterval(interval);
-  }, [teamName, isTeamAlive, leadActivity]);
+  }, [teamName, isTeamAlive, leadActivity, documentVisible]);
 
   const loadOlderMessages = useCallback(async () => {
     if (!nextCursor || messagesLoading) return;
