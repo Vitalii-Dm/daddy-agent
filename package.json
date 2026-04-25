@@ -3,6 +3,7 @@
   "type": "module",
   "version": "1.1.0",
   "description": "AI agent team management with kanban, chat, and visualization",
+  "license": "MIT",
   "private": true,
   "main": "dist-electron/main/index.cjs",
   "scripts": {
