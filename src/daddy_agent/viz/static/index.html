@@ -7,9 +7,13 @@
     <link rel="stylesheet" href="/static/style.css" />
     <!--
       CDN pinning policy (see docs/viz.md § Supply chain for bump procedure):
-        - sigma.js  v3.0.1  (WebGL renderer)
-        - graphology v0.25.4
-        - graphology-layout-forceatlas2 v0.10.1
+        - graphology         v0.25.4   (graph data structure)
+        - graphology-library v0.7.0    (UMD bundle that includes the
+                                        layout-forceatlas2 algorithm —
+                                        the standalone forceatlas2 npm
+                                        package ships only CommonJS
+                                        source, no browser build)
+        - sigma.js           v3.0.1    (WebGL renderer)
 
       Each <script> tag MUST carry an `integrity` SRI hash.  The hashes below
       are placeholders — a literal version pin without a hash does not protect
@@ -19,20 +23,19 @@
       marker below is checked by tests/viz/test_sri_hashes_present.py so the
       build fails loudly if a real deploy goes out with placeholders.
     -->
-    <!-- REQUIRES_SRI_REGEN -->
     <script
       src="https://cdn.jsdelivr.net/npm/graphology@0.25.4/dist/graphology.umd.min.js"
-      integrity="sha384-PLACEHOLDER-REGENERATE-BEFORE-DEPLOY"
+      integrity="sha384-643a1dipBp0OHFnm3WeZmMnuJ+ZY/MEll1vTGCjeFzkB/RySh+Almy3Ffn+sxO7y"
       crossorigin="anonymous"
       referrerpolicy="no-referrer"></script>
     <script
-      src="https://cdn.jsdelivr.net/npm/graphology-layout-forceatlas2@0.10.1/build/graphology-layout-forceatlas2.min.js"
-      integrity="sha384-PLACEHOLDER-REGENERATE-BEFORE-DEPLOY"
+      src="https://cdn.jsdelivr.net/npm/graphology-library@0.7.0/dist/graphology-library.min.js"
+      integrity="sha384-jZfucTfzftwTBJknkPlirTBL3umOr3eQa3r3AGm9ICO/aJMfc541SSoF+qrFftp/"
       crossorigin="anonymous"
       referrerpolicy="no-referrer"></script>
     <script
-      src="https://cdn.jsdelivr.net/npm/sigma@3.0.1/build/sigma.min.js"
-      integrity="sha384-PLACEHOLDER-REGENERATE-BEFORE-DEPLOY"
+      src="https://cdn.jsdelivr.net/npm/sigma@3.0.1/dist/sigma.min.js"
+      integrity="sha384-WfseDhOK74KFNUyIuhDyZ+KNI5KYrPcW8bjH6DfpgnJe8jzIpJQbRE9xMSl7/Eb7"
       crossorigin="anonymous"
       referrerpolicy="no-referrer"></script>
   </head>

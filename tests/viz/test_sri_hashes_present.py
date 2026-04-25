@@ -35,7 +35,11 @@ def test_no_placeholder_sri() -> None:
         "Run scripts/compute-sri-hashes.sh to populate real SRI hashes before "
         "merging. Set DADDY_ALLOW_SRI_PLACEHOLDERS=1 to skip during local dev."
     )
-    assert "REQUIRES_SRI_REGEN" not in body, (
+    # The script removes the standalone `<!-- REQUIRES_SRI_REGEN -->` line
+    # once all hashes are real; the explanatory comment block above still
+    # mentions the marker by name to document its purpose.  Match the
+    # standalone marker, not any mention of the string.
+    assert "<!-- REQUIRES_SRI_REGEN -->" not in body, (
         "scripts/compute-sri-hashes.sh removes the REQUIRES_SRI_REGEN marker "
         "once all hashes are populated; run it."
     )
@@ -44,9 +48,12 @@ def test_no_placeholder_sri() -> None:
 def test_every_cdn_script_has_integrity() -> None:
     """Regardless of placeholder status, every CDN <script> must carry integrity."""
     body = INDEX_HTML.read_text()
+    # Order matters: more-specific fragments before their prefixes, since
+    # ``graphology.umd.min.js`` is a substring of nothing here, but
+    # ``graphology-library.min.js`` shares a prefix with the graphology UMD.
     for url_fragment in (
         "graphology.umd.min.js",
-        "graphology-layout-forceatlas2.min.js",
+        "graphology-library.min.js",  # bundles forceatlas2 (UMD) for browser use
         "sigma.min.js",
     ):
         idx = body.find(url_fragment)
