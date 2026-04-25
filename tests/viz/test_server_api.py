@@ -46,6 +46,33 @@ def test_graph_endpoint_shape_detail(sample_graph):
     assert {"source", "target", "type"} <= set(body["edges"][0].keys())
 
 
+def test_graph_memory_summary_filters_by_memory_labels():
+    """Memory summary must NOT use the codebase File-anchored cypher; it
+    must filter by memory-side labels so db=memory returns memory data
+    even on Neo4j Community Edition (where both aliases hit one DB)."""
+
+    seen: list[dict[str, Any]] = []
+
+    def handler(cypher: str, params: dict[str, Any]) -> list[FakeRecord]:
+        seen.append({"cypher": cypher, "params": params})
+        return [FakeRecord({"nodes": [], "rels": [], "others": [], "edge_specs": []})]
+
+    app, _ = _build_app(handler)
+    r = TestClient(app).get("/api/graph?db=memory")
+    assert r.status_code == 200
+    call = seen[0]
+    assert "MATCH (f:File)" not in call["cypher"]
+    assert "memory_labels" in call["cypher"]
+    assert set(call["params"]["memory_labels"]) == {
+        "Session",
+        "Message",
+        "Entity",
+        "Preference",
+        "ReasoningTrace",
+        "ToolCall",
+    }
+
+
 def test_graph_default_is_summary_view(sample_graph):
     """Without ``?view=`` we ship the summary view — Files-only, fewer
     nodes, IMPORTS/EXTENDS edges synthesised from edge_specs.
@@ -89,8 +116,11 @@ def test_graph_detail_community_filter_adds_param():
 
     app, _ = _build_app(handler)
     client = TestClient(app)
+    # Function is a codebase label; pair it with db=codebase. The earlier test
+    # combined db=memory with type=Function before label families were
+    # enforced — that combination is now (correctly) rejected as a 400.
     r = client.get(
-        "/api/graph?db=memory&view=detail&community=core&type=Function&limit=10"
+        "/api/graph?db=codebase&view=detail&community=core&type=Function&limit=10"
     )
     assert r.status_code == 200
     call = seen[0]
@@ -98,6 +128,18 @@ def test_graph_detail_community_filter_adds_param():
     assert "'Function' IN labels(n)" in call["cypher"]
     assert call["params"]["community"] == "core"
     assert call["params"]["limit"] == 10
+
+
+def test_graph_detail_rejects_label_outside_db_family():
+    """db=memory + type=File (a codebase label) is a 400 — keep the label
+    families separate so Community Edition's single physical Neo4j doesn't
+    leak codebase nodes into the memory tab."""
+
+    app, _ = _build_app(lambda c, p: [])
+    r = TestClient(app).get("/api/graph?db=memory&view=detail&type=File")
+    assert r.status_code == 400
+    err = r.json()["error"]
+    assert "File" in err and "memory" in err
 
 
 def test_graph_unknown_db_is_400():
@@ -120,7 +162,9 @@ def test_graph_rejects_label_outside_whitelist():
     client = TestClient(app)
     r = client.get("/api/graph?db=codebase&view=detail&type=NotARealLabel")
     assert r.status_code == 400
-    assert "unknown node label" in r.json()["error"]
+    # Whitelist rejection — exact message has shifted as the whitelist became
+    # db-aware, but it must still call out the offending label by name.
+    assert "NotARealLabel" in r.json()["error"]
     r2 = client.get("/api/graph?db=codebase&view=detail&type=File;DROP")
     assert r2.status_code == 400
 

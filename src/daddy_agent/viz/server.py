@@ -64,9 +64,8 @@ def _env_driver() -> Any:
 # Closed whitelist of Cypher labels accepted by the /api/graph `type` filter.
 # Mirrors the labels defined in PLAN-neo4j-knowledge-graphs.md for both
 # databases; anything outside this set is a 400 — see api_graph.
-ALLOWED_NODE_LABELS: frozenset[str] = frozenset(
+CODEBASE_LABELS: frozenset[str] = frozenset(
     {
-        # codebase graph
         "File",
         "Function",
         "Class",
@@ -74,7 +73,10 @@ ALLOWED_NODE_LABELS: frozenset[str] = frozenset(
         "Module",
         "Variable",
         "Community",
-        # agent-memory graph
+    }
+)
+MEMORY_LABELS: frozenset[str] = frozenset(
+    {
         "Session",
         "Message",
         "Entity",
@@ -83,6 +85,18 @@ ALLOWED_NODE_LABELS: frozenset[str] = frozenset(
         "ToolCall",
     }
 )
+ALLOWED_NODE_LABELS: frozenset[str] = CODEBASE_LABELS | MEMORY_LABELS
+
+
+def _labels_for_db(db: str) -> frozenset[str]:
+    """Map the logical db alias to the labels that belong to that graph.
+
+    With Community Edition both aliases collapse to one physical Neo4j DB,
+    so label-based filtering is what makes ``db=codebase`` and ``db=memory``
+    return distinct graphs. Without this filter the same nodes show up on
+    both tabs.
+    """
+    return MEMORY_LABELS if db == "memory" else CODEBASE_LABELS
 
 
 def _resolve_db(db: str) -> str:
@@ -306,6 +320,23 @@ def create_app(
         "       collect(DISTINCT m) AS others"
     )
 
+    # Memory-side summary: no hub culling (the memory graph is small early
+    # on; culling would hide the full picture). Just every memory-labelled
+    # node and its outbound relationships.
+    SUMMARY_VIEW_CYPHER_MEMORY = (
+        "MATCH (n) "
+        "WHERE any(lbl IN labels(n) WHERE lbl IN $memory_labels) "
+        "WITH n LIMIT $limit "
+        "OPTIONAL MATCH (n)-[r]->(m) "
+        "WHERE any(lbl IN labels(m) WHERE lbl IN $memory_labels) "
+        "RETURN collect(DISTINCT n) AS nodes, "
+        "       collect(DISTINCT r) AS rels, "
+        "       collect(DISTINCT m) AS others, "
+        "       [] AS edge_specs, "
+        "       0 AS hidden_hubs, "
+        "       [] AS hidden_hub_list"
+    )
+
     def _annotate_with_degree(
         nodes: dict[str, dict[str, Any]], edges: list[dict[str, Any]]
     ) -> None:
@@ -346,6 +377,12 @@ def create_app(
         # filter (Files + cross-file structural edges).  Honouring them
         # would silently degrade to "summary of just one community" with
         # no UX signal that's what happened.
+        # `db` selects the LABEL FAMILY (codebase vs memory). With Neo4j
+        # Community Edition both aliases hit the same physical database, so
+        # label-set filtering is what differentiates them — without this
+        # the memory tab would mirror the codebase tab.
+        labels_for_db = _labels_for_db(db)
+
         if view == "summary":
             if type is not None or community is not None:
                 return JSONResponse(
@@ -358,19 +395,34 @@ def create_app(
                     },
                 )
             params["hub_threshold"] = hub_threshold
-            cypher = SUMMARY_VIEW_CYPHER
+            if db == "memory":
+                cypher = SUMMARY_VIEW_CYPHER_MEMORY
+                params["memory_labels"] = list(MEMORY_LABELS)
+            else:
+                cypher = SUMMARY_VIEW_CYPHER
         else:
             where: list[str] = []
             if community is not None:
                 where.append("n.community = $community")
                 params["community"] = community
             if type:
-                if type not in ALLOWED_NODE_LABELS:
+                if type not in labels_for_db:
                     return JSONResponse(
                         status_code=400,
-                        content={"error": f"unknown node label: {type}"},
+                        content={
+                            "error": (
+                                f"label {type!r} is not valid for db={db!r}; "
+                                f"valid: {sorted(labels_for_db)}"
+                            )
+                        },
                     )
                 where.append(f"'{type}' IN labels(n)")
+            else:
+                # No explicit label filter — restrict to this db's family so
+                # codebase nodes don't bleed into memory queries (and vice
+                # versa) on Community Edition.
+                where.append("any(lbl IN labels(n) WHERE lbl IN $allowed_labels)")
+                params["allowed_labels"] = list(labels_for_db)
             where_clause = ("WHERE " + " AND ".join(where)) if where else ""
             cypher = DETAIL_VIEW_CYPHER_TEMPLATE.format(where_clause=where_clause)
 
