@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 import { useStore } from '@renderer/store';
 
@@ -20,8 +20,14 @@ const SHRINK_AT = 80;
 // resize-aware listener instead of motion's useScroll because this
 // element lives outside any scrollable container at this stage.
 export const TopRail = (): React.JSX.Element => {
-  const { teamName, runningCount, totalCount, isAlive } = useAuroraTeam();
+  const { teamName: auroraTeamName, runningCount, totalCount, isAlive } = useAuroraTeam();
   const isDemo = useStore((s) => Boolean(s.selectedTeamData?.isDemo));
+  const selectedTeamName = useStore((s) => s.selectedTeamName);
+  const teamName = selectedTeamName ? auroraTeamName : null;
+
+  const deselectTeam = useCallback(() => {
+    useStore.setState({ selectedTeamName: null, selectedTeamData: null });
+  }, []);
   const [shrunk, setShrunk] = useState(false);
 
   useEffect(() => {
@@ -39,7 +45,6 @@ export const TopRail = (): React.JSX.Element => {
     };
   }, []);
 
-  const breadcrumb = teamName ? `Home · ${teamName}` : 'Home · Agents';
   const statusLabel =
     totalCount === 0
       ? 'Standby'
@@ -110,9 +115,19 @@ export const TopRail = (): React.JSX.Element => {
           aria-hidden="true"
         />
 
-        <span className="hidden flex-1 truncate text-center text-[13px] text-[color:var(--ink-2)] sm:block">
-          {breadcrumb}
-        </span>
+        <button
+          type="button"
+          onClick={teamName ? deselectTeam : undefined}
+          className="hidden flex-1 truncate text-center font-mono text-[11px] uppercase tracking-[0.32em] text-[color:var(--ink-3)] transition-colors hover:text-[color:var(--ink-1)] sm:block"
+        >
+          {teamName ? (
+            <>
+              <span className="opacity-60">Teams /</span> {teamName}
+            </>
+          ) : (
+            'Select a team'
+          )}
+        </button>
 
         <div className="flex items-center gap-1">
           <button
