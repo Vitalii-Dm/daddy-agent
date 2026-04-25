@@ -119,29 +119,30 @@ export const SplineMascot = ({ className, size = 520 }: SplineMascotProps): Reac
           }}
         />
       </Suspense>
-      {/* Overlay covering Spline's "Built with Spline" watermark in
-          the bottom-right corner of the canvas. Two-layer cover:
-          (1) an opaque pill that fully blocks the badge, and (2) a
-          larger soft radial fade behind it that blends the pill's
-          edges into the hero background so it doesn't read as a
-          sticker. The hero background at this position is the warm
-          paper canvas plus a faint violet aurora gradient — the inner
-          pill matches paper exactly, the radial blends both. */}
+      {/* Overlay covering Spline's "Built with Spline" watermark.
+          Solid fills can't match the violet/cyan aurora gradient at
+          this position — they always read as a lighter patch. We use
+          a heavy backdrop-filter blur instead, so the overlay
+          inherits whatever gradient is behind it; the badge text
+          underneath becomes unreadable noise. A radial-gradient mask
+          fades the rectangle's edges to transparent so there's no
+          visible boundary. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute bottom-0 right-0 h-20 w-64"
+        className="pointer-events-none absolute"
         style={{
-          background:
-            'radial-gradient(ellipse 70% 60% at 70% 60%, var(--bg-base) 0%, var(--bg-base) 35%, rgba(246, 243, 238, 0.85) 70%, transparent 100%)',
-          filter: 'blur(6px)',
-        }}
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute bottom-3 right-3 h-10 w-48 rounded-full"
-        style={{
-          background: 'var(--bg-base)',
-          boxShadow: '0 0 24px 12px var(--bg-base), 0 0 48px 24px rgba(246, 243, 238, 0.6)',
+          right: 4,
+          bottom: 4,
+          width: 168,
+          height: 44,
+          backdropFilter: 'blur(28px) saturate(140%)',
+          WebkitBackdropFilter: 'blur(28px) saturate(140%)',
+          background: 'rgba(255, 255, 255, 0.04)',
+          maskImage:
+            'radial-gradient(ellipse 95% 90% at 65% 60%, black 0%, black 55%, transparent 100%)',
+          WebkitMaskImage:
+            'radial-gradient(ellipse 95% 90% at 65% 60%, black 0%, black 55%, transparent 100%)',
+          borderRadius: 9999,
         }}
       />
     </div>
