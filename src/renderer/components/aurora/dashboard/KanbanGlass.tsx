@@ -203,38 +203,46 @@ const Column = ({
       className="relative flex min-h-0 min-w-0 flex-1 flex-col rounded-[20px] border border-white/55 bg-white/35 p-3"
       style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.85)' }}
     >
-      <header className="glass-inner sticky top-0 z-10 mb-3 flex items-center justify-between gap-2 rounded-[12px] px-2 py-1.5">
+      <header className="glass-inner sticky top-0 z-10 mb-3 flex flex-col gap-1 rounded-[12px] px-3 py-2">
+        {/* Row 1: status dot + full column name. Name is on its own row
+            so column-narrow widths (1280–1440 with 5 columns) don't
+            truncate it to a single letter. */}
         <div className="flex min-w-0 items-center gap-2">
           <span
             className="inline-flex size-2 shrink-0 rounded-full"
-            style={{ background: def.accent }}
+            style={{ background: def.accent, boxShadow: `0 0 8px ${def.accent}` }}
             aria-hidden="true"
           />
-          <h4 className="truncate text-[16px] font-semibold tracking-[-0.01em] text-[color:var(--ink-1)]">
+          <h4 className="min-w-0 flex-1 text-[14px] font-semibold leading-tight tracking-[-0.01em] text-[color:var(--ink-1)]">
             {def.title}
           </h4>
-          <span className="glass-recessed shrink-0 rounded-full px-2 py-0.5 text-[12px] tabular-nums text-[color:var(--ink-3)]">
-            {cards.length}
-          </span>
         </div>
-        {onCreateTask && (
-          <button
-            type="button"
-            onClick={onCreateTask}
-            aria-label={`Add task to ${def.title}`}
-            className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-white/65 text-[color:var(--ink-2)] transition-all duration-200 hover:scale-[1.05] hover:text-[color:var(--ink-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)]"
-            style={{
-              background: 'rgba(255,255,255,0.55)',
-              backdropFilter: 'blur(18px) saturate(180%)',
-              WebkitBackdropFilter: 'blur(18px) saturate(180%)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.9), 0 4px 12px -6px rgba(20,19,26,0.18)',
-            }}
-          >
-            <span aria-hidden="true" className="text-[14px] leading-none">
-              +
-            </span>
-          </button>
-        )}
+        {/* Row 2: count + add button. Quiet count text (no pill) so the
+            row stays light. */}
+        <div className="flex items-center justify-between">
+          <span className="font-mono text-[11px] tabular-nums text-[color:var(--ink-3)]">
+            {cards.length} {cards.length === 1 ? 'task' : 'tasks'}
+          </span>
+          {onCreateTask && (
+            <button
+              type="button"
+              onClick={onCreateTask}
+              aria-label={`Add task to ${def.title}`}
+              className="inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-white/65 text-[color:var(--ink-2)] transition-all duration-200 hover:scale-[1.06] hover:text-[color:var(--ink-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)]"
+              style={{
+                background: 'rgba(255,255,255,0.55)',
+                backdropFilter: 'blur(18px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(18px) saturate(180%)',
+                boxShadow:
+                  'inset 0 1px 0 rgba(255,255,255,0.9), 0 4px 12px -6px rgba(20,19,26,0.18)',
+              }}
+            >
+              <span aria-hidden="true" className="text-[12px] leading-none">
+                +
+              </span>
+            </button>
+          )}
+        </div>
       </header>
 
       <div
