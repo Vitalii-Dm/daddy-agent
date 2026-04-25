@@ -46,6 +46,33 @@ run_system_cypher() {
     -d system "${stmt}"
 }
 
+# Detect Community vs Enterprise: only Enterprise supports multi-database.
+EDITION="$(docker exec "${CONTAINER_NAME}" \
+  cypher-shell -u "${NEO4J_USER}" -p "${NEO4J_PASSWORD}" --format plain \
+  "CALL dbms.components() YIELD edition RETURN edition;" 2>/dev/null \
+  | tail -n1 | tr -d '"')"
+
+if [[ "${EDITION}" != "enterprise" ]]; then
+  cat <<EOF
+Detected Neo4j edition: ${EDITION:-unknown}
+  Multi-database support requires Neo4j Enterprise. Community Edition
+  ships with a single user database named 'neo4j'. Both the codebase
+  graph and the agent-memory graph will share that single DB; the
+  schemas have disjoint labels (File/Function/Class vs Session/
+  Message/Entity/...) so they coexist without collision.
+
+  Override .env to:
+    NEO4J_CODEBASE_DB=neo4j
+    NEO4J_MEMORY_DB=neo4j
+
+  No DDL needed — 'neo4j' is created automatically. Skipping CREATE.
+EOF
+  echo
+  echo "Existing databases:"
+  run_system_cypher "SHOW DATABASES YIELD name, currentStatus RETURN name, currentStatus;"
+  exit 0
+fi
+
 echo "Creating database: ${NEO4J_CODEBASE_DB} (if not exists)"
 run_system_cypher "CREATE DATABASE ${NEO4J_CODEBASE_DB} IF NOT EXISTS WAIT;"
 

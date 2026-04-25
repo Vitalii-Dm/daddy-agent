@@ -10,8 +10,6 @@ services:
       - "127.0.0.1:7687:7687"   # Bolt protocol
     environment:
       - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:?NEO4J_PASSWORD env var is required}
-      # Re-exposed so the cypher-shell healthcheck below can auth; never logged.
-      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
       - NEO4J_PLUGINS=["apoc"]
       - NEO4J_server_memory_heap_initial__size=512M
       - NEO4J_server_memory_heap_max__size=1G
@@ -28,9 +26,14 @@ services:
     healthcheck:
       # Probe Bolt + auth with cypher-shell so dependent services only start
       # once the DB is actually query-ready (not just HTTP listener alive).
+      # Single-$ on ${NEO4J_PASSWORD} means compose substitutes it from the
+      # host env at file-parse time and bakes the value into the
+      # healthcheck argv — we cannot expose NEO4J_PASSWORD as a container
+      # env var because the Neo4j entrypoint treats every NEO4J_* name as
+      # a config key and strict validation rejects unknown ones.
       test:
         - "CMD-SHELL"
-        - "cypher-shell -u neo4j -p \"$${NEO4J_PASSWORD}\" 'RETURN 1' || exit 1"
+        - 'cypher-shell -u neo4j -p "${NEO4J_PASSWORD}" "RETURN 1" || exit 1'
       interval: 10s
       timeout: 5s
       retries: 15
