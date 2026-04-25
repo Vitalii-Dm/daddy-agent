@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 
 import { destroyLenis, initLenis } from '@renderer/lib/lenis';
 import { initializeNotificationListeners, useStore } from '@renderer/store';
@@ -14,6 +15,28 @@ import { useAuroraTeam } from './hooks/useAuroraTeam';
 import { DashboardSection } from './sections/DashboardSection';
 import { GraphSectionPlaceholder } from './sections/GraphSectionPlaceholder';
 import { HeroSection } from './sections/HeroSection';
+
+// ---------------------------------------------------------------------------
+// Section divider — 96px band with a 1px aurora gradient line at the
+// midpoint. Pulses on a 6-second loop. Renders between Hero and Dashboard
+// to give the scroll handoff a visible beat.
+// ---------------------------------------------------------------------------
+const SectionDivider = (): React.JSX.Element => {
+  const reduceMotion = useReducedMotion();
+  return (
+    <div className="relative h-24" aria-hidden="true">
+      <motion.div
+        className="absolute inset-x-0 top-1/2 h-px"
+        style={{
+          background:
+            'linear-gradient(90deg, transparent 0%, var(--a-violet) 30%, var(--a-cyan) 70%, transparent 100%)',
+        }}
+        animate={reduceMotion ? undefined : { opacity: [0.3, 0.8, 0.3] }}
+        transition={reduceMotion ? undefined : { duration: 6, ease: 'easeInOut', repeat: Infinity }}
+      />
+    </div>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Floating chat panel — simple message list + composer, shown when the user
@@ -317,6 +340,7 @@ export const AuroraShell = (): React.JSX.Element => {
       <TopRail />
       <main className="relative z-0">
         <HeroSection />
+        <SectionDivider />
         <DashboardSection />
         <GraphSectionPlaceholder />
       </main>
