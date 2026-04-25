@@ -5,6 +5,8 @@ import type { InboxMessage } from '@shared/types/team';
 import { useStore } from '@renderer/store';
 import { stripAgentBlocks } from '@shared/constants/agentBlocks';
 
+import { GlassButton } from '@renderer/components/ui/GlassButton';
+
 import { LiquidGlass } from '../LiquidGlass';
 import { Mascot, inferMascotRole } from '../Mascot';
 
@@ -55,10 +57,14 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
   );
 
   return (
-    <LiquidGlass radius={26} className="flex flex-col overflow-hidden" style={{ maxHeight: 360 }}>
-      {/* Header */}
+    <LiquidGlass
+      radius={26}
+      className="flex h-full min-h-0 flex-col overflow-hidden"
+      style={{ flex: '1 1 auto' }}
+    >
+      {/* Header — sticky chat label row */}
       <div
-        className="flex shrink-0 items-center justify-between border-b px-4 py-3"
+        className="sticky top-0 z-10 flex shrink-0 items-center justify-between border-b px-4 py-3"
         style={{ borderColor: 'var(--glass-shade)' }}
       >
         <div className="flex items-center gap-2">
@@ -80,11 +86,11 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
         </span>
       </div>
 
-      {/* Message list — anchored at the start; scroll on hover via wheel. */}
+      {/* Message list — only this scrolls. */}
       <div
         ref={listRef}
         data-lenis-prevent
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3"
+        className="glass-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3"
       >
         {messages.length === 0 ? (
           <p className="py-4 text-center text-[12px] text-[color:var(--ink-3)]">
@@ -104,9 +110,9 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
         )}
       </div>
 
-      {/* Composer */}
+      {/* Composer — sticky at panel bottom */}
       <div
-        className="flex shrink-0 items-center gap-2 border-t px-3 py-2.5"
+        className="sticky bottom-0 z-10 flex shrink-0 items-center gap-2 border-t px-3 py-2.5"
         style={{ borderColor: 'var(--glass-shade)' }}
       >
         <input
@@ -119,20 +125,17 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
           disabled={sendingMessage}
           className="min-w-0 flex-1 rounded-full border border-white/25 bg-white/20 px-3.5 py-1.5 text-[13px] text-[color:var(--ink-1)] placeholder:text-[color:var(--ink-3)] focus:outline-none focus:ring-1 focus:ring-[color:var(--a-violet)] disabled:opacity-50"
         />
-        <button
-          type="button"
+        <GlassButton
+          variant="primary"
           disabled={!text.trim() || sendingMessage}
           onClick={handleSend}
           aria-label="Send message"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white transition-opacity disabled:opacity-40"
-          style={{
-            background: 'linear-gradient(135deg, var(--a-violet) 0%, var(--a-cyan) 100%)',
-          }}
+          className="size-10 shrink-0 rounded-full px-0"
         >
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
             <path d="M1 12L12 6.5 1 1v4l8 1.5-8 1.5v4z" fill="currentColor" />
           </svg>
-        </button>
+        </GlassButton>
       </div>
     </LiquidGlass>
   );

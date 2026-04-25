@@ -23,7 +23,7 @@ export const ChatColumn = ({
   const [tab, setTab] = useState<Tab>('chat');
   return (
     <LiquidGlass radius={26} className="flex min-h-0 flex-1 flex-col gap-3 p-3">
-      <div className="flex items-center justify-between gap-2 px-1 pt-1">
+      <div className="sticky top-0 z-10 flex shrink-0 items-center justify-between gap-2 px-1 pt-1">
         <TabPill active={tab === 'chat'} onClick={() => setTab('chat')}>
           Chat
         </TabPill>

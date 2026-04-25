@@ -56,7 +56,7 @@ export const AgentRoster = ({
         </p>
       ) : (
         <>
-          <ul className="glass-scroll flex gap-2 overflow-x-auto pb-1">
+          <ul className="glass-scroll flex gap-3 overflow-x-auto pb-1">
             {cards.map((m, idx) => (
               <motion.li
                 key={m.name}
@@ -121,21 +121,18 @@ const RosterCard = ({
       }
       title={member.currentTask}
       className={
-        'group flex h-[60px] w-[220px] shrink-0 items-center gap-2.5 rounded-[14px] border border-white/40 px-3 transition-all duration-200 hover:scale-[1.015] hover:bg-white/55 hover:shadow-[0_10px_24px_-12px_rgba(20,19,26,0.20)]' +
+        'glass-inner group relative flex h-[96px] w-[200px] shrink-0 items-center gap-3 overflow-hidden rounded-[16px] transition-all duration-200 hover:scale-[1.015]' +
         (onMemberClick ? ' cursor-pointer' : '') +
         (isInactive ? ' opacity-70' : '')
       }
-      style={{
-        background: 'var(--glass-fill-lo)',
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6), inset 0 -1px 0 rgba(20,19,26,0.04)',
-      }}
+      style={{ padding: '12px 16px' }}
     >
       <Mascot role={role} size={32} seed={member.name} status={member.status} />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-medium leading-tight text-[color:var(--ink-1)]">
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
+        <p className="truncate text-[14px] font-medium leading-tight text-[color:var(--ink-1)]">
           {member.name}
         </p>
-        <p className="truncate font-mono text-[10.5px] uppercase tracking-[0.06em] text-[color:var(--ink-3)]">
+        <p className="truncate font-mono text-[12px] tabular-nums text-[color:var(--ink-2)]">
           {taskLine}
         </p>
       </div>
@@ -154,6 +151,20 @@ const RosterCard = ({
           </svg>
         </button>
       )}
+      <div
+        className="pointer-events-none absolute bottom-0 left-4 right-4 h-[2px] overflow-hidden rounded-full"
+        style={{ background: 'rgba(20,19,26,0.06)' }}
+      >
+        <motion.div
+          className="h-full"
+          style={{
+            background: 'linear-gradient(90deg, var(--a-violet), var(--a-cyan))',
+          }}
+          initial={{ width: 0 }}
+          animate={{ width: `${progressPct}%` }}
+          transition={{ duration: 0.6, ease: APPLE_EASE }}
+        />
+      </div>
     </div>
   );
 };

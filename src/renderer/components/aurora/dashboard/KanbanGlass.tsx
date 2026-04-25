@@ -32,9 +32,9 @@ interface ColumnDef {
 }
 
 const COLUMNS: ColumnDef[] = [
-  { id: 'todo', title: 'Backlog', hint: 'Queued', accent: 'var(--ink-3)' },
+  { id: 'todo', title: 'Backlog', hint: 'Queued', accent: '#9CB8FF' },
   { id: 'in_progress', title: 'In progress', hint: 'Active', accent: 'var(--a-violet)' },
-  { id: 'review', title: 'Review', hint: 'Awaiting sign-off', accent: 'var(--a-cyan)' },
+  { id: 'review', title: 'Review', hint: 'Awaiting sign-off', accent: 'var(--a-peach)' },
   { id: 'blocked', title: 'Blocked', hint: 'Waiting', accent: 'var(--err)' },
   { id: 'done', title: 'Done', hint: 'Shipped', accent: 'var(--ok)' },
 ];
@@ -203,17 +203,17 @@ const Column = ({
       className="relative flex min-h-0 min-w-0 flex-1 flex-col rounded-[20px] border border-white/55 bg-white/35 p-3"
       style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.85)' }}
     >
-      <header className="mb-3 flex items-center justify-between gap-2 px-1">
+      <header className="glass-inner sticky top-0 z-10 mb-3 flex items-center justify-between gap-2 rounded-[12px] px-2 py-1.5">
         <div className="flex min-w-0 items-center gap-2">
           <span
-            className="inline-flex h-1.5 w-1.5 shrink-0 rounded-full"
+            className="inline-flex size-2 shrink-0 rounded-full"
             style={{ background: def.accent }}
             aria-hidden="true"
           />
-          <h4 className="truncate text-[13px] font-medium tracking-[-0.01em] text-[color:var(--ink-1)]">
+          <h4 className="truncate text-[16px] font-semibold tracking-[-0.01em] text-[color:var(--ink-1)]">
             {def.title}
           </h4>
-          <span className="shrink-0 font-mono text-[11px] tabular-nums text-[color:var(--ink-3)]">
+          <span className="glass-recessed shrink-0 rounded-full px-2 py-0.5 text-[12px] tabular-nums text-[color:var(--ink-3)]">
             {cards.length}
           </span>
         </div>
@@ -366,17 +366,17 @@ const CardSurface = ({
       <p className="line-clamp-2 text-[13px] font-medium leading-snug text-[color:var(--ink-1)]">
         {card.subject}
       </p>
-      <div className="flex items-center justify-between">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-w-0 items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <Mascot role={role} size={24} seed={card.owner} />
-          <span className="truncate text-[11.5px] text-[color:var(--ink-2)]">{card.owner}</span>
+          <span className="truncate text-[12px] text-[color:var(--ink-2)]">{card.owner}</span>
         </div>
         {card.blockedBy && card.blockedBy.length > 0 && (
           <span
-            className="inline-flex h-5 items-center rounded-full px-1.5 text-[10px] font-medium uppercase tracking-[0.08em]"
-            style={{ background: 'rgba(255,90,90,0.16)', color: '#A4262C' }}
+            className="shrink-0 rounded-md px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.04em]"
+            style={{ background: 'rgba(255,90,90,0.12)', color: 'var(--err)' }}
           >
-            blocked
+            BLOCKED
           </span>
         )}
       </div>

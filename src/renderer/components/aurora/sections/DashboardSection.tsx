@@ -238,7 +238,7 @@ export const DashboardSection = (): React.JSX.Element => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.15 }}
             transition={{ duration: 0.65, ease: APPLE_EASE }}
-            className="mt-10 grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]"
+            className="mt-10 grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)] min-[1440px]:grid-cols-[480px_minmax(0,1fr)]"
           >
             {/* LEFT: chat column (sticky, fixed width) */}
             <div
