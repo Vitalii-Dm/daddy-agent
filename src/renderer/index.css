@@ -861,6 +861,11 @@ body.theme-transitioning {
   overflow: hidden;
 }
 
+[data-theme='aurora'] #root {
+  height: auto;
+  overflow: visible;
+}
+
 /* macOS window integration */
 
 .sidebar-header {
