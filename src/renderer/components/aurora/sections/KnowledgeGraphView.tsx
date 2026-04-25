@@ -361,7 +361,15 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
   // scopes by the project root so several repos can share one Neo4j DB
   // without overlapping; the memory tab is project-agnostic for now.
   const allProjects = useStore((s) => s.projects);
+  const fetchProjects = useStore((s) => s.fetchProjects);
   const selectProject = useStore((s) => s.selectProject);
+
+  // Ensure projects are loaded when the graph view mounts
+  useEffect(() => {
+    if (allProjects.length === 0) {
+      void fetchProjects();
+    }
+  }, [allProjects.length, fetchProjects]);
   const activeProject = useStore((s) => {
     const id = s.selectedProjectId;
     if (!id) return null;
