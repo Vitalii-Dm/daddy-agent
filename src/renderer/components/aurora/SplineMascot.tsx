@@ -120,38 +120,21 @@ export const SplineMascot = ({ className, size = 520 }: SplineMascotProps): Reac
         />
       </Suspense>
       {/* Overlay covering Spline's "Built with Spline" watermark.
-          Two-stack approach now that we know what NOT to do (no
-          backdrop-filter, no hard pill):
-          (1) Big 560×280 ambient bloom — paper-coloured radial that
-              feathers out far enough to reach all the way past the
-              hover-state badge container without showing an edge.
-          (2) Tight 240×80 dense bloom over the badge itself, pure
-              paper at centre so even a darker hover badge is fully
-              hidden.
-          Both gradients use --bg-base, no other colours, so they
-          blend with the warm hero canvas. */}
+          Tight badge-sized cover: 200×56 radial that's solid paper
+          at the centre and fades aggressively to transparent so the
+          surrounding hero gradient — not the cover — fills the
+          perimeter. Bigger covers leak as a lighter warm patch
+          against the cyan/mint hero tint. Stay tight. */}
       <div
         aria-hidden
         className="pointer-events-none absolute"
         style={{
-          right: -60,
-          bottom: -80,
-          width: 560,
-          height: 280,
+          right: 4,
+          bottom: 6,
+          width: 200,
+          height: 56,
           background:
-            'radial-gradient(ellipse 55% 40% at 60% 55%, var(--bg-base) 0%, var(--bg-base) 30%, rgba(246, 243, 238, 0.78) 55%, rgba(246, 243, 238, 0.32) 80%, transparent 100%)',
-        }}
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute"
-        style={{
-          right: -8,
-          bottom: 4,
-          width: 240,
-          height: 80,
-          background:
-            'radial-gradient(ellipse 50% 50% at 55% 50%, var(--bg-base) 0%, var(--bg-base) 50%, rgba(246, 243, 238, 0.6) 80%, transparent 100%)',
+            'radial-gradient(ellipse 60% 55% at 60% 50%, var(--bg-base) 0%, var(--bg-base) 35%, rgba(246, 243, 238, 0.55) 60%, rgba(246, 243, 238, 0.15) 80%, transparent 100%)',
         }}
       />
     </div>
