@@ -46,7 +46,7 @@ URLS: list[tuple[str, str]] = [
         # CommonJS source with no browser build.  The JS in index.html
         # already accepts ``window.graphologyLibrary.layoutForceAtlas2``.
         "graphology-library",
-        "https://cdn.jsdelivr.net/npm/graphology-library@0.7.0/dist/graphology-library.min.js",
+        "https://cdn.jsdelivr.net/npm/graphology-library@0.8.0/dist/graphology-library.min.js",
     ),
     (
         "sigma",
