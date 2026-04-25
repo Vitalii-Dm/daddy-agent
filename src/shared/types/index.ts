@@ -47,3 +47,6 @@ export type * from './extensions';
 
 // Re-export tmux runtime status types
 export type * from './tmux';
+
+// Re-export Neo4j Knowledge Graph contract types
+export * from './knowledgeGraph';
