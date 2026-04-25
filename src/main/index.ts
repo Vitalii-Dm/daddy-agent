@@ -49,6 +49,8 @@ import { join } from 'path';
 import { initializeIpcHandlers, removeIpcHandlers } from './ipc/handlers';
 import { startEventLoopLagMonitor } from './services/infrastructure/EventLoopLagMonitor';
 import { HttpServer } from './services/infrastructure/HttpServer';
+import { KnowledgeGraphProxy } from './services/knowledgeGraph/KnowledgeGraphProxy';
+import { PythonVizServer } from './services/knowledgeGraph/PythonVizServer';
 import {
   buildTeamControlApiBaseUrl,
   clearTeamControlApiState,
@@ -367,6 +369,8 @@ let sshConnectionManager: SshConnectionManager;
 let teamDataService: TeamDataService;
 let teamProvisioningService: TeamProvisioningService;
 let httpServer: HttpServer;
+let knowledgeGraphServer: PythonVizServer | null = null;
+let knowledgeGraphProxy: KnowledgeGraphProxy | null = null;
 let teamBackupService: TeamBackupService | null = null;
 let branchStatusService: BranchStatusService | null = null;
 let rendererRecoveryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -807,6 +811,12 @@ async function initializeServices(): Promise<void> {
   // warmup() and ensureInstalled() are deferred to after window creation
   // (did-finish-load handler) to avoid thread pool contention at startup.
   httpServer = new HttpServer();
+  // Knowledge graph backend: spawn the Python `daddy_agent.viz` sidecar on
+  // demand (the renderer triggers .start() via IPC when the user opens the
+  // graph). Constructed eagerly so the proxy can be wired into the IPC
+  // handler init below; the actual subprocess only spawns on .start().
+  knowledgeGraphServer = new PythonVizServer();
+  knowledgeGraphProxy = new KnowledgeGraphProxy(knowledgeGraphServer);
   teamProvisioningService.setControlApiBaseUrlResolver(async () => {
     if (!httpServer.isRunning()) {
       await startHttpServer(handleModeSwitch);
@@ -876,7 +886,10 @@ async function initializeServices(): Promise<void> {
       startHttpServer: () => startHttpServer(handleModeSwitch),
     },
     crossTeamService,
-    teamBackupService ?? undefined
+    teamBackupService ?? undefined,
+    knowledgeGraphServer && knowledgeGraphProxy
+      ? { server: knowledgeGraphServer, proxy: knowledgeGraphProxy }
+      : undefined
   );
   // Forward SSH state changes to renderer and HTTP SSE clients
   sshStateChangeHandler = (status: unknown) => {
@@ -969,6 +982,10 @@ function shutdownServices(): void {
   // Stop HTTP server
   if (httpServer?.isRunning()) {
     void httpServer.stop();
+  }
+  // Stop Python knowledge-graph sidecar (no-op if it never started).
+  if (knowledgeGraphServer) {
+    void knowledgeGraphServer.stop();
   }
   void clearTeamControlApiState();
 

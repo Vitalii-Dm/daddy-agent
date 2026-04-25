@@ -18,6 +18,11 @@ import {
   removeHttpServerHandlers,
 } from './httpServer';
 import {
+  initializeKnowledgeGraphHandlers,
+  registerKnowledgeGraphHandlers,
+  removeKnowledgeGraphHandlers,
+} from './knowledgeGraph';
+import {
   initializeProjectHandlers,
   registerProjectHandlers,
   removeProjectHandlers,
@@ -55,6 +60,10 @@ import type {
   TeamProvisioningService,
 } from '../services';
 import type { HttpServer } from '../services/infrastructure/HttpServer';
+import type {
+  IKnowledgeGraphProxy,
+  IPythonVizServer,
+} from '../services/knowledgeGraph/types';
 import type { CrossTeamService } from '../services/team/CrossTeamService';
 import type { TeamBackupService } from '../services/team/TeamBackupService';
 
@@ -84,7 +93,11 @@ export function initializeIpcHandlers(
     startHttpServer: () => Promise<void>;
   },
   crossTeamService?: CrossTeamService,
-  teamBackupService?: TeamBackupService
+  teamBackupService?: TeamBackupService,
+  knowledgeGraphDeps?: {
+    server: IPythonVizServer;
+    proxy: IKnowledgeGraphProxy;
+  }
 ): void {
   initializeProjectHandlers(registry);
   initializeSessionHandlers(registry);
@@ -117,6 +130,9 @@ export function initializeIpcHandlers(
   if (crossTeamService) {
     initializeCrossTeamHandlers(crossTeamService);
   }
+  if (knowledgeGraphDeps) {
+    initializeKnowledgeGraphHandlers(knowledgeGraphDeps.server, knowledgeGraphDeps.proxy);
+  }
 
   registerProjectHandlers(ipcMain);
   registerSessionHandlers(ipcMain);
@@ -133,6 +149,9 @@ export function initializeIpcHandlers(
   }
   if (crossTeamService) {
     registerCrossTeamHandlers(ipcMain);
+  }
+  if (knowledgeGraphDeps) {
+    registerKnowledgeGraphHandlers(ipcMain);
   }
 
   logger.info('All handlers registered');
@@ -151,6 +170,7 @@ export function removeIpcHandlers(): void {
   removeWindowHandlers(ipcMain);
   removeHttpServerHandlers(ipcMain);
   removeCrossTeamHandlers(ipcMain);
+  removeKnowledgeGraphHandlers(ipcMain);
 
   logger.info('All handlers removed');
 }
