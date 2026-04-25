@@ -20,7 +20,9 @@ const SHRINK_AT = 80;
 // resize-aware listener instead of motion's useScroll because this
 // element lives outside any scrollable container at this stage.
 export const TopRail = (): React.JSX.Element => {
-  const { teamName, runningCount, totalCount, isAlive } = useAuroraTeam();
+  const { teamName: auroraTeamName, runningCount, totalCount, isAlive } = useAuroraTeam();
+  const selectedTeamName = useStore((s) => s.selectedTeamName);
+  const teamName = selectedTeamName ? auroraTeamName : null;
   const isDemo = useStore((s) => Boolean(s.selectedTeamData?.isDemo));
   const [shrunk, setShrunk] = useState(false);
 

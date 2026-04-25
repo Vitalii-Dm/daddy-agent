@@ -39,7 +39,10 @@ const APPLE_EASE = [0.22, 1, 0.36, 1] as const;
 // horizontal scrollbar at the document level. Side panels stick to top: 88px
 // once the user scrolls past the header.
 export const DashboardSection = (): React.JSX.Element => {
-  const { teamName, members, runningCount, totalCount, isAlive } = useAuroraTeam();
+  const { teamName: auroraTeamName, members, runningCount, totalCount, isAlive } = useAuroraTeam();
+  const selectedTeamName = useStore((s) => s.selectedTeamName);
+  // Only use the aurora team name if a team is explicitly selected
+  const teamName = selectedTeamName ? auroraTeamName : null;
   const tasks = useStore((s) => s.selectedTeamData?.tasks ?? []);
   const messages = useStore((s) => s.selectedTeamData?.messages ?? []);
   const createTeamTask = useStore((s) => s.createTeamTask);
