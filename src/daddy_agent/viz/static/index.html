@@ -271,12 +271,26 @@
           });
         }
 
+        // Yield one animation frame so a setStatus() call paints
+        // before the next blocking step starts.  Without this, the
+        // status text we set right before a heavy synchronous stage
+        // (Sigma instantiation, first FA2 chunk) never shows up.
+        function nextPaint() {
+          return new Promise(function (resolve) {
+            requestAnimationFrame(function () { resolve(); });
+          });
+        }
+
         async function render() {
           syncTabs();
           syncViewControls();
           const t0 = performance.now();
+          const elapsed = function () {
+            return Math.round(performance.now() - t0);
+          };
           const token = newLayoutToken();
           setStatus("fetching…");
+
           const view = document.getElementById("f-view").value;
           const params = new URLSearchParams({ db: state.db, view: view });
           if (view === "detail") {
@@ -288,27 +302,40 @@
             if (community) params.set("community", community);
           }
           let payload;
+          const tFetch0 = performance.now();
           try {
             payload = await fetchJSON("/api/graph?" + params.toString());
           } catch (err) {
             setStatus("error: " + err.message, "error");
             return;
           }
+          const tFetch = Math.round(performance.now() - tFetch0);
           if (token.cancelled) return;
 
-          // Stage 2: build the graph object.  Show count immediately so
-          // the user has a sense of scale before layout starts.
+          const nodeCount = (payload.nodes || []).length;
+          const edgeCount = (payload.edges || []).length;
           setStatus(
-            "building · " + (payload.nodes || []).length + " nodes / " +
-              (payload.edges || []).length + " edges",
+            "[" + elapsed() + "ms] building · " + nodeCount + " nodes / " +
+              edgeCount + " edges (fetch " + tFetch + "ms)",
           );
+          // Yield so the "building" status actually paints before
+          // the synchronous graphology build starts.
+          await nextPaint();
+          if (token.cancelled) return;
+
           const graph = buildGraph(payload);
           if (token.cancelled) return;
 
-          // Stage 3: render Sigma BEFORE running the layout, with the
-          // initial circle positions.  The user sees the graph appear
-          // right away and watches FA2 untangle it instead of staring
-          // at a frozen "loading…" message.
+          setStatus(
+            "[" + elapsed() + "ms] mounting renderer · " + nodeCount +
+              " nodes / " + edgeCount + " edges",
+          );
+          await nextPaint();
+          if (token.cancelled) return;
+
+          // Sigma instantiation does WebGL setup + first paint.  Yield
+          // afterwards so the initial circle layout actually shows on
+          // screen before the layout starts moving things.
           if (state.renderer) state.renderer.kill();
           const container = document.getElementById("graph");
           container.innerHTML = "";
@@ -324,25 +351,30 @@
           state.renderer.on("clickNode", function (evt) {
             showNode(evt.node);
           });
+          await nextPaint();
+          if (token.cancelled) return;
 
-          // Stage 4: incremental layout.  Sigma observes the graph and
-          // repaints on each chunk.  Status reflects real progress.
+          const tFirstPaint = elapsed();
+          setStatus(
+            "[" + tFirstPaint + "ms] first paint · animating layout…",
+            "warn",
+          );
+
           const totalEdges = graph.size;
           await runLayoutChunked(graph, token, function (done, total) {
             if (token.cancelled) return;
             const pct = total > 0 ? Math.round((done / total) * 100) : 100;
             setStatus(
-              "layout " + pct + "% · " + graph.order + " nodes / " + totalEdges +
-                " edges",
+              "[" + elapsed() + "ms] layout " + pct + "% · " +
+                graph.order + " nodes / " + totalEdges + " edges",
               "warn",
             );
           });
           if (token.cancelled) return;
 
-          const ms = Math.round(performance.now() - t0);
           setStatus(
-            "ok · " + view + " · " + graph.order + " nodes / " + totalEdges +
-              " edges · " + ms + "ms",
+            "ok · " + view + " · " + graph.order + " / " + totalEdges +
+              " · first paint " + tFirstPaint + "ms · total " + elapsed() + "ms",
             "ok",
           );
         }
