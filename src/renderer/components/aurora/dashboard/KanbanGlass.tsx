@@ -299,6 +299,15 @@ const DraggableCard = ({
   );
 };
 
+const ROLE_GLOW: Record<ReturnType<typeof inferMascotRole>, string> = {
+  lead: 'rgba(124, 92, 255, 0.55)',
+  coder: 'rgba(61, 198, 255, 0.55)',
+  reviewer: 'rgba(255, 156, 122, 0.55)',
+  researcher: 'rgba(184, 242, 123, 0.55)',
+  designer: 'rgba(159, 138, 255, 0.55)',
+  ops: 'rgba(156, 163, 175, 0.45)',
+};
+
 const CardSurface = ({
   card,
   onClick,
@@ -323,7 +332,7 @@ const CardSurface = ({
           : undefined
       }
       className={
-        'bg-white/72 group relative flex flex-col gap-2 overflow-hidden rounded-[16px] border border-white/65 p-3 transition-shadow duration-300 hover:shadow-[0_18px_38px_-22px_rgba(20,19,26,0.32)]' +
+        'bg-white/72 group relative flex flex-col gap-2 rounded-[16px] border border-white/65 p-3 transition-shadow duration-300 hover:shadow-[0_18px_38px_-22px_rgba(20,19,26,0.32)]' +
         (onClick ? ' cursor-pointer' : '')
       }
       style={{
@@ -332,13 +341,15 @@ const CardSurface = ({
     >
       <span
         aria-hidden="true"
-        className="absolute inset-y-2 left-0 w-[3px] rounded-full"
-        style={{ background: `linear-gradient(to bottom, var(--a-violet), var(--a-cyan))` }}
+        className="pointer-events-none absolute -inset-5 -z-10 rounded-[28px] opacity-0 blur-[28px] transition-opacity duration-300 group-hover:opacity-45"
+        style={{
+          background: `radial-gradient(closest-side, ${ROLE_GLOW[role]}, transparent 70%)`,
+        }}
       />
-      <p className="line-clamp-2 pl-2 text-[13px] font-medium leading-snug text-[color:var(--ink-1)]">
+      <p className="line-clamp-2 text-[13px] font-medium leading-snug text-[color:var(--ink-1)]">
         {card.subject}
       </p>
-      <div className="flex items-center justify-between pl-2">
+      <div className="flex items-center justify-between">
         <div className="flex min-w-0 items-center gap-2">
           <Mascot role={role} size={24} seed={card.owner} />
           <span className="truncate text-[11.5px] text-[color:var(--ink-2)]">{card.owner}</span>
