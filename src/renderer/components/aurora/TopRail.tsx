@@ -63,7 +63,41 @@ export const TopRail = (): React.JSX.Element => {
           {breadcrumb}
         </span>
 
-        <span className="ml-auto flex items-center gap-2.5 whitespace-nowrap text-[12px] text-[color:var(--ink-2)]">
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            aria-label="Create task"
+            onClick={() => window.dispatchEvent(new CustomEvent('aurora:create-task'))}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[color:var(--ink-2)] transition-colors hover:bg-white/10 hover:text-[color:var(--ink-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)]"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path
+                d="M7 2v10M2 7h10"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+          <button
+            type="button"
+            aria-label="Open chat"
+            onClick={() => window.dispatchEvent(new CustomEvent('aurora:open-chat'))}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[color:var(--ink-2)] transition-colors hover:bg-white/10 hover:text-[color:var(--ink-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)]"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path
+                d="M2 2.5A1.5 1.5 0 0 1 3.5 1h7A1.5 1.5 0 0 1 12 2.5v6A1.5 1.5 0 0 1 10.5 10H8l-3 3v-3H3.5A1.5 1.5 0 0 1 2 8.5v-6Z"
+                stroke="currentColor"
+                strokeWidth="1.3"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          <span className="mx-1 h-4 w-px bg-[color:var(--glass-shade)]" aria-hidden="true" />
+        </div>
+
+        <span className="flex items-center gap-2.5 whitespace-nowrap text-[12px] text-[color:var(--ink-2)]">
           <span
             className={
               'inline-flex h-2 w-2 rounded-full ' +

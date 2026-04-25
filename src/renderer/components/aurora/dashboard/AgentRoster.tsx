@@ -55,11 +55,19 @@ interface SeedMember {
 
 const APPLE_EASE = [0.22, 1, 0.36, 1] as const;
 
+interface AgentRosterProps {
+  onMemberClick?: (memberName: string) => void;
+  onSendMessage?: (memberName: string) => void;
+}
+
 // Glass-card list of agents in the current team. Replaces the dark MemberList
 // skin without touching the underlying member data or its hover-card hookups.
 // When no team is loaded, a friendly seed roster fills the panel at reduced
 // opacity so the dashboard never feels broken.
-export const AgentRoster = (): React.JSX.Element => {
+export const AgentRoster = ({
+  onMemberClick,
+  onSendMessage,
+}: AgentRosterProps): React.JSX.Element => {
   const { members, teamName, totalCount } = useAuroraTeam();
   const tasks = useStore((s) => s.selectedTeamData?.tasks ?? []);
   const isSeeded = members.length === 0;
@@ -90,7 +98,11 @@ export const AgentRoster = (): React.JSX.Element => {
             animate={{ opacity: isSeeded ? 0.78 : 1, y: 0 }}
             transition={{ duration: 0.45, ease: APPLE_EASE, delay: idx * 0.04 }}
           >
-            <RosterCard member={m} />
+            <RosterCard
+              member={m}
+              onMemberClick={!isSeeded ? onMemberClick : undefined}
+              onSendMessage={!isSeeded ? onSendMessage : undefined}
+            />
           </motion.li>
         ))}
       </ul>
@@ -98,13 +110,37 @@ export const AgentRoster = (): React.JSX.Element => {
   );
 };
 
-const RosterCard = ({ member }: { member: SeedMember }): React.JSX.Element => {
+const RosterCard = ({
+  member,
+  onMemberClick,
+  onSendMessage,
+}: {
+  member: SeedMember;
+  onMemberClick?: (memberName: string) => void;
+  onSendMessage?: (memberName: string) => void;
+}): React.JSX.Element => {
   const role = inferMascotRole(member.role);
   const progress = member.tasksTotal === 0 ? 0 : Math.min(1, member.tasksDone / member.tasksTotal);
 
   return (
     <div
-      className="group flex flex-col gap-3 rounded-[18px] border border-white/55 bg-white/55 p-3 transition-all duration-300 hover:-translate-y-px hover:bg-white/65 hover:shadow-[0_10px_24px_-12px_rgba(20,19,26,0.18)]"
+      onClick={() => onMemberClick?.(member.name)}
+      role={onMemberClick ? 'button' : undefined}
+      tabIndex={onMemberClick ? 0 : undefined}
+      onKeyDown={
+        onMemberClick
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onMemberClick(member.name);
+              }
+            }
+          : undefined
+      }
+      className={
+        'group flex flex-col gap-3 rounded-[18px] border border-white/55 bg-white/55 p-3 transition-all duration-300 hover:-translate-y-px hover:bg-white/65 hover:shadow-[0_10px_24px_-12px_rgba(20,19,26,0.18)]' +
+        (onMemberClick ? ' cursor-pointer' : '')
+      }
       style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.85)' }}
     >
       <div className="flex items-start gap-3">
@@ -114,7 +150,30 @@ const RosterCard = ({ member }: { member: SeedMember }): React.JSX.Element => {
             <p className="truncate text-[13px] font-medium text-[color:var(--ink-1)]">
               {member.name}
             </p>
-            <StatusChip status={member.status} />
+            <div className="flex items-center gap-1">
+              {onSendMessage && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSendMessage(member.name);
+                  }}
+                  aria-label={`Send message to ${member.name}`}
+                  className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[color:var(--ink-3)] opacity-0 transition-opacity hover:bg-white/60 hover:text-[color:var(--ink-1)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)] group-hover:opacity-100"
+                >
+                  <svg
+                    width="11"
+                    height="11"
+                    viewBox="0 0 16 16"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path d="M2 2h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H9l-4 3v-3H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" />
+                  </svg>
+                </button>
+              )}
+              <StatusChip status={member.status} />
+            </div>
           </div>
           <p className="truncate font-mono text-[10.5px] uppercase tracking-[0.14em] text-[color:var(--ink-3)]">
             {member.role}

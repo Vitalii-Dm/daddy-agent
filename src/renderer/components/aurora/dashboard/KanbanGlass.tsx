@@ -41,6 +41,8 @@ const COLUMNS: ColumnDef[] = [
 interface KanbanGlassProps {
   filter: string;
   view: string;
+  onTaskClick?: (task: TeamTaskWithKanban) => void;
+  onCreateTask?: () => void;
 }
 
 const APPLE_EASE = [0.22, 1, 0.36, 1] as const;
@@ -81,7 +83,12 @@ interface CardItem {
 // to a real team this would persist via TeamSlice mutators, but at this stage
 // we keep the optimistic local state so the surface is fully interactive in
 // the demo flow.
-export const KanbanGlass = ({ filter, view }: KanbanGlassProps): React.JSX.Element => {
+export const KanbanGlass = ({
+  filter,
+  view,
+  onTaskClick,
+  onCreateTask,
+}: KanbanGlassProps): React.JSX.Element => {
   const { members, teamName } = useAuroraTeam();
   const realTasks = useStore((s) => s.selectedTeamData?.tasks ?? []);
   const updateKanban = useStore((s) => s.updateKanban);
@@ -125,7 +132,8 @@ export const KanbanGlass = ({ filter, view }: KanbanGlassProps): React.JSX.Eleme
     return filterCards(acc, filter);
   }, [overrides, realTasks, members, filter]);
 
-  if (view === 'List') return <ListView grouped={grouped} />;
+  if (view === 'List')
+    return <ListView grouped={grouped} onTaskClick={onTaskClick} realTasks={realTasks} />;
   if (view === 'Graph') return <GraphView />;
 
   return (
@@ -164,7 +172,15 @@ export const KanbanGlass = ({ filter, view }: KanbanGlassProps): React.JSX.Eleme
           style={{ scrollSnapType: 'x mandatory', overscrollBehavior: 'contain' }}
         >
           {COLUMNS.map((col) => (
-            <Column key={col.id} def={col} cards={grouped[col.id]} activeId={activeId} />
+            <Column
+              key={col.id}
+              def={col}
+              cards={grouped[col.id]}
+              activeId={activeId}
+              realTasks={realTasks}
+              onTaskClick={onTaskClick}
+              onCreateTask={onCreateTask}
+            />
           ))}
         </div>
       </LiquidGlass>
@@ -180,9 +196,19 @@ interface ColumnProps {
   def: ColumnDef;
   cards: CardItem[];
   activeId: string | null;
+  realTasks: TeamTaskWithKanban[];
+  onTaskClick?: (task: TeamTaskWithKanban) => void;
+  onCreateTask?: () => void;
 }
 
-const Column = ({ def, cards, activeId }: ColumnProps): React.JSX.Element => {
+const Column = ({
+  def,
+  cards,
+  activeId,
+  realTasks,
+  onTaskClick,
+  onCreateTask,
+}: ColumnProps): React.JSX.Element => {
   const { isOver, setNodeRef } = useDroppable({ id: def.id });
   return (
     <div
@@ -202,9 +228,23 @@ const Column = ({ def, cards, activeId }: ColumnProps): React.JSX.Element => {
             {cards.length}
           </span>
         </div>
-        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[color:var(--ink-3)]">
-          {def.hint}
-        </span>
+        <div className="flex items-center gap-1">
+          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[color:var(--ink-3)]">
+            {def.hint}
+          </span>
+          {onCreateTask && (
+            <button
+              type="button"
+              onClick={onCreateTask}
+              aria-label={`Add task to ${def.title}`}
+              className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[color:var(--ink-3)] transition-colors hover:bg-white/60 hover:text-[color:var(--ink-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)]"
+            >
+              <span aria-hidden="true" className="text-[12px] leading-none">
+                +
+              </span>
+            </button>
+          )}
+        </div>
       </header>
 
       <div
@@ -223,7 +263,13 @@ const Column = ({ def, cards, activeId }: ColumnProps): React.JSX.Element => {
           </div>
         ) : (
           cards.map((card) => (
-            <DraggableCard key={card.id} card={card} dimmed={activeId === card.id} />
+            <DraggableCard
+              key={card.id}
+              card={card}
+              dimmed={activeId === card.id}
+              realTasks={realTasks}
+              onTaskClick={onTaskClick}
+            />
           ))
         )}
       </div>
@@ -234,15 +280,25 @@ const Column = ({ def, cards, activeId }: ColumnProps): React.JSX.Element => {
 const DraggableCard = ({
   card,
   dimmed,
+  realTasks,
+  onTaskClick,
 }: {
   card: CardItem;
   dimmed: boolean;
+  realTasks: TeamTaskWithKanban[];
+  onTaskClick?: (task: TeamTaskWithKanban) => void;
 }): React.JSX.Element => {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: card.id });
   const reduceMotion = useReducedMotion();
   const style: React.CSSProperties = {
     transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
     opacity: dimmed ? 0 : 1,
+  };
+
+  const handleClick = (): void => {
+    if (!onTaskClick || card.isSeed) return;
+    const realTask = realTasks.find((t) => t.id === card.id);
+    if (realTask) onTaskClick(realTask);
   };
 
   return (
@@ -255,16 +311,38 @@ const DraggableCard = ({
       {...listeners}
       className="cursor-grab touch-none active:cursor-grabbing"
     >
-      <CardSurface card={card} />
+      <CardSurface card={card} onClick={!card.isSeed && onTaskClick ? handleClick : undefined} />
     </motion.div>
   );
 };
 
-const CardSurface = ({ card }: { card: CardItem }): React.JSX.Element => {
+const CardSurface = ({
+  card,
+  onClick,
+}: {
+  card: CardItem;
+  onClick?: () => void;
+}): React.JSX.Element => {
   const role = inferMascotRole(card.role);
   return (
     <div
-      className="bg-white/72 group relative flex flex-col gap-2 overflow-hidden rounded-[16px] border border-white/65 p-3 transition-shadow duration-300 hover:shadow-[0_18px_38px_-22px_rgba(20,19,26,0.32)]"
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+      className={
+        'bg-white/72 group relative flex flex-col gap-2 overflow-hidden rounded-[16px] border border-white/65 p-3 transition-shadow duration-300 hover:shadow-[0_18px_38px_-22px_rgba(20,19,26,0.32)]' +
+        (onClick ? ' cursor-pointer' : '')
+      }
       style={{
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.85), 0 8px 22px -16px rgba(20,19,26,0.18)',
       }}
@@ -313,29 +391,60 @@ const CardOverlay = ({
   );
 };
 
-const ListView = ({ grouped }: { grouped: Record<ColumnId, CardItem[]> }): React.JSX.Element => {
+const ListView = ({
+  grouped,
+  realTasks,
+  onTaskClick,
+}: {
+  grouped: Record<ColumnId, CardItem[]>;
+  realTasks: TeamTaskWithKanban[];
+  onTaskClick?: (task: TeamTaskWithKanban) => void;
+}): React.JSX.Element => {
   const all = Object.entries(grouped).flatMap(([col, cards]) => cards.map((c) => ({ ...c, col })));
   return (
     <LiquidGlass radius={26} className="p-4">
       <ul className="divide-y divide-[color:var(--glass-shade)]">
-        {all.map((c) => (
-          <li key={c.id} className="flex items-center justify-between gap-3 py-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <Mascot role={inferMascotRole(c.role)} size={32} seed={c.owner} />
-              <div className="min-w-0">
-                <p className="truncate text-[13px] font-medium text-[color:var(--ink-1)]">
-                  {c.subject}
-                </p>
-                <p className="truncate font-mono text-[10.5px] uppercase tracking-[0.14em] text-[color:var(--ink-3)]">
-                  {c.owner}
-                </p>
+        {all.map((c) => {
+          const realTask = !c.isSeed ? realTasks.find((t) => t.id === c.id) : undefined;
+          const handleClick = realTask && onTaskClick ? () => onTaskClick(realTask) : undefined;
+          return (
+            <li
+              key={c.id}
+              onClick={handleClick}
+              role={handleClick ? 'button' : undefined}
+              tabIndex={handleClick ? 0 : undefined}
+              onKeyDown={
+                handleClick
+                  ? (e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleClick();
+                      }
+                    }
+                  : undefined
+              }
+              className={
+                'flex items-center justify-between gap-3 py-3' +
+                (handleClick ? ' cursor-pointer rounded-lg px-2 hover:bg-white/40' : '')
+              }
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <Mascot role={inferMascotRole(c.role)} size={32} seed={c.owner} />
+                <div className="min-w-0">
+                  <p className="truncate text-[13px] font-medium text-[color:var(--ink-1)]">
+                    {c.subject}
+                  </p>
+                  <p className="truncate font-mono text-[10.5px] uppercase tracking-[0.14em] text-[color:var(--ink-3)]">
+                    {c.owner}
+                  </p>
+                </div>
               </div>
-            </div>
-            <span className="shrink-0 font-mono text-[10.5px] uppercase tracking-[0.14em] text-[color:var(--ink-3)]">
-              {c.col.replace('_', ' ')}
-            </span>
-          </li>
-        ))}
+              <span className="shrink-0 font-mono text-[10.5px] uppercase tracking-[0.14em] text-[color:var(--ink-3)]">
+                {c.col.replace('_', ' ')}
+              </span>
+            </li>
+          );
+        })}
         {all.length === 0 && (
           <li className="py-8 text-center text-[13px] text-[color:var(--ink-3)]">No tasks yet.</li>
         )}

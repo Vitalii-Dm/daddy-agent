@@ -5,6 +5,7 @@ import { scrollToAnchor } from '@renderer/lib/lenis';
 
 import { LiquidGlass } from '../LiquidGlass';
 import { LivePreviewStrip } from '../LivePreviewStrip';
+import { useAuroraTeam } from '../hooks/useAuroraTeam';
 
 const APPLE_EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -15,6 +16,8 @@ const APPLE_EASE = [0.22, 1, 0.36, 1] as const;
 export const HeroSection = (): React.JSX.Element => {
   const reduceMotion = useReducedMotion();
   const sectionRef = useRef<HTMLElement | null>(null);
+  const { teamName } = useAuroraTeam();
+  const hasTeam = teamName !== null;
 
   // Scroll-linked transforms — title scales down, body fades, preview strip
   // parallaxes upward as the hero leaves the viewport. All driven by the
@@ -86,7 +89,7 @@ export const HeroSection = (): React.JSX.Element => {
           transition={{ duration: 0.6, ease: APPLE_EASE, delay: 0.4 }}
           className="mt-10 flex flex-wrap items-center gap-3"
         >
-          <PrimaryCta />
+          <PrimaryCta hasTeam={hasTeam} />
           <SecondaryCta />
         </motion.div>
 
@@ -147,10 +150,20 @@ const SheenWord = ({ word, delay = 0 }: SheenWordProps): React.JSX.Element => {
   );
 };
 
-const PrimaryCta = (): React.JSX.Element => (
+interface PrimaryCtaProps {
+  hasTeam: boolean;
+}
+
+const PrimaryCta = ({ hasTeam }: PrimaryCtaProps): React.JSX.Element => (
   <button
     type="button"
-    onClick={() => scrollToAnchor('#dashboard')}
+    onClick={() => {
+      if (hasTeam) {
+        scrollToAnchor('#dashboard');
+      } else {
+        window.dispatchEvent(new CustomEvent('aurora:create-team'));
+      }
+    }}
     className="group relative inline-flex h-12 items-center gap-2 overflow-hidden rounded-full px-6 text-[14px] font-medium text-white transition-transform duration-300 will-change-transform hover:-translate-y-[1px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bg-base)]"
     style={{
       background: 'linear-gradient(135deg, var(--a-violet) 0%, var(--a-cyan) 100%)',
@@ -158,7 +171,7 @@ const PrimaryCta = (): React.JSX.Element => (
         '0 14px 38px -14px rgba(124, 92, 255, 0.55), 0 4px 12px -4px rgba(61, 198, 255, 0.35), inset 0 1px 0 rgba(255,255,255,0.4)',
     }}
   >
-    <span className="relative z-10">Get started</span>
+    <span className="relative z-10">{hasTeam ? 'Go to dashboard' : 'Create your first team'}</span>
     <span
       aria-hidden="true"
       className="relative z-10 text-white/80 transition-transform duration-300 group-hover:translate-x-[2px]"
