@@ -134,17 +134,20 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
           disabled={sendingMessage}
           className="min-w-0 flex-1 rounded-full border border-white/25 bg-white/20 px-3.5 py-1.5 text-[13px] text-[color:var(--ink-1)] placeholder:text-[color:var(--ink-3)] focus:outline-none focus:ring-1 focus:ring-[color:var(--a-violet)] disabled:opacity-50"
         />
-        <GlassButton
-          variant="primary"
+        <button
+          type="button"
           disabled={!text.trim() || sendingMessage}
           onClick={handleSend}
           aria-label="Send message"
-          className="size-10 shrink-0 rounded-full px-0"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full text-white transition-opacity disabled:opacity-40"
+          style={{
+            background: 'linear-gradient(135deg, var(--a-violet) 0%, var(--a-cyan) 100%)',
+          }}
         >
-          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
-            <path d="M1 12L12 6.5 1 1v4l8 1.5-8 1.5v4z" fill="currentColor" />
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M2.5 2.1a.5.5 0 0 1 .7-.4l10 5a.5.5 0 0 1 0 .9l-10 5a.5.5 0 0 1-.7-.5V9.5L8.3 8 2.5 6.5V2.1Z" />
           </svg>
-        </GlassButton>
+        </button>
       </div>
     </LiquidGlass>
   );

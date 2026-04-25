@@ -12,6 +12,7 @@ const APPLE_EASE = [0.22, 1, 0.36, 1] as const;
 export const TeamSelectionGrid = (): React.JSX.Element => {
   const teams = useStore((s) => s.teams);
   const selectTeam = useStore((s) => s.selectTeam);
+  const seedTradersDemoTeam = useStore((s) => s.seedTradersDemoTeam);
 
   const visibleTeams = teams.filter((t) => !t.deletedAt);
 
@@ -38,6 +39,28 @@ export const TeamSelectionGrid = (): React.JSX.Element => {
           <TeamCard team={team} onSelect={() => void selectTeam(team.teamName)} />
         </motion.div>
       ))}
+      {/* Solana demo card */}
+      {!visibleTeams.some((t) => t.teamName.toLowerCase().includes('trader') || t.isDemo) && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: APPLE_EASE, delay: visibleTeams.length * 0.05 }}
+        >
+          <button
+            type="button"
+            onClick={seedTradersDemoTeam}
+            className="group flex h-full min-h-[160px] w-full flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-orange-300/30 bg-gradient-to-br from-orange-500/5 to-amber-500/5 p-5 text-center transition-all hover:border-orange-400/50 hover:from-orange-500/10 hover:to-amber-500/10"
+          >
+            <span className="text-[24px]">☀️</span>
+            <span className="text-[13px] font-semibold text-[color:var(--ink-1)]">
+              Launch Solana Demo
+            </span>
+            <span className="text-[11px] text-[color:var(--ink-3)]">
+              4 trading agents with live price feeds
+            </span>
+          </button>
+        </motion.div>
+      )}
     </div>
   );
 };
