@@ -251,7 +251,7 @@ export const DashboardSection = (): React.JSX.Element => {
               />
             </div>
 
-            <div className="flex flex-col gap-4 overflow-hidden lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-120px)] lg:pl-1">
+            <div className="flex min-h-0 flex-col gap-4 lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-120px)] lg:pl-1">
               <ActivityStream onSendMessage={handleSendMessageFromActivity} maxItems={4} />
               {teamName ? (
                 <div className="min-h-0 flex-1">

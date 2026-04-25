@@ -170,6 +170,21 @@ export const CommandBar = (): React.JSX.Element => {
       });
     }
 
+    if (teamName) {
+      list.push({
+        id: 'open-full-chat',
+        label: 'Open full chat',
+        group: 'Agents',
+        hint: 'fullscreen',
+        perform: () =>
+          dispatchAndClose(
+            new CustomEvent('aurora:open-chat', {
+              detail: { recipient: members[0]?.name ?? 'lead', fullscreen: true },
+            })
+          ),
+      });
+    }
+
     if (members.length === 0) {
       list.push({
         id: 'message-fallback',
