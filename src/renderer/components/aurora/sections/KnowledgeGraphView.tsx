@@ -2,14 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useStore } from '@renderer/store';
 
-import type {
-  KGDatabase,
-  KGEdge,
-  KGGraphResponse,
-  KGHealth,
-  KGNode,
-  KGView,
-} from '@shared/types';
+import type { KGDatabase, KGEdge, KGGraphResponse, KGHealth, KGNode, KGView } from '@shared/types';
 
 // ---------------------------------------------------------------------------
 // Self-contained graph view that drops into the Aurora `KnowledgeGraph` slot.
@@ -367,13 +360,15 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
   // Active project drives which repo's graph we display. The codebase tab
   // scopes by the project root so several repos can share one Neo4j DB
   // without overlapping; the memory tab is project-agnostic for now.
+  const allProjects = useStore((s) => s.projects);
+  const selectProject = useStore((s) => s.selectProject);
   const activeProject = useStore((s) => {
     const id = s.selectedProjectId;
     if (!id) return null;
     return s.projects.find((p) => p.id === id) ?? null;
   });
   const projectRoot = activeProject?.path ?? null;
-  const effectiveProjectRoot = database === 'memory' ? undefined : projectRoot ?? undefined;
+  const effectiveProjectRoot = database === 'memory' ? undefined : (projectRoot ?? undefined);
   const [transform, setTransform] = useState<Transform>(IDENTITY_TRANSFORM);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -408,8 +403,7 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
           setState({
             kind: 'error',
             message:
-              health.lastError ??
-              `Sidecar failed to start (status: ${health.serverStatus}).`,
+              health.lastError ?? `Sidecar failed to start (status: ${health.serverStatus}).`,
             canRetry: true,
           });
           return;
@@ -832,22 +826,44 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
   return (
     <div ref={containerRef} className="relative h-full w-full">
       {needsProjectPick ? (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-8 text-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 text-center">
           <p className="font-serif text-[18px] text-[color:var(--ink-1)]">
             Pick a project to see its graph.
           </p>
-          <p className="max-w-[480px] text-[13px] text-[color:var(--ink-2)]">
-            The codebase graph follows the active project. Open one from the
-            command bar (⌘K) — or switch to the <em className="italic">memory</em>{' '}
-            tab to see global agent memory.
-          </p>
+          {allProjects.length > 0 ? (
+            <div className="flex max-h-[320px] w-full max-w-[480px] flex-col gap-1.5 overflow-y-auto rounded-xl border border-white/20 bg-white/5 p-3">
+              {allProjects.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => selectProject(p.id)}
+                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-white/10"
+                >
+                  <span className="bg-[color:var(--a-violet)]/15 flex size-8 shrink-0 items-center justify-center rounded-lg text-[14px] text-[color:var(--a-violet)]">
+                    {(p.name?.[0] ?? p.path.split('/').pop()?.[0] ?? '?').toUpperCase()}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-medium text-[color:var(--ink-1)]">
+                      {p.name || p.path.split('/').pop()}
+                    </span>
+                    <span className="block truncate font-mono text-[10px] text-[color:var(--ink-3)]">
+                      {p.path.replace(/^\/Users\/[^/]+\//, '~/')}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="max-w-[480px] text-[13px] text-[color:var(--ink-2)]">
+              No projects found. Open a project from the command bar (⌘K) or switch to the{' '}
+              <em className="italic">memory</em> tab.
+            </p>
+          )}
         </div>
       ) : isEmptyAfterFetch ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-8 text-center">
           <p className="font-serif text-[18px] text-[color:var(--ink-1)]">
-            {projectRoot
-              ? "This project hasn't been indexed yet."
-              : 'No graph data yet.'}
+            {projectRoot ? "This project hasn't been indexed yet." : 'No graph data yet.'}
           </p>
           {projectRoot ? (
             <p className="max-w-[480px] truncate text-[12px] text-[color:var(--ink-3)]">
@@ -865,9 +881,8 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
             {reindexing ? 'Indexing…' : 'Index this project'}
           </button>
           <p className="max-w-[420px] text-[11px] text-[color:var(--ink-3)]">
-            Tree-sitter walks every file under the project root and writes the
-            symbol graph into Neo4j. First pass on a 100-file repo takes a few
-            seconds.
+            Tree-sitter walks every file under the project root and writes the symbol graph into
+            Neo4j. First pass on a 100-file repo takes a few seconds.
           </p>
         </div>
       ) : state.kind === 'ready' && layoutResult ? (
@@ -974,6 +989,48 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
                 </button>
               ))}
             </div>
+            {database === 'codebase' && projectRoot && allProjects.length > 1 && (
+              <div className="group relative">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-white/65 px-3 py-1 font-mono text-[11px] text-[color:var(--ink-2)] shadow-sm backdrop-blur-sm transition hover:bg-white/80"
+                >
+                  <span className="max-w-[140px] truncate">
+                    {activeProject?.name || projectRoot.split('/').pop()}
+                  </span>
+                  <svg
+                    width="8"
+                    height="8"
+                    viewBox="0 0 8 8"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path d="M1.5 3 4 5.5 6.5 3" />
+                  </svg>
+                </button>
+                <ul className="invisible absolute left-0 top-full z-10 mt-1 max-h-[200px] w-64 overflow-auto rounded-lg bg-white/95 py-1 font-mono text-[11px] shadow-lg ring-1 ring-black/5 group-hover:visible">
+                  {allProjects.map((p) => (
+                    <li key={p.id}>
+                      <button
+                        type="button"
+                        onClick={() => selectProject(p.id)}
+                        className={
+                          'block w-full truncate px-3 py-1.5 text-left hover:bg-black/5' +
+                          (p.id === activeProject?.id
+                            ? ' font-semibold text-[color:var(--a-violet)]'
+                            : '')
+                        }
+                      >
+                        {p.name || p.path.split('/').pop()}
+                        <span className="ml-1 opacity-40">
+                          {p.path.replace(/^\/Users\/[^/]+\//, '~/')}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="inline-flex overflow-hidden rounded-full bg-white/65 p-0.5 font-mono text-[11px] shadow-sm backdrop-blur-sm">
               {(['summary', 'detail'] as const).map((v) => (
                 <button
