@@ -150,25 +150,43 @@ export const KanbanGlass = ({
     >
       <LiquidGlass
         radius={26}
-        className="relative flex min-h-0 w-full flex-col gap-4 overflow-hidden p-4 sm:p-5"
+        className="relative flex h-full min-h-[400px] w-full flex-col gap-4 overflow-hidden p-4 sm:p-5"
       >
         {isEmpty && (
           <p className="px-1 pb-1 text-[12px] text-[color:var(--ink-3)]">
             No tasks yet. Create a task to get started.
           </p>
         )}
-        <div className="flex min-h-0 w-full gap-3 pb-2" style={{ overscrollBehavior: 'contain' }}>
-          {COLUMNS.map((col) => (
-            <Column
-              key={col.id}
-              def={col}
-              cards={grouped[col.id]}
-              activeId={activeId}
-              realTasks={realTasks}
-              onTaskClick={onTaskClick}
-              onCreateTask={onCreateTask}
-            />
-          ))}
+        <div
+          className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden pb-2"
+          style={{ overscrollBehavior: 'contain' }}
+        >
+          <div className="flex min-h-0 flex-1 basis-0 gap-3">
+            {COLUMNS.slice(0, 2).map((col) => (
+              <Column
+                key={col.id}
+                def={col}
+                cards={grouped[col.id]}
+                activeId={activeId}
+                realTasks={realTasks}
+                onTaskClick={onTaskClick}
+                onCreateTask={onCreateTask}
+              />
+            ))}
+          </div>
+          <div className="flex min-h-0 flex-1 basis-0 gap-3">
+            {COLUMNS.slice(2).map((col) => (
+              <Column
+                key={col.id}
+                def={col}
+                cards={grouped[col.id]}
+                activeId={activeId}
+                realTasks={realTasks}
+                onTaskClick={onTaskClick}
+                onCreateTask={onCreateTask}
+              />
+            ))}
+          </div>
         </div>
       </LiquidGlass>
 
