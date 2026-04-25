@@ -129,7 +129,7 @@ export class TeamMemberResolver {
         workflow?: string;
         providerId?: 'anthropic' | 'codex' | 'gemini';
         model?: string;
-        effort?: 'low' | 'medium' | 'high';
+        effort?: 'low' | 'medium' | 'high' | 'extra-high';
         color?: string;
         cwd?: string;
       }
@@ -172,7 +172,7 @@ export class TeamMemberResolver {
         workflow?: string;
         providerId?: 'anthropic' | 'codex' | 'gemini';
         model?: string;
-        effort?: 'low' | 'medium' | 'high';
+        effort?: 'low' | 'medium' | 'high' | 'extra-high';
         color?: string;
         removedAt?: number;
       }

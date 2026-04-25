@@ -37,19 +37,16 @@ export { getProviderScopedTeamModelLabel } from '@renderer/utils/teamModelCatalo
 // --- Provider definitions ---
 
 interface ProviderDef {
-  id: 'anthropic' | 'codex' | 'gemini' | 'opencode';
+  id: 'anthropic' | 'codex' | 'gemini';
   label: string;
   comingSoon: boolean;
 }
 
 const PROVIDERS: ProviderDef[] = [
+  { id: 'gemini', label: 'Gemini', comingSoon: false },
   { id: 'anthropic', label: 'Anthropic', comingSoon: false },
   { id: 'codex', label: 'Codex', comingSoon: false },
-  { id: 'gemini', label: 'Gemini', comingSoon: false },
-  { id: 'opencode', label: 'OpenCode', comingSoon: false },
 ];
-
-const OPENCODE_UI_DISABLED_REASON = 'OpenCode in development';
 
 export function getTeamModelLabel(model: string): string {
   return getCatalogTeamModelLabel(model) ?? model;
@@ -62,6 +59,7 @@ export function getTeamProviderLabel(providerId: 'anthropic' | 'codex' | 'gemini
 export function getTeamEffortLabel(effort: string): string {
   const trimmed = effort.trim();
   if (!trimmed) return 'Default';
+  if (trimmed === 'extra-high') return 'Extra High';
   return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
 }
 
@@ -135,8 +133,9 @@ export const TeamModelSelector: React.FC<TeamModelSelectorProps> = ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cliStatus = null as any;
   const cliStatusLoading = false;
-  const multimodelEnabled = useStore((s) => s.appConfig?.general?.multimodelEnabled ?? true);
-  const multimodelAvailable = multimodelEnabled || cliStatus?.flavor === 'agent_teams_orchestrator';
+  // Multimodel mode is always available — Codex/Gemini show as selectable.
+  const multimodelEnabled = true;
+  const multimodelAvailable = true;
 
   const effectiveProviderId =
     disableGeminiOption && isGeminiUiFrozen() && providerId === 'gemini' ? 'anthropic' : providerId;
@@ -147,9 +146,6 @@ export const TeamModelSelector: React.FC<TeamModelSelectorProps> = ({
     return 'Uses the runtime default for the selected provider.';
   }, [effectiveProviderId]);
   const getProviderDisabledReason = (candidateProviderId: string): string | null => {
-    if (candidateProviderId === 'opencode') {
-      return OPENCODE_UI_DISABLED_REASON;
-    }
     if (disableGeminiOption && isGeminiUiFrozen() && candidateProviderId === 'gemini') {
       return GEMINI_UI_DISABLED_REASON;
     }
@@ -162,10 +158,6 @@ export const TeamModelSelector: React.FC<TeamModelSelectorProps> = ({
     (multimodelAvailable || candidateProviderId === 'anthropic');
   const activeProviderSelectable = isProviderSelectable(effectiveProviderId);
   const getProviderStatusBadge = (candidateProviderId: string): string | null => {
-    if (candidateProviderId === 'opencode') {
-      return 'In development';
-    }
-
     const providerDisabledReason = getProviderDisabledReason(candidateProviderId);
     if (providerDisabledReason) {
       return GEMINI_UI_DISABLED_BADGE_LABEL;
@@ -194,10 +186,9 @@ export const TeamModelSelector: React.FC<TeamModelSelectorProps> = ({
       null,
     [cliStatus?.providers, effectiveProviderId]
   );
-  const shouldAwaitRuntimeModelList =
-    effectiveProviderId !== 'anthropic' &&
-    (cliStatus == null || cliStatusLoading) &&
-    runtimeProviderStatus == null;
+  // No CLI runtime in this build — fall back to the static catalog instead of
+  // waiting forever, otherwise non-Anthropic providers would only show "Default".
+  const shouldAwaitRuntimeModelList = false;
   const normalizedValue = normalizeTeamModelForUi(
     effectiveProviderId,
     value,
@@ -302,132 +293,133 @@ export const TeamModelSelector: React.FC<TeamModelSelectorProps> = ({
                   list is syncing.
                 </p>
               ) : null}
-              <div
-                className="grid gap-1.5 rounded-md bg-[var(--color-surface)]"
-                style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}
-              >
-                {modelOptions.map((opt) =>
-                  (() => {
-                    const modelDisabledReason = getTeamModelUiDisabledReason(
-                      effectiveProviderId,
-                      opt.value,
-                      runtimeProviderStatus
-                    );
-                    const availabilityStatus =
-                      opt.value === '' ? 'available' : (opt.availabilityStatus ?? 'available');
-                    const availabilityReason =
-                      opt.value === '' ? null : (opt.availabilityReason ?? null);
-                    const modelIssueReason =
-                      opt.value === '' ? null : (modelIssueReasonByValue?.[opt.value] ?? null);
-                    const hasModelIssue = Boolean(modelIssueReason);
-                    const modelSelectable =
-                      activeProviderSelectable &&
-                      !modelDisabledReason &&
-                      (opt.value === '' ||
-                        availabilityStatus == null ||
-                        availabilityStatus === 'available');
-                    const modelStatusMessage =
-                      modelIssueReason ?? modelDisabledReason ?? availabilityReason ?? null;
+              {(() => {
+                const renderOption = (opt: (typeof modelOptions)[number]): React.JSX.Element => {
+                  const modelDisabledReason = getTeamModelUiDisabledReason(
+                    effectiveProviderId,
+                    opt.value,
+                    runtimeProviderStatus
+                  );
+                  const availabilityStatus =
+                    opt.value === '' ? 'available' : (opt.availabilityStatus ?? 'available');
+                  const availabilityReason =
+                    opt.value === '' ? null : (opt.availabilityReason ?? null);
+                  const modelIssueReason =
+                    opt.value === '' ? null : (modelIssueReasonByValue?.[opt.value] ?? null);
+                  const hasModelIssue = Boolean(modelIssueReason);
+                  const modelSelectable =
+                    activeProviderSelectable &&
+                    !modelDisabledReason &&
+                    (opt.value === '' ||
+                      availabilityStatus == null ||
+                      availabilityStatus === 'available');
+                  const modelStatusMessage =
+                    modelIssueReason ?? modelDisabledReason ?? availabilityReason ?? null;
 
-                    return (
-                      <button
-                        key={opt.value || '__default__'}
-                        type="button"
-                        id={opt.value === normalizedValue ? id : undefined}
-                        aria-disabled={!modelSelectable}
-                        title={modelStatusMessage ?? undefined}
-                        className={cn(
-                          'flex min-h-[44px] items-center justify-center gap-1.5 rounded-md border bg-[var(--color-surface)] px-3 py-2 text-center text-xs font-medium transition-[background-color,border-color,color,box-shadow] duration-150',
-                          hasModelIssue && normalizedValue === opt.value
-                            ? 'border-red-500/60 bg-red-500/10 text-red-100 shadow-sm'
-                            : hasModelIssue
-                              ? 'border-red-500/40 bg-red-500/5 text-red-200 hover:border-red-400/60 hover:bg-red-500/10 hover:text-red-100'
-                              : normalizedValue === opt.value
-                                ? 'border-[var(--color-border-emphasis)] bg-[var(--color-surface-raised)] text-[var(--color-text)] shadow-sm'
-                                : modelSelectable
-                                  ? 'border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:border-[var(--color-border-emphasis)] hover:bg-[color-mix(in_srgb,var(--color-surface-raised)_62%,var(--color-surface)_38%)] hover:text-[var(--color-text-secondary)] hover:shadow-sm'
-                                  : 'border-[var(--color-border-subtle)] text-[var(--color-text-muted)]',
-                          !modelSelectable && 'cursor-not-allowed opacity-45',
-                          !modelDisabledReason && !activeProviderSelectable && 'pointer-events-none'
+                  return (
+                    <button
+                      key={opt.value || '__default__'}
+                      type="button"
+                      id={opt.value === normalizedValue ? id : undefined}
+                      aria-disabled={!modelSelectable}
+                      title={modelStatusMessage ?? undefined}
+                      className={cn(
+                        'flex min-h-[44px] items-center justify-center gap-1.5 rounded-md border bg-[var(--color-surface)] px-3 py-2 text-center text-xs font-medium transition-[background-color,border-color,color,box-shadow] duration-150',
+                        hasModelIssue && normalizedValue === opt.value
+                          ? 'border-red-500/60 bg-red-500/10 text-red-100 shadow-sm'
+                          : hasModelIssue
+                            ? 'border-red-500/40 bg-red-500/5 text-red-200 hover:border-red-400/60 hover:bg-red-500/10 hover:text-red-100'
+                            : normalizedValue === opt.value
+                              ? 'border-[var(--color-border-emphasis)] bg-[var(--color-surface-raised)] text-[var(--color-text)] shadow-sm'
+                              : modelSelectable
+                                ? 'border-[var(--color-border-subtle)] text-[var(--color-text-muted)] hover:border-[var(--color-border-emphasis)] hover:bg-[color-mix(in_srgb,var(--color-surface-raised)_62%,var(--color-surface)_38%)] hover:text-[var(--color-text-secondary)] hover:shadow-sm'
+                                : 'border-[var(--color-border-subtle)] text-[var(--color-text-muted)]',
+                        !modelSelectable && 'cursor-not-allowed opacity-45',
+                        !modelDisabledReason && !activeProviderSelectable && 'pointer-events-none'
+                      )}
+                      onClick={() => {
+                        if (!modelSelectable) return;
+                        onValueChange(opt.value);
+                      }}
+                    >
+                      <span className="flex flex-col items-center justify-center gap-0.5">
+                        <span className="leading-tight">{opt.label}</span>
+                        {opt.value === '' && (
+                          <span className="flex items-center justify-center gap-1">
+                            <TooltipProvider delayDuration={200}>
+                              <Tooltip>
+                                <TooltipTrigger
+                                  asChild
+                                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                                >
+                                  <Info className="size-3 shrink-0 opacity-40 transition-opacity hover:opacity-70" />
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-[240px] text-xs">
+                                  {defaultModelTooltip.split('\n').map((line, index) => (
+                                    <React.Fragment key={line}>
+                                      {index > 0 ? <br /> : null}
+                                      {line}
+                                    </React.Fragment>
+                                  ))}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </span>
                         )}
-                        onClick={() => {
-                          if (!modelSelectable) return;
-                          onValueChange(opt.value);
-                        }}
-                      >
-                        <span className="flex flex-col items-center justify-center gap-0.5">
-                          <span className="leading-tight">{opt.label}</span>
-                          {opt.value === '' && (
-                            <span className="flex items-center justify-center gap-1">
-                              <TooltipProvider delayDuration={200}>
-                                <Tooltip>
-                                  <TooltipTrigger
-                                    asChild
-                                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                                  >
-                                    <Info className="size-3 shrink-0 opacity-40 transition-opacity hover:opacity-70" />
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top" className="max-w-[240px] text-xs">
-                                    {defaultModelTooltip.split('\n').map((line, index) => (
-                                      <React.Fragment key={line}>
-                                        {index > 0 ? <br /> : null}
-                                        {line}
-                                      </React.Fragment>
-                                    ))}
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </span>
-                          )}
-                          {hasModelIssue && (
-                            <span
-                              className="flex items-center justify-center gap-1 text-[10px] font-normal text-red-300"
-                              title={modelIssueReason ?? undefined}
-                            >
-                              <AlertTriangle className="size-3 shrink-0" />
-                              <span>Issue</span>
-                              <TooltipProvider delayDuration={200}>
-                                <Tooltip>
-                                  <TooltipTrigger
-                                    asChild
-                                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                                  >
-                                    <Info className="size-3 shrink-0 opacity-50 transition-opacity hover:opacity-80" />
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top" className="max-w-[240px] text-xs">
-                                    {modelIssueReason}
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </span>
-                          )}
-                          {!hasModelIssue && modelDisabledReason && (
-                            <span
-                              className="flex items-center justify-center gap-1 text-[10px] font-normal text-[var(--color-text-muted)]"
-                              title={modelDisabledReason}
-                            >
-                              <span>{TEAM_MODEL_UI_DISABLED_BADGE_LABEL}</span>
-                              <TooltipProvider delayDuration={200}>
-                                <Tooltip>
-                                  <TooltipTrigger
-                                    asChild
-                                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                                  >
-                                    <Info className="size-3 shrink-0 opacity-40 transition-opacity hover:opacity-70" />
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top" className="max-w-[240px] text-xs">
-                                    {modelDisabledReason}
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </span>
-                          )}
-                        </span>
-                      </button>
-                    );
-                  })()
-                )}
-              </div>
+                        {hasModelIssue && (
+                          <span
+                            className="flex items-center justify-center gap-1 text-[10px] font-normal text-red-300"
+                            title={modelIssueReason ?? undefined}
+                          >
+                            <AlertTriangle className="size-3 shrink-0" />
+                            <span>Issue</span>
+                            <TooltipProvider delayDuration={200}>
+                              <Tooltip>
+                                <TooltipTrigger
+                                  asChild
+                                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                                >
+                                  <Info className="size-3 shrink-0 opacity-50 transition-opacity hover:opacity-80" />
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-[240px] text-xs">
+                                  {modelIssueReason}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </span>
+                        )}
+                        {!hasModelIssue && modelDisabledReason && (
+                          <span
+                            className="flex items-center justify-center gap-1 text-[10px] font-normal text-[var(--color-text-muted)]"
+                            title={modelDisabledReason}
+                          >
+                            <span>{TEAM_MODEL_UI_DISABLED_BADGE_LABEL}</span>
+                            <TooltipProvider delayDuration={200}>
+                              <Tooltip>
+                                <TooltipTrigger
+                                  asChild
+                                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                                >
+                                  <Info className="size-3 shrink-0 opacity-40 transition-opacity hover:opacity-70" />
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-[240px] text-xs">
+                                  {modelDisabledReason}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  );
+                };
+
+                return (
+                  <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                    {modelOptions.map(renderOption)}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>

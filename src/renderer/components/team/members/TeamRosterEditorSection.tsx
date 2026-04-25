@@ -61,7 +61,7 @@ export const TeamRosterEditorSection = ({
   teamSuggestions,
   hideMembersContent = false,
   existingMembers,
-  defaultProviderId = 'anthropic',
+  defaultProviderId = 'gemini',
   inheritedProviderId,
   inheritedModel,
   inheritedEffort,

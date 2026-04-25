@@ -235,8 +235,8 @@ export class TeamLogSourceTracker {
       followSymlinks: false,
       depth: 3,
       awaitWriteFinish: {
-        stabilityThreshold: 250,
-        pollInterval: 50,
+        stabilityThreshold: 500,
+        pollInterval: 500,
       },
     });
 

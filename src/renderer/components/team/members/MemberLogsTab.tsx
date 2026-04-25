@@ -9,6 +9,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip';
 import { getTeamColorSet } from '@renderer/constants/teamColors';
 import { useTabIdOptional } from '@renderer/contexts/useTabUIContext';
+import { useDocumentVisible } from '@renderer/hooks/useDocumentVisible';
 import { useStore } from '@renderer/store';
 import { asEnhancedChunkArray } from '@renderer/types/data';
 import { enhanceAIGroup } from '@renderer/utils/aiGroupEnhancer';
@@ -112,7 +113,8 @@ export const MemberLogsTab = ({
   // Visibility check: skip polling when tab is hidden (display:none) to avoid OOM
   const tabId = useTabIdOptional();
   const activeTabId = useStore((s) => s.activeTabId);
-  const isTabActive = tabId ? activeTabId === tabId : true; // default true when no tab context (e.g. standalone dialog)
+  const documentVisible = useDocumentVisible();
+  const isTabActive = documentVisible && (tabId ? activeTabId === tabId : true); // default true when no tab context (e.g. standalone dialog)
 
   const MIN_REFRESH_VISIBLE_MS = 250;
   const intervalsKey = useMemo(

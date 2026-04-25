@@ -431,26 +431,28 @@ const DashboardHeader = ({
   onSendMessage,
   onTrash,
 }: DashboardHeaderProps): React.JSX.Element => (
-  <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+  <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
     <div className="min-w-0">
       <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-[color:var(--ink-3)]">
         {teamName ?? 'No team selected'}
       </p>
       <h2
-        className="mt-3 truncate font-serif font-normal text-[color:var(--ink-1)]"
+        className="mt-3 font-serif font-normal text-[color:var(--ink-1)]"
         style={{
-          fontSize: 'clamp(36px, 4vw, 56px)',
-          lineHeight: 1.05,
+          fontSize: 'clamp(32px, 3.6vw, 52px)',
+          lineHeight: 1.08,
           letterSpacing: '-0.025em',
         }}
       >
-        Your agents, right now.
+        Your agents,
+        <br />
+        right now
       </h2>
-      <p className="mt-2 text-[14px] text-[color:var(--ink-2)]">
-        {totalCount === 0
-          ? 'Spin up a team to fill this surface.'
-          : `${runningCount} of ${totalCount} ${totalCount === 1 ? 'agent' : 'agents'} working in parallel.`}
-      </p>
+      {totalCount > 0 ? (
+        <p className="mt-2 text-[14px] text-[color:var(--ink-2)]">
+          {`${runningCount} of ${totalCount} ${totalCount === 1 ? 'agent' : 'agents'} working in parallel.`}
+        </p>
+      ) : null}
     </div>
 
     <div className="flex flex-wrap items-center gap-3">

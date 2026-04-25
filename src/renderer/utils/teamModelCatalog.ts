@@ -21,6 +21,8 @@ export interface TeamProviderModelOption {
   label: string;
   badgeLabel?: string;
   uiDisabledReason?: string;
+  /** Family grouping label for sorted UI (e.g. "Opus", "Sonnet", "GPT-5.4"). */
+  family?: string;
 }
 
 export const TEAM_MODEL_UI_DISABLED_BADGE_LABEL = 'Disabled';
@@ -34,21 +36,24 @@ export const GPT_5_3_CODEX_SPARK_UI_DISABLED_REASON =
   'Temporarily disabled for team agents - this model has been less reliable with bootstrap, task, and reply tool contracts.';
 
 const TEAM_PROVIDER_LABELS: Record<SupportedProviderId, string> = {
+  gemini: 'Gemini',
   anthropic: 'Anthropic',
   codex: 'Codex',
-  gemini: 'Gemini',
 };
 
 const TEAM_MODEL_LABEL_OVERRIDES: Record<string, string> = {
   default: 'Default',
-  opus: 'Opus 4.6',
+  opus: 'Opus 4.7',
   sonnet: 'Sonnet 4.6',
   haiku: 'Haiku 4.5',
-  'claude-sonnet-4-6': 'Sonnet 4.6',
-  'claude-sonnet-4-6[1m]': 'Sonnet 4.6 (1M)',
+  'claude-opus-4-7': 'Opus 4.7',
+  'claude-opus-4-7[1m]': 'Opus 4.7 (1M)',
   'claude-opus-4-6': 'Opus 4.6',
   'claude-opus-4-6[1m]': 'Opus 4.6 (1M)',
+  'claude-sonnet-4-6': 'Sonnet 4.6',
+  'claude-sonnet-4-6[1m]': 'Sonnet 4.6 (1M)',
   'claude-haiku-4-5-20251001': 'Haiku 4.5',
+  'claude-haiku-4-5': 'Haiku 4.5',
   'gpt-5.4': 'GPT-5.4',
   'gpt-5.4-mini': 'GPT-5.4 Mini',
   'gpt-5.3-codex': 'GPT-5.3 Codex',
@@ -66,38 +71,26 @@ const TEAM_PROVIDER_MODEL_OPTIONS: Record<SupportedProviderId, readonly TeamProv
   {
     anthropic: [
       { value: '', label: 'Default', badgeLabel: 'Default' },
-      { value: 'opus', label: 'Opus 4.6', badgeLabel: 'Opus 4.6' },
-      { value: 'sonnet', label: 'Sonnet 4.6', badgeLabel: 'Sonnet 4.6' },
-      { value: 'haiku', label: 'Haiku 4.5', badgeLabel: 'Haiku 4.5' },
+      { value: 'claude-opus-4-7', label: 'Opus 4.7', badgeLabel: 'Opus 4.7' },
+      { value: 'claude-opus-4-7[1m]', label: 'Opus 4.7 (1M)', badgeLabel: 'Opus 4.7 · 1M' },
+      { value: 'claude-opus-4-6', label: 'Opus 4.6', badgeLabel: 'Opus 4.6' },
+      { value: 'claude-opus-4-6[1m]', label: 'Opus 4.6 (1M)', badgeLabel: 'Opus 4.6 · 1M' },
+      { value: 'claude-sonnet-4-6', label: 'Sonnet 4.6', badgeLabel: 'Sonnet 4.6' },
+      { value: 'claude-sonnet-4-6[1m]', label: 'Sonnet 4.6 (1M)', badgeLabel: 'Sonnet 4.6 · 1M' },
+      { value: 'claude-haiku-4-5', label: 'Haiku 4.5', badgeLabel: 'Haiku 4.5' },
     ],
     codex: [
       { value: '', label: 'Default', badgeLabel: 'Default' },
       { value: 'gpt-5.4', label: 'GPT-5.4', badgeLabel: '5.4' },
       { value: 'gpt-5.4-mini', label: 'GPT-5.4 Mini', badgeLabel: '5.4-mini' },
       { value: 'gpt-5.3-codex', label: 'GPT-5.3 Codex', badgeLabel: '5.3-codex' },
-      {
-        value: 'gpt-5.3-codex-spark',
-        label: 'GPT-5.3 Codex Spark',
-        badgeLabel: '5.3-codex-spark',
-        uiDisabledReason: GPT_5_3_CODEX_SPARK_UI_DISABLED_REASON,
-      },
       { value: 'gpt-5.2', label: 'GPT-5.2', badgeLabel: '5.2' },
-      {
-        value: 'gpt-5.2-codex',
-        label: 'GPT-5.2 Codex',
-        badgeLabel: '5.2-codex',
-        uiDisabledReason: GPT_5_2_CODEX_UI_DISABLED_REASON,
-      },
-      {
-        value: 'gpt-5.1-codex-mini',
-        label: 'GPT-5.1 Codex Mini',
-        badgeLabel: '5.1-codex-mini',
-        uiDisabledReason: GPT_5_1_CODEX_MINI_UI_DISABLED_REASON,
-      },
       { value: 'gpt-5.1-codex-max', label: 'GPT-5.1 Codex Max', badgeLabel: '5.1-codex-max' },
     ],
     gemini: [
       { value: '', label: 'Default', badgeLabel: 'Default' },
+      { value: 'gemini-3-pro', label: 'Gemini 3 Pro', badgeLabel: '3-pro' },
+      { value: 'gemini-3-flash', label: 'Gemini 3 Flash', badgeLabel: '3-flash' },
       { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', badgeLabel: '2.5-pro' },
       { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', badgeLabel: '2.5-flash' },
       {

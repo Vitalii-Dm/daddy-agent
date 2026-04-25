@@ -5096,7 +5096,10 @@ export class TeamProvisioningService {
             providerId: normalizeOptionalTeamProviderId(m.providerId),
             model: m.model?.trim() || undefined,
             effort:
-              m.effort === 'low' || m.effort === 'medium' || m.effort === 'high'
+              m.effort === 'low' ||
+              m.effort === 'medium' ||
+              m.effort === 'high' ||
+              m.effort === 'extra-high'
                 ? m.effort
                 : undefined,
             agentType: 'general-purpose' as const,
@@ -11154,7 +11157,10 @@ export class TeamProvisioningService {
         }
 
         const effort =
-          state.effort === 'low' || state.effort === 'medium' || state.effort === 'high'
+          state.effort === 'low' ||
+          state.effort === 'medium' ||
+          state.effort === 'high' ||
+          state.effort === 'extra-high'
             ? state.effort
             : undefined;
         if (effort) {
@@ -11792,7 +11798,10 @@ export class TeamProvisioningService {
           providerId: normalizeOptionalTeamProviderId(member.providerId),
           model: member.model?.trim() || undefined,
           effort:
-            member.effort === 'low' || member.effort === 'medium' || member.effort === 'high'
+            member.effort === 'low' ||
+            member.effort === 'medium' ||
+            member.effort === 'high' ||
+            member.effort === 'extra-high'
               ? member.effort
               : undefined,
           agentType: 'general-purpose',
@@ -11836,7 +11845,10 @@ export class TeamProvisioningService {
         const model =
           typeof member.model === 'string' ? member.model.trim() || undefined : undefined;
         const effort =
-          member.effort === 'low' || member.effort === 'medium' || member.effort === 'high'
+          member.effort === 'low' ||
+          member.effort === 'medium' ||
+          member.effort === 'high' ||
+          member.effort === 'extra-high'
             ? member.effort
             : undefined;
         const prev = byName.get(name);
@@ -12001,7 +12013,10 @@ export class TeamProvisioningService {
           providerId: normalizeTeamMemberProviderId(member.providerId ?? member.provider),
           model: typeof member.model === 'string' ? member.model.trim() || undefined : undefined,
           effort:
-            member.effort === 'low' || member.effort === 'medium' || member.effort === 'high'
+            member.effort === 'low' ||
+            member.effort === 'medium' ||
+            member.effort === 'high' ||
+            member.effort === 'extra-high'
               ? member.effort
               : undefined,
         });

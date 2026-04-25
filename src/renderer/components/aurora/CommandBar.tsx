@@ -227,12 +227,6 @@ export const CommandBar = (): React.JSX.Element => {
       group: 'System',
       perform: () => dispatchAndClose(new CustomEvent('aurora:open-insights')),
     });
-    list.push({
-      id: 'toggle-theme',
-      label: 'Toggle theme',
-      group: 'System',
-      perform: toggleTheme,
-    });
 
     return list;
   }, [
@@ -333,7 +327,10 @@ export const CommandBar = (): React.JSX.Element => {
                     </kbd>
                   </div>
 
-                  <Command.List className="max-h-[420px] overflow-y-auto px-2 py-3">
+                  <Command.List
+                    data-lenis-prevent
+                    className="max-h-[60vh] overflow-y-auto overscroll-contain px-2 py-3"
+                  >
                     <Command.Empty className="px-4 py-8 text-center text-[13px] text-[color:var(--ink-3)]">
                       Nothing matches yet — try a different word.
                     </Command.Empty>
@@ -395,9 +392,3 @@ const SearchGlyph = (): React.JSX.Element => (
     <path d="M11 11l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
   </svg>
 );
-
-function toggleTheme(): void {
-  const root = document.documentElement;
-  const next = root.dataset.theme === 'aurora' ? 'classic' : 'aurora';
-  root.dataset.theme = next;
-}

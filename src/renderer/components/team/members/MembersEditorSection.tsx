@@ -50,7 +50,10 @@ function parseJsonToDrafts(text: string): MemberDraft[] {
     const providerId = normalizeOptionalTeamProviderId(item.providerId);
     const model = typeof item.model === 'string' ? item.model.trim() : '';
     const effort: EffortLevel | undefined =
-      item.effort === 'low' || item.effort === 'medium' || item.effort === 'high'
+      item.effort === 'low' ||
+      item.effort === 'medium' ||
+      item.effort === 'high' ||
+      item.effort === 'extra-high'
         ? item.effort
         : undefined;
     const presetRoles: readonly string[] = PRESET_ROLES;
@@ -118,7 +121,7 @@ export const MembersEditorSection = ({
   headerExtra,
   hideContent = false,
   existingMembers,
-  defaultProviderId = 'anthropic',
+  defaultProviderId = 'gemini',
   lockProviderModel = false,
   inheritedProviderId,
   inheritedModel,
@@ -215,7 +218,12 @@ export const MembersEditorSection = ({
           ? {
               ...c,
               effort:
-                effort === 'low' || effort === 'medium' || effort === 'high' ? effort : undefined,
+                effort === 'low' ||
+                effort === 'medium' ||
+                effort === 'high' ||
+                effort === 'extra-high'
+                  ? effort
+                  : undefined,
             }
           : c
       )
