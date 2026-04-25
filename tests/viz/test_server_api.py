@@ -21,10 +21,12 @@ def _build_app(handler, **kwargs):
     return create_app(factory, **kwargs), factory
 
 
-def test_graph_endpoint_shape(sample_graph):
+def test_graph_endpoint_shape_detail(sample_graph):
+    """Detail view returns the full Sigma envelope (nodes + edges) plus the
+    new ``view`` echo field. Edges include source/target/type."""
+
     def handler(cypher: str, params: dict[str, Any]) -> list[FakeRecord]:
         assert "MATCH (n)" in cypher
-        # collect(DISTINCT n), collect(DISTINCT r), collect(DISTINCT m)
         return [FakeRecord({
             "nodes": sample_graph["nodes"][:2],
             "rels": sample_graph["edges"],
@@ -33,19 +35,52 @@ def test_graph_endpoint_shape(sample_graph):
 
     app, _ = _build_app(handler)
     client = TestClient(app)
-    r = client.get("/api/graph?db=codebase&limit=50")
+    r = client.get("/api/graph?db=codebase&view=detail&limit=50")
     assert r.status_code == 200
     body = r.json()
-    assert set(body.keys()) == {"nodes", "edges"}
+    assert {"nodes", "edges", "view"} <= set(body.keys())
+    assert body["view"] == "detail"
     assert len(body["nodes"]) == 3
-    # All sigma fields present on nodes
     for n in body["nodes"]:
-        assert set(n.keys()) >= {"id", "label", "type", "attributes"}
-    # Edge has source/target
+        assert set(n.keys()) >= {"id", "label", "type", "attributes", "size", "degree"}
     assert {"source", "target", "type"} <= set(body["edges"][0].keys())
 
 
-def test_graph_community_filter_adds_param():
+def test_graph_default_is_summary_view(sample_graph):
+    """Without ``?view=`` we ship the summary view — Files-only, fewer
+    nodes, IMPORTS/EXTENDS edges synthesised from edge_specs.
+    """
+
+    seen: list[dict[str, Any]] = []
+
+    def handler(cypher: str, params: dict[str, Any]) -> list[FakeRecord]:
+        seen.append({"cypher": cypher, "params": params})
+        return [FakeRecord({
+            "nodes": sample_graph["nodes"][:1],
+            "others": [],
+            "edge_specs": [],
+        })]
+
+    app, _ = _build_app(handler)
+    r = TestClient(app).get("/api/graph?db=codebase")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["view"] == "summary"
+    # Summary cypher targets File nodes specifically, not the generic
+    # MATCH (n) of detail mode.
+    assert "MATCH (f:File)" in seen[0]["cypher"]
+
+
+def test_graph_summary_rejects_filters():
+    """Filters silently doing nothing in summary mode would be a UX trap."""
+
+    app, _ = _build_app(lambda c, p: [])
+    r = TestClient(app).get("/api/graph?db=codebase&view=summary&type=Function")
+    assert r.status_code == 400
+    assert "detail-view" in r.json()["error"]
+
+
+def test_graph_detail_community_filter_adds_param():
     seen: list[dict[str, Any]] = []
 
     def handler(cypher: str, params: dict[str, Any]) -> list[FakeRecord]:
@@ -54,7 +89,9 @@ def test_graph_community_filter_adds_param():
 
     app, _ = _build_app(handler)
     client = TestClient(app)
-    r = client.get("/api/graph?db=memory&community=core&type=Function&limit=10")
+    r = client.get(
+        "/api/graph?db=memory&view=detail&community=core&type=Function&limit=10"
+    )
     assert r.status_code == 200
     call = seen[0]
     assert "n.community = $community" in call["cypher"]
@@ -75,15 +112,16 @@ def test_graph_rejects_label_outside_whitelist():
     a closed label whitelist. A regression to the allowlist would silently
     let a crafted label slip into the Cypher ``WHERE`` clause; this test
     catches that the moment the whitelist is bypassed.
+
+    Detail view only — summary view rejects ``type=`` outright.
     """
 
     app, _ = _build_app(lambda c, p: [])
     client = TestClient(app)
-    # Bogus label + injection-shaped string — both must 400, not 200.
-    r = client.get("/api/graph?db=codebase&type=NotARealLabel")
+    r = client.get("/api/graph?db=codebase&view=detail&type=NotARealLabel")
     assert r.status_code == 400
     assert "unknown node label" in r.json()["error"]
-    r2 = client.get("/api/graph?db=codebase&type=File;DROP")
+    r2 = client.get("/api/graph?db=codebase&view=detail&type=File;DROP")
     assert r2.status_code == 400
 
 
@@ -97,7 +135,7 @@ def test_graph_accepts_whitelisted_label():
         return [FakeRecord({"nodes": [], "rels": [], "others": []})]
 
     app, _ = _build_app(handler)
-    r = TestClient(app).get("/api/graph?db=codebase&type=Function")
+    r = TestClient(app).get("/api/graph?db=codebase&view=detail&type=Function")
     assert r.status_code == 200
     assert "'Function' IN labels(n)" in seen[0]["cypher"]
 

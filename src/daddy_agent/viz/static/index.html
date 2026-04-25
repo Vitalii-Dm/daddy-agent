@@ -51,12 +51,23 @@
     <main>
       <aside class="filters">
         <label>
+          <span>View</span>
+          <select id="f-view">
+            <option value="summary" selected>Summary (files + imports)</option>
+            <option value="detail">Detail (everything)</option>
+          </select>
+        </label>
+        <label class="detail-only">
           <span>Type</span>
           <input id="f-type" type="text" placeholder="File, Function, Entity…" />
         </label>
-        <label>
+        <label class="detail-only">
           <span>Community</span>
           <input id="f-community" type="text" placeholder="id or label" />
+        </label>
+        <label class="detail-only">
+          <span>Limit</span>
+          <input id="f-limit" type="number" value="300" min="10" max="20000" step="50" />
         </label>
         <label>
           <span>Search</span>
@@ -111,17 +122,25 @@
         function buildGraph(payload) {
           const Graph = window.graphology;
           const g = new Graph({ multi: true, type: "directed" });
-          (payload.nodes || []).forEach(function (n) {
+          // Place nodes on a circle so the very first ForceAtlas2 frame
+          // has a sensible seed (random scatter takes many extra
+          // iterations to untangle on dense graphs).
+          const N = (payload.nodes || []).length;
+          (payload.nodes || []).forEach(function (n, i) {
             if (!g.hasNode(n.id)) {
+              const angle = N > 0 ? (2 * Math.PI * i) / N : 0;
+              const r = 1 + Math.sqrt(Math.max(1, N)) * 0.05;
               g.addNode(n.id, {
                 label: n.label,
-                size: 4,
-                color: colorFor(n.type),
+                // server-driven size (degree-weighted); fallback for old payloads
+                size: typeof n.size === "number" ? n.size : 4,
+                color: colorFor(n),
                 nodeType: n.type,
                 community: n.community,
+                degree: typeof n.degree === "number" ? n.degree : 0,
                 attributes: n.attributes || {},
-                x: Math.random(),
-                y: Math.random(),
+                x: Math.cos(angle) * r,
+                y: Math.sin(angle) * r,
               });
             }
           });
@@ -129,25 +148,50 @@
             if (!g.hasNode(e.source) || !g.hasNode(e.target)) return;
             g.addEdgeWithKey(e.id, e.source, e.target, {
               label: e.type,
-              size: 1,
-              color: "#555",
+              type: e.type,
+              size: 0.6,
+              color: edgeColorFor(e.type),
             });
           });
           return g;
         }
 
-        function colorFor(type) {
-          const palette = {
-            File: "#4fc3f7",
-            Function: "#81c784",
-            Class: "#ffb74d",
-            Method: "#ba68c8",
-            Module: "#64b5f6",
-            Entity: "#f06292",
-            Message: "#aed581",
-            Session: "#fff176",
-          };
-          return palette[type] || "#90a4ae";
+        // Distinct, color-blind-friendlier palette (Tableau 10).
+        // Files get a per-directory hue so siblings cluster visually
+        // even before ForceAtlas2 finishes.
+        const TYPE_COLORS = {
+          Function: "#4e79a7",
+          Class: "#f28e2c",
+          Method: "#76b7b2",
+          Module: "#9c755f",
+          Entity: "#e15759",
+          Message: "#59a14f",
+          Session: "#edc949",
+          ReasoningTrace: "#b07aa1",
+          ToolCall: "#ff9da7",
+        };
+
+        function colorFor(n) {
+          if (n.type === "File") return fileColor(n);
+          return TYPE_COLORS[n.type] || "#bab0ac";
+        }
+
+        // Hash a file's directory to a stable hue so all files in
+        // src/daddy_agent/codebase_graph share a colour, etc.
+        function fileColor(n) {
+          const path = (n.attributes && n.attributes.path) || n.label || "";
+          const dir = path.split("/").slice(0, -1).join("/") || "_root";
+          let h = 0;
+          for (let i = 0; i < dir.length; i++) h = (h * 31 + dir.charCodeAt(i)) | 0;
+          const hue = Math.abs(h) % 360;
+          return "hsl(" + hue + ", 65%, 58%)";
+        }
+
+        function edgeColorFor(t) {
+          if (t === "IMPORTS") return "#5a8dd6";
+          if (t === "EXTENDS" || t === "IMPLEMENTS") return "#e07b39";
+          if (t === "CALLS") return "#666";
+          return "#444";
         }
 
         function runLayout(graph) {
@@ -155,19 +199,47 @@
           const FA2 = window.graphologyLibrary && window.graphologyLibrary.layoutForceAtlas2
             ? window.graphologyLibrary.layoutForceAtlas2
             : window.forceAtlas2;
-          if (FA2 && typeof FA2.assign === "function") {
-            FA2.assign(graph, { iterations: 120, settings: { gravity: 1, scalingRatio: 10 } });
-          }
+          if (!FA2 || typeof FA2.assign !== "function") return;
+          // Tuned for 50–500 nodes: more iterations + barnesHut so big
+          // graphs don't take forever; LinLog mode spreads clusters.
+          const useBH = graph.order > 200;
+          FA2.assign(graph, {
+            iterations: 300,
+            settings: {
+              gravity: 1.4,
+              scalingRatio: 28,
+              slowDown: 4,
+              strongGravityMode: false,
+              linLogMode: true,
+              barnesHutOptimize: useBH,
+              barnesHutTheta: 0.6,
+              edgeWeightInfluence: 0.4,
+              adjustSizes: true,
+            },
+          });
+        }
+
+        function syncViewControls() {
+          const summary = document.getElementById("f-view").value === "summary";
+          document.querySelectorAll(".detail-only").forEach(function (el) {
+            el.classList.toggle("hidden", summary);
+          });
         }
 
         async function render() {
           syncTabs();
+          syncViewControls();
           setStatus("loading graph…");
-          const params = new URLSearchParams({ db: state.db, limit: "1000" });
-          const type = document.getElementById("f-type").value.trim();
-          const community = document.getElementById("f-community").value.trim();
-          if (type) params.set("type", type);
-          if (community) params.set("community", community);
+          const view = document.getElementById("f-view").value;
+          const params = new URLSearchParams({ db: state.db, view: view });
+          if (view === "detail") {
+            const limit = document.getElementById("f-limit").value || "300";
+            params.set("limit", String(limit));
+            const type = document.getElementById("f-type").value.trim();
+            const community = document.getElementById("f-community").value.trim();
+            if (type) params.set("type", type);
+            if (community) params.set("community", community);
+          }
           let payload;
           try {
             payload = await fetchJSON("/api/graph?" + params.toString());
@@ -181,11 +253,21 @@
           const container = document.getElementById("graph");
           container.innerHTML = "";
           state.graph = graph;
-          state.renderer = new window.Sigma(graph, container);
+          state.renderer = new window.Sigma(graph, container, {
+            renderEdgeLabels: false,
+            labelDensity: 0.6,
+            labelGridCellSize: 80,
+            labelRenderedSizeThreshold: 7,
+            defaultEdgeColor: "#666",
+            zIndex: true,
+          });
           state.renderer.on("clickNode", function (evt) {
             showNode(evt.node);
           });
-          setStatus("ok (" + graph.order + " nodes, " + graph.size + " edges)", "ok");
+          setStatus(
+            "ok · " + view + " · " + graph.order + " nodes, " + graph.size + " edges",
+            "ok"
+          );
         }
 
         async function showNode(id) {
@@ -265,6 +347,10 @@
         document.getElementById("f-apply").addEventListener("click", function () {
           render();
           runSearch();
+        });
+        document.getElementById("f-view").addEventListener("change", function () {
+          syncViewControls();
+          render();
         });
         document.getElementById("f-search").addEventListener("keydown", function (e) {
           if (e.key === "Enter") runSearch();

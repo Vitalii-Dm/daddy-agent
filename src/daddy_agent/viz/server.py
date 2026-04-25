@@ -257,38 +257,101 @@ def create_app(
     # ------------------------------------------------------------------
     # Graph
     # ------------------------------------------------------------------
+    # Closed whitelist of view modes — Cypher cannot parametrise label
+    # patterns / rel types, so we hard-code the templates per mode.
+    SUMMARY_VIEW_CYPHER = (
+        # Files + Modules they import, plus class EXTENDS/IMPLEMENTS.
+        # We deliberately do NOT synthesise File-File edges via a shared
+        # Module — that produces an O(n²) hairball ("every file imports
+        # logging therefore every file connects to every file").  Showing
+        # the Module nodes inline keeps the architecture readable: a
+        # tight cluster around "logging" tells you the same story without
+        # 1500 spurious edges.
+        "MATCH (f:File) "
+        "WITH f LIMIT $limit "
+        "OPTIONAL MATCH (f)-[:IMPORTS]->(m:Module) "
+        "WITH collect(DISTINCT f) AS files, collect(DISTINCT m) AS modules "
+        "UNWIND files AS f1 "
+        "OPTIONAL MATCH (f1)-[r]->(o) "
+        "WHERE type(r) IN ['IMPORTS','EXTENDS','IMPLEMENTS'] "
+        "  AND (o:File OR o:Module OR o:Class) "
+        "WITH files, modules, "
+        "     collect(DISTINCT { source: f1, target: o, type: type(r) }) AS specs "
+        "RETURN files + [m IN modules WHERE m IS NOT NULL] AS nodes, "
+        "       [] AS others, "
+        "       [e IN specs WHERE e.target IS NOT NULL] AS edge_specs"
+    )
+
+    DETAIL_VIEW_CYPHER_TEMPLATE = (
+        "MATCH (n) {where_clause} "
+        "WITH n LIMIT $limit "
+        "OPTIONAL MATCH (n)-[r]->(m) "
+        "RETURN collect(DISTINCT n) AS nodes, collect(DISTINCT r) AS rels, "
+        "       collect(DISTINCT m) AS others"
+    )
+
+    def _annotate_with_degree(
+        nodes: dict[str, dict[str, Any]], edges: list[dict[str, Any]]
+    ) -> None:
+        """Drive Sigma's node size from its in+out degree.
+
+        A flat graph is hard to read; weighting by degree makes the
+        important nodes (most-imported files, most-called functions)
+        pop visually without a separate centrality query.
+        """
+        deg: dict[str, int] = {}
+        for e in edges:
+            deg[e["source"]] = deg.get(e["source"], 0) + 1
+            deg[e["target"]] = deg.get(e["target"], 0) + 1
+        for nid, n in nodes.items():
+            d = deg.get(nid, 0)
+            # base 4, log-scaled so a 50-degree hub is ~3× a 5-degree leaf
+            # rather than 10× — keeps small nodes legible.
+            n["size"] = round(4 + 6 * (d**0.5) / 8, 2)
+            n["degree"] = d
+
     @app.get("/api/graph")
     def api_graph(
         db: str = Query("codebase"),
-        limit: int = Query(1000, ge=1, le=20000),
+        limit: int = Query(300, ge=1, le=20000),
         community: str | None = Query(None),
         type: str | None = Query(None, alias="type"),
+        view: str = Query("summary", pattern="^(summary|detail)$"),
     ) -> Any:
         database = _resolve_db(db)
-        where: list[str] = []
         params: dict[str, Any] = {"limit": limit}
-        if community is not None:
-            where.append("n.community = $community")
-            params["community"] = community
-        if type:
-            # Cypher cannot parametrise labels, so we hard-gate the label
-            # against a closed whitelist.  Anything outside the set is a
-            # client error rather than a silent filter drop (or, worse, a
-            # future injection if the char-allowlist regresses).
-            if type not in ALLOWED_NODE_LABELS:
+
+        # Summary mode: ignore community/type filters — the view IS the
+        # filter (Files + cross-file structural edges).  Honouring them
+        # would silently degrade to "summary of just one community" with
+        # no UX signal that's what happened.
+        if view == "summary":
+            if type is not None or community is not None:
                 return JSONResponse(
                     status_code=400,
-                    content={"error": f"unknown node label: {type}"},
+                    content={
+                        "error": (
+                            "type/community filters are detail-view only; "
+                            "switch to ?view=detail to combine them"
+                        )
+                    },
                 )
-            where.append(f"'{type}' IN labels(n)")
-        where_clause = ("WHERE " + " AND ".join(where)) if where else ""
-        cypher = (
-            f"MATCH (n) {where_clause} "
-            "WITH n LIMIT $limit "
-            "OPTIONAL MATCH (n)-[r]->(m) "
-            "RETURN collect(DISTINCT n) AS nodes, collect(DISTINCT r) AS rels, "
-            "       collect(DISTINCT m) AS others"
-        )
+            cypher = SUMMARY_VIEW_CYPHER
+        else:
+            where: list[str] = []
+            if community is not None:
+                where.append("n.community = $community")
+                params["community"] = community
+            if type:
+                if type not in ALLOWED_NODE_LABELS:
+                    return JSONResponse(
+                        status_code=400,
+                        content={"error": f"unknown node label: {type}"},
+                    )
+                where.append(f"'{type}' IN labels(n)")
+            where_clause = ("WHERE " + " AND ".join(where)) if where else ""
+            cypher = DETAIL_VIEW_CYPHER_TEMPLATE.format(where_clause=where_clause)
+
         try:
             records = _run(factory.get(), database, cypher, **params)
         except Exception as exc:
@@ -309,7 +372,30 @@ def create_app(
                 if r is None:
                     continue
                 edges.append(_rel_to_sigma(r))
-        return {"nodes": list(nodes.values()), "edges": edges}
+            # Summary mode returns synthesised edge specs (dicts) instead
+            # of real Neo4j relationships so we can stitch IMPORTS-via-Module
+            # into a direct File-to-File edge.
+            for spec in rec.get("edge_specs") or []:
+                if spec is None:
+                    continue
+                src = spec.get("source")
+                tgt = spec.get("target")
+                if src is None or tgt is None:
+                    continue
+                src_id = getattr(src, "element_id", None) or str(getattr(src, "id", ""))
+                tgt_id = getattr(tgt, "element_id", None) or str(getattr(tgt, "id", ""))
+                edges.append(
+                    {
+                        "id": f"{src_id}->{tgt_id}/{spec.get('type','REL')}",
+                        "source": str(src_id),
+                        "target": str(tgt_id),
+                        "type": spec.get("type", "REL"),
+                        "attributes": {},
+                    }
+                )
+
+        _annotate_with_degree(nodes, edges)
+        return {"nodes": list(nodes.values()), "edges": edges, "view": view}
 
     # ------------------------------------------------------------------
     # Search

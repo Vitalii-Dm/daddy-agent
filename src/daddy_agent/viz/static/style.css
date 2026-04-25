@@ -46,10 +46,13 @@ main {
 .details { border-right: none; border-left: 1px solid var(--border); }
 .filters label { display: block; margin-bottom: 0.75rem; }
 .filters label span { display: block; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-.filters input {
+.filters input,
+.filters select {
   width: 100%; padding: 0.4rem 0.5rem; background: var(--bg-3);
   color: var(--fg); border: 1px solid var(--border); border-radius: 4px;
+  font: inherit;
 }
+.filters .hidden { display: none; }
 .filters button {
   width: 100%; padding: 0.5rem;
   background: var(--accent); color: #04131b; border: none; border-radius: 4px;
@@ -57,7 +60,13 @@ main {
 }
 .search-results { margin-top: 1rem; display: flex; flex-direction: column; gap: 0.25rem; }
 
-.graph { width: 100%; height: 100%; background: var(--bg); position: relative; }
+.graph {
+  width: 100%; height: 100%; position: relative;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(79,195,247,0.04), transparent 60%),
+    radial-gradient(circle at 70% 80%, rgba(255,183,77,0.03), transparent 60%),
+    var(--bg);
+}
 
 .details h2 { margin: 0 0 0.25rem; font-size: 1rem; }
 .details h3 { margin: 1rem 0 0.5rem; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
