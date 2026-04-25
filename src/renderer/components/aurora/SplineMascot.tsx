@@ -120,29 +120,22 @@ export const SplineMascot = ({ className, size = 520 }: SplineMascotProps): Reac
         />
       </Suspense>
       {/* Overlay covering Spline's "Built with Spline" watermark.
-          Solid fills can't match the violet/cyan aurora gradient at
-          this position — they always read as a lighter patch. We use
-          a heavy backdrop-filter blur instead, so the overlay
-          inherits whatever gradient is behind it; the badge text
-          underneath becomes unreadable noise. A radial-gradient mask
-          fades the rectangle's edges to transparent so there's no
-          visible boundary. */}
+          A single large radial gradient that's solid paper at the
+          badge centre and feathers all the way out to fully
+          transparent. No hard rectangle, no backdrop blur (which
+          pulled darkness in), no second layer. The radial extends
+          well past the badge so the fade has room to disappear into
+          the surrounding hero gradient. */}
       <div
         aria-hidden
         className="pointer-events-none absolute"
         style={{
-          right: 4,
-          bottom: 4,
-          width: 168,
-          height: 44,
-          backdropFilter: 'blur(28px) saturate(140%)',
-          WebkitBackdropFilter: 'blur(28px) saturate(140%)',
-          background: 'rgba(255, 255, 255, 0.04)',
-          maskImage:
-            'radial-gradient(ellipse 95% 90% at 65% 60%, black 0%, black 55%, transparent 100%)',
-          WebkitMaskImage:
-            'radial-gradient(ellipse 95% 90% at 65% 60%, black 0%, black 55%, transparent 100%)',
-          borderRadius: 9999,
+          right: -24,
+          bottom: -24,
+          width: 320,
+          height: 140,
+          background:
+            'radial-gradient(ellipse 50% 35% at 60% 60%, var(--bg-base) 0%, var(--bg-base) 28%, rgba(246, 243, 238, 0.85) 50%, rgba(246, 243, 238, 0.4) 70%, transparent 100%)',
         }}
       />
     </div>
