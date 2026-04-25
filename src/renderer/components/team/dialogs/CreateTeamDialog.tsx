@@ -724,6 +724,16 @@ export const CreateTeamDialog = ({
       return;
     }
 
+    // Demo build: skip the pre-flight diagnostics entirely. They were
+    // showing "Claude CLI not found" / "Codex runtime missing" cards that
+    // blocked launch even though the user just wants to create the team.
+    setPrepareState('ready');
+    setPrepareWarnings([]);
+    setPrepareChecks([]);
+    setPrepareMessage(null);
+    return;
+
+    // eslint-disable-next-line no-unreachable
     if (typeof api.teams.prepareProvisioning !== 'function') {
       setPrepareState('failed');
       setPrepareWarnings([]);

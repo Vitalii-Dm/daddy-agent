@@ -108,7 +108,7 @@ const AuroraChatPanel = ({
     ? 'fixed inset-4 z-50 mx-auto flex max-w-[1080px] flex-col overflow-hidden sm:inset-8'
     : 'fixed bottom-6 right-6 z-50 flex w-[420px] max-w-[calc(100vw-32px)] flex-col overflow-hidden';
   const panelStyle: React.CSSProperties = fullscreen
-    ? { height: 'auto' }
+    ? {}
     : { height: 'min(620px, calc(100vh - 120px))' };
 
   return (

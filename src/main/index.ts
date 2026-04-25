@@ -16,6 +16,29 @@
 // On Windows this saturates all threads, blocking the event loop.
 process.env.UV_THREADPOOL_SIZE ??= '16';
 
+// Demo build: GUI-launched Electron on macOS often misses /opt/homebrew/bin
+// from PATH, which makes the Claude CLI resolver fail with "Claude CLI not
+// found". Probe the well-known install locations early and pin
+// CLAUDE_CLI_PATH so the resolver short-circuits on the override branch.
+if (!process.env.CLAUDE_CLI_PATH) {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const fsSync = require('node:fs');
+  for (const candidate of [
+    '/opt/homebrew/bin/claude',
+    '/usr/local/bin/claude',
+    `${process.env.HOME ?? ''}/.local/bin/claude`,
+    `${process.env.HOME ?? ''}/.npm-global/bin/claude`,
+  ]) {
+    try {
+      fsSync.accessSync(candidate, fsSync.constants.X_OK);
+      process.env.CLAUDE_CLI_PATH = candidate;
+      break;
+    } catch {
+      // try next
+    }
+  }
+}
+
 import { JsonTaskChangePresenceRepository } from '@main/services/team/cache/JsonTaskChangePresenceRepository';
 import { CrossTeamService } from '@main/services/team/CrossTeamService';
 import { TeamBackupService } from '@main/services/team/TeamBackupService';

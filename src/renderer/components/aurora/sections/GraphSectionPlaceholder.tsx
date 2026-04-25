@@ -23,7 +23,7 @@ export const GraphSectionPlaceholder = (): React.JSX.Element => {
       className="relative px-6 pb-32 pt-12 sm:px-10 lg:px-16"
       style={{ scrollMarginTop: '88px' }}
     >
-      <div className="mx-auto w-full max-w-[1240px]">
+      <div className="mx-auto w-full max-w-[1480px]">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -52,7 +52,7 @@ export const GraphSectionPlaceholder = (): React.JSX.Element => {
             refract
             radius={28}
             shadow="lifted"
-            className="relative mt-10 flex h-[420px] w-full items-center justify-center overflow-hidden"
+            className="relative mt-10 flex h-[min(820px,calc(100vh-160px))] w-full items-center justify-center overflow-hidden"
           >
             <KnowledgeGraphView />
           </LiquidGlass>
