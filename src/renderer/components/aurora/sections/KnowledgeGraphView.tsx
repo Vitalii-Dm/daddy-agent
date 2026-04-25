@@ -824,9 +824,13 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pinned, augment.expandedFrom, layoutResult]);
 
-  // No project picked yet → tell the user how to get one. Memory tab is
-  // project-agnostic so we only show this on the codebase side.
-  const needsProjectPick = database === 'codebase' && !projectRoot;
+  // Show project picker only if: codebase tab, no project selected, AND the
+  // graph came back empty (no previously indexed data). If there IS data in
+  // Neo4j from a prior indexing run, show it even without an active project.
+  const needsProjectPick =
+    database === 'codebase' &&
+    !projectRoot &&
+    (state.kind !== 'ready' || (state.data.nodes?.length ?? 0) === 0);
   // Graph fetched OK but the active project isn't indexed yet.
   const isEmptyAfterFetch =
     state.kind === 'ready' && (merged?.nodes.length ?? 0) === 0 && !needsProjectPick;
