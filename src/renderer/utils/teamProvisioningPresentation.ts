@@ -154,6 +154,7 @@ export function buildTeamProvisioningPresentation({
   const isFailed = progress.state === 'failed';
   const isActive = isProvisioningProgressActive(progress);
   const canCancel =
+    progress.state === 'validating' ||
     progress.state === 'spawning' ||
     progress.state === 'configuring' ||
     progress.state === 'assembling' ||

@@ -1,0 +1,103 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "daddy-agent"
+version = "0.1.0"
+description = "Neo4j Knowledge Graph system for a TMUX multi-agent orchestrator (codebase graph + session memory graph)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Daddy Agent Team" }]
+keywords = ["neo4j", "knowledge-graph", "mcp", "tree-sitter", "agent-memory"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    # Neo4j driver
+    "neo4j>=5.15",
+    # Codebase parsing
+    "tree-sitter>=0.21",
+    "tree-sitter-language-pack>=0.6",
+    # Session memory library (ships with 16 MCP tools when [mcp] extra installed)
+    "neo4j-agent-memory[mcp]>=0.1.0",
+    # Entity extraction pipeline
+    "spacy>=3.7",
+    "gliner>=0.2",
+    # MCP protocol
+    "mcp>=0.9",
+    # Visualization backend (frontend uses Sigma.js via npm, skipped here)
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+]
+
+[project.optional-dependencies]
+embeddings = [
+    "sentence-transformers>=2.5",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
+    "mypy>=1.8",
+]
+
+[project.scripts]
+daddy-index = "daddy_agent.codebase_graph.indexer:main"
+daddy-install-git-hook = "daddy_agent.codebase_graph.git_hooks:main"
+daddy-mcp-codebase = "daddy_agent.codebase_mcp.__main__:main"
+daddy-viz = "daddy_agent.viz.__main__:main"
+daddy-export = "daddy_agent.viz.obsidian_export:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/daddy_agent"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/daddy_agent",
+    "README.md",
+    "pyproject.toml",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501",  # line length handled by formatter
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+ignore_missing_imports = true
+explicit_package_bases = true
+mypy_path = "src"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-ra --strict-markers"
