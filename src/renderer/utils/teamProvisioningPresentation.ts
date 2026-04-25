@@ -213,7 +213,7 @@ export function buildTeamProvisioningPresentation({
       panelTitle: 'Launch failed',
       panelMessage: progress.error ?? failedSpawnPanelMessage ?? null,
       panelTone: 'error',
-      defaultLiveOutputOpen: true,
+      defaultLiveOutputOpen: false,
       compactTitle: 'Launch failed',
       compactDetail: progress.message ?? null,
       compactTone: 'error',
@@ -309,7 +309,7 @@ export function buildTeamProvisioningPresentation({
       panelMessage:
         failedSpawnCount > 0 ? (failedSpawnPanelMessage ?? progress.message) : progress.message,
       panelMessageSeverity: failedSpawnCount > 0 ? 'warning' : progress.messageSeverity,
-      defaultLiveOutputOpen: true,
+      defaultLiveOutputOpen: false,
       compactTitle: 'Launching team',
       compactDetail:
         failedSpawnCount > 0
