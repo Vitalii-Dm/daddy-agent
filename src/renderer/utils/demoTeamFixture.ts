@@ -27,13 +27,21 @@ export const DEMO_GEMINI_TEAM_DISPLAY = 'Demo · Gemini Engineering';
 
 interface DemoMemberSeed {
   name: string;
-  role: 'reviewer' | 'developer' | 'designer';
+  // Widened from the original 'reviewer' | 'developer' | 'designer' so the
+  // demo team can show four distinct mascot colors. inferMascotRole maps
+  // these strings to the Mascot palette: reviewer → peach, developer →
+  // blue (coder), researcher → lime, designer → lavender, lead → violet.
+  role: 'reviewer' | 'developer' | 'designer' | 'researcher' | 'lead';
   agentType: string;
   color: string;
   providerId: TeamProviderId;
   model: string;
 }
 
+// Demo roster with four distinct mascot identities so the dashboard
+// reads as four characters (peach/blue/lime/lavender) instead of four
+// blue blobs. The professional role labels in the roster cards
+// stay accurate to the demo storyline.
 const MEMBERS: DemoMemberSeed[] = [
   {
     name: 'alice',
@@ -53,16 +61,16 @@ const MEMBERS: DemoMemberSeed[] = [
   },
   {
     name: 'bob',
-    role: 'developer',
-    agentType: 'developer',
+    role: 'researcher',
+    agentType: 'researcher',
     color: 'green',
     providerId: 'gemini',
     model: 'gemini-2.5-pro',
   },
   {
     name: 'jack',
-    role: 'developer',
-    agentType: 'developer',
+    role: 'designer',
+    agentType: 'designer',
     color: 'orange',
     providerId: 'gemini',
     model: 'gemini-2.5-flash',
@@ -88,16 +96,16 @@ const GEMINI_MEMBERS: DemoMemberSeed[] = [
   },
   {
     name: 'orion',
-    role: 'developer',
-    agentType: 'developer',
+    role: 'researcher',
+    agentType: 'researcher',
     color: 'green',
     providerId: 'gemini',
     model: 'gemini-2.5-flash',
   },
   {
     name: 'rigel',
-    role: 'developer',
-    agentType: 'developer',
+    role: 'designer',
+    agentType: 'designer',
     color: 'orange',
     providerId: 'gemini',
     model: 'gemini-2.5-flash',

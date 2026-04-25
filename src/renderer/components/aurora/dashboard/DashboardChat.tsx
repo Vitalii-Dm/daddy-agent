@@ -152,7 +152,11 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
 
 const ChatBubble = ({ msg }: { msg: InboxMessage }): React.JSX.Element => {
   const isUser = msg.from === 'user';
-  const role = inferMascotRole(msg.from);
+  // Resolve the sender's mascot role from the team store so each
+  // agent's avatar matches their roster identity — name-only regex
+  // produced four blue blobs for alice/tom/bob/jack.
+  const member = useStore((s) => s.selectedTeamData?.members.find((m) => m.name === msg.from));
+  const role = inferMascotRole(member?.role ?? member?.agentType ?? msg.from);
   const timeLabel = relativeTime(msg.timestamp);
 
   return (

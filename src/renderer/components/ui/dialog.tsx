@@ -70,17 +70,31 @@ const DialogContent = React.forwardRef<
             'glass-scroll',
             className
           )}
-          style={{
-            borderRadius: 28,
-            border: '1px solid rgba(255, 255, 255, 0.7)',
-            background: 'rgba(255, 255, 255, 0.65)',
-            backdropFilter: 'blur(40px) saturate(190%)',
-            WebkitBackdropFilter: 'blur(40px) saturate(190%)',
-            boxShadow:
-              'inset 0 1px 0 rgba(255,255,255,0.95), inset 0 -1px 0 rgba(20,19,26,0.07), 0 28px 80px -28px rgba(20,19,26,0.38), 0 8px 22px -10px rgba(20,19,26,0.18)',
-            color: 'var(--ink-1)',
-            ...style,
-          }}
+          style={
+            {
+              borderRadius: 28,
+              border: '1px solid rgba(255, 255, 255, 0.7)',
+              background: 'rgba(255, 255, 255, 0.65)',
+              backdropFilter: 'blur(40px) saturate(190%)',
+              WebkitBackdropFilter: 'blur(40px) saturate(190%)',
+              boxShadow:
+                'inset 0 1px 0 rgba(255,255,255,0.95), inset 0 -1px 0 rgba(20,19,26,0.07), 0 28px 80px -28px rgba(20,19,26,0.38), 0 8px 22px -10px rgba(20,19,26,0.18)',
+              color: 'var(--ink-1)',
+              // Remap the legacy dark-theme color tokens that older
+              // children (TaskCommentInput, TaskCommentsSection,
+              // attachment chips, etc.) still reference. Without this,
+              // they render as solid black blocks on the glass panel.
+              // Every descendant of any Dialog inherits these.
+              '--color-surface': 'rgba(255, 255, 255, 0.45)',
+              '--color-surface-raised': 'rgba(255, 255, 255, 0.65)',
+              '--color-border': 'rgba(20, 19, 26, 0.08)',
+              '--color-border-emphasis': 'rgba(20, 19, 26, 0.18)',
+              '--color-text': 'var(--ink-1)',
+              '--color-text-secondary': 'var(--ink-2)',
+              '--color-text-muted': 'var(--ink-3)',
+              ...style,
+            } as React.CSSProperties
+          }
           {...props}
         >
           {/* Top inner specular — gives the panel its glass curvature

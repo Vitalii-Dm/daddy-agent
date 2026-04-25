@@ -75,7 +75,13 @@ export const ActivityStream = ({
 };
 
 const ActivityRow = ({ event }: { event: ActivityEvent }): React.JSX.Element => {
-  const role = inferMascotRole(event.from);
+  // Resolve the speaker's mascot role from the team store first; fall
+  // back to inferring from the name only when the team data hasn't
+  // hydrated yet. This keeps each agent's avatar consistent with their
+  // roster mascot — alice (reviewer/peach) is no longer rendered as
+  // a generic blue blob just because regex couldn't read her name.
+  const member = useStore((s) => s.selectedTeamData?.members.find((m) => m.name === event.from));
+  const role = inferMascotRole(member?.role ?? member?.agentType ?? event.from);
   return (
     <div
       role="button"
