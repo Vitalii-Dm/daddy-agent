@@ -57,6 +57,10 @@
             <option value="detail">Detail (everything)</option>
           </select>
         </label>
+        <label class="summary-only">
+          <span>Hide hubs with imports &gt;</span>
+          <input id="f-hub-threshold" type="number" value="8" min="0" max="10000" step="1" />
+        </label>
         <label class="detail-only">
           <span>Type</span>
           <input id="f-type" type="text" placeholder="File, Function, Entity…" />
@@ -280,6 +284,9 @@
           document.querySelectorAll(".detail-only").forEach(function (el) {
             el.classList.toggle("hidden", summary);
           });
+          document.querySelectorAll(".summary-only").forEach(function (el) {
+            el.classList.toggle("hidden", !summary);
+          });
         }
 
         // Yield one animation frame so a setStatus() call paints
@@ -311,6 +318,11 @@
             const community = document.getElementById("f-community").value.trim();
             if (type) params.set("type", type);
             if (community) params.set("community", community);
+          } else {
+            // Summary: pass the hub-threshold so the user can dial
+            // "stdlib noise" in or out without round-tripping detail mode.
+            const t = document.getElementById("f-hub-threshold").value;
+            if (t !== "" && t !== null) params.set("hub_threshold", String(t));
           }
           let payload;
           const tFetch0 = performance.now();
@@ -390,9 +402,11 @@
           });
           if (token.cancelled) return;
 
+          const hidden = (payload && payload.hidden_hubs) || 0;
+          const hubMsg = hidden > 0 ? " · hid " + hidden + " hub modules" : "";
           setStatus(
             "ok · " + view + " · " + graph.order + " / " + totalEdges +
-              " · first paint " + tFirstPaint + "ms · total " + elapsed() + "ms",
+              hubMsg + " · " + elapsed() + "ms",
             "ok",
           );
         }

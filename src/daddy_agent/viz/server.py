@@ -260,26 +260,39 @@ def create_app(
     # Closed whitelist of view modes — Cypher cannot parametrise label
     # patterns / rel types, so we hard-code the templates per mode.
     SUMMARY_VIEW_CYPHER = (
-        # Files + Modules they import, plus class EXTENDS/IMPLEMENTS.
-        # We deliberately do NOT synthesise File-File edges via a shared
-        # Module — that produces an O(n²) hairball ("every file imports
-        # logging therefore every file connects to every file").  Showing
-        # the Module nodes inline keeps the architecture readable: a
-        # tight cluster around "logging" tells you the same story without
-        # 1500 spurious edges.
+        # Files + Modules they import + class EXTENDS/IMPLEMENTS, with
+        # ubiquitous "hub" Modules culled.  A Module imported by more
+        # than $hub_threshold Files is almost always stdlib noise
+        # (typing, pathlib, os, sys, logging, pytest, …) — keeping it
+        # pulls every File toward one over-saturated centre and turns
+        # the dashboard into a hairball.  Filtering them surfaces the
+        # project-internal architecture instead.
+        #
+        # First pass identifies the hubs against the FULL repo (not
+        # just the limited slice) so the threshold is meaningful;
+        # second pass builds the visible graph excluding them.
+        "OPTIONAL MATCH (mh:Module)<-[:IMPORTS]-(fh:File) "
+        "WITH mh, count(DISTINCT fh) AS m_indeg "
+        "WITH collect(CASE WHEN m_indeg > $hub_threshold THEN mh END) AS hub_nulls "
+        "WITH [h IN hub_nulls WHERE h IS NOT NULL] AS hubs "
         "MATCH (f:File) "
-        "WITH f LIMIT $limit "
+        "WITH f, hubs LIMIT $limit "
         "OPTIONAL MATCH (f)-[:IMPORTS]->(m:Module) "
-        "WITH collect(DISTINCT f) AS files, collect(DISTINCT m) AS modules "
+        "WHERE NOT m IN hubs "
+        "WITH collect(DISTINCT f) AS files, "
+        "     collect(DISTINCT m) AS modules, "
+        "     hubs "
         "UNWIND files AS f1 "
         "OPTIONAL MATCH (f1)-[r]->(o) "
         "WHERE type(r) IN ['IMPORTS','EXTENDS','IMPLEMENTS'] "
         "  AND (o:File OR o:Module OR o:Class) "
-        "WITH files, modules, "
+        "  AND NOT o IN hubs "
+        "WITH files, modules, hubs, "
         "     collect(DISTINCT { source: f1, target: o, type: type(r) }) AS specs "
         "RETURN files + [m IN modules WHERE m IS NOT NULL] AS nodes, "
         "       [] AS others, "
-        "       [e IN specs WHERE e.target IS NOT NULL] AS edge_specs"
+        "       [e IN specs WHERE e.target IS NOT NULL] AS edge_specs, "
+        "       size(hubs) AS hidden_hubs"
     )
 
     DETAIL_VIEW_CYPHER_TEMPLATE = (
@@ -317,6 +330,11 @@ def create_app(
         community: str | None = Query(None),
         type: str | None = Query(None, alias="type"),
         view: str = Query("summary", pattern="^(summary|detail)$"),
+        # Summary-only: hide Module nodes imported by more than this many
+        # files. 8 is a sensible default for repos in the 50–500 file
+        # range; set to 0 to keep every module visible (returns the old
+        # hairball), or to a large number to disable the cull.
+        hub_threshold: int = Query(8, ge=0, le=10000),
     ) -> Any:
         database = _resolve_db(db)
         params: dict[str, Any] = {"limit": limit}
@@ -336,6 +354,7 @@ def create_app(
                         )
                     },
                 )
+            params["hub_threshold"] = hub_threshold
             cypher = SUMMARY_VIEW_CYPHER
         else:
             where: list[str] = []
@@ -359,7 +378,10 @@ def create_app(
 
         nodes: dict[str, dict[str, Any]] = {}
         edges: list[dict[str, Any]] = []
+        hidden_hubs = 0
         for rec in records:
+            if "hidden_hubs" in rec and rec.get("hidden_hubs") is not None:
+                hidden_hubs = int(rec["hidden_hubs"])
             for n in rec.get("nodes") or []:
                 sn = _node_to_sigma(n)
                 nodes[sn["id"]] = sn
@@ -395,7 +417,12 @@ def create_app(
                 )
 
         _annotate_with_degree(nodes, edges)
-        return {"nodes": list(nodes.values()), "edges": edges, "view": view}
+        return {
+            "nodes": list(nodes.values()),
+            "edges": edges,
+            "view": view,
+            "hidden_hubs": hidden_hubs,
+        }
 
     # ------------------------------------------------------------------
     # Search
