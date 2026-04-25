@@ -29,7 +29,7 @@
       crossorigin="anonymous"
       referrerpolicy="no-referrer"></script>
     <script
-      src="https://cdn.jsdelivr.net/npm/graphology-library@0.7.0/dist/graphology-library.min.js"
+      src="https://cdn.jsdelivr.net/npm/graphology-library@0.8.0/dist/graphology-library.min.js"
       integrity="sha384-jZfucTfzftwTBJknkPlirTBL3umOr3eQa3r3AGm9ICO/aJMfc541SSoF+qrFftp/"
       crossorigin="anonymous"
       referrerpolicy="no-referrer"></script>
@@ -146,9 +146,20 @@
           });
           (payload.edges || []).forEach(function (e) {
             if (!g.hasNode(e.source) || !g.hasNode(e.target)) return;
+            // Sigma v3 dispatches edges to a WebGL "program" by the
+            // `type` attribute.  The relationship name (e.g. "IMPORTS",
+            // "EXTENDS", "CALLS") is *not* a registered program, so
+            // setting type: e.type produced
+            //   "Sigma: could not find a suitable program for edge type X"
+            // and the edges silently became invisible.  We don't need
+            // bezier or arrow rendering — a straight line is fine — so
+            // pin the program to Sigma's built-in "line".  The
+            // relationship name is preserved on `label` (used by hover
+            // labels and the details pane) and per-type colour comes
+            // from `edgeColorFor(e.type)`.
             g.addEdgeWithKey(e.id, e.source, e.target, {
               label: e.type,
-              type: e.type,
+              type: "line",
               size: 0.6,
               color: edgeColorFor(e.type),
             });
@@ -353,6 +364,13 @@
           });
           await nextPaint();
           if (token.cancelled) return;
+          // Sigma reads container.clientWidth/Height in its constructor;
+          // if any layout was still pending (custom-element upgrade,
+          // late-arriving font, scrollbar settling) the canvas can be
+          // sized off a stale measurement.  A refresh() after one
+          // paint forces Sigma to re-measure against the now-stable
+          // grid track, fixing the "tall and skinny" canvas symptom.
+          state.renderer.refresh();
 
           const tFirstPaint = elapsed();
           setStatus(
