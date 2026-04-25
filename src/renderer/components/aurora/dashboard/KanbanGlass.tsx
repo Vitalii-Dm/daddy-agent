@@ -203,35 +203,38 @@ const Column = ({
       className="relative flex min-h-0 min-w-0 flex-1 flex-col rounded-[20px] border border-white/55 bg-white/35 p-3"
       style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.85)' }}
     >
-      <header className="mb-3 flex items-center justify-between px-1">
-        <div className="flex items-center gap-2">
+      <header className="mb-3 flex items-center justify-between gap-2 px-1">
+        <div className="flex min-w-0 items-center gap-2">
           <span
-            className="inline-flex h-1.5 w-1.5 rounded-full"
+            className="inline-flex h-1.5 w-1.5 shrink-0 rounded-full"
             style={{ background: def.accent }}
             aria-hidden="true"
           />
-          <h4 className="text-[12px] font-medium text-[color:var(--ink-1)]">{def.title}</h4>
-          <span className="font-mono text-[10.5px] tabular-nums text-[color:var(--ink-3)]">
+          <h4 className="truncate text-[13px] font-medium tracking-[-0.01em] text-[color:var(--ink-1)]">
+            {def.title}
+          </h4>
+          <span className="shrink-0 font-mono text-[11px] tabular-nums text-[color:var(--ink-3)]">
             {cards.length}
           </span>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[color:var(--ink-3)]">
-            {def.hint}
-          </span>
-          {onCreateTask && (
-            <button
-              type="button"
-              onClick={onCreateTask}
-              aria-label={`Add task to ${def.title}`}
-              className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[color:var(--ink-3)] transition-colors hover:bg-white/60 hover:text-[color:var(--ink-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)]"
-            >
-              <span aria-hidden="true" className="text-[12px] leading-none">
-                +
-              </span>
-            </button>
-          )}
-        </div>
+        {onCreateTask && (
+          <button
+            type="button"
+            onClick={onCreateTask}
+            aria-label={`Add task to ${def.title}`}
+            className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-white/65 text-[color:var(--ink-2)] transition-all duration-200 hover:scale-[1.05] hover:text-[color:var(--ink-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)]"
+            style={{
+              background: 'rgba(255,255,255,0.55)',
+              backdropFilter: 'blur(18px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(18px) saturate(180%)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.9), 0 4px 12px -6px rgba(20,19,26,0.18)',
+            }}
+          >
+            <span aria-hidden="true" className="text-[14px] leading-none">
+              +
+            </span>
+          </button>
+        )}
       </header>
 
       <div
@@ -241,12 +244,22 @@ const Column = ({
         }
         style={isOver ? { boxShadow: '0 0 0 1px rgba(124, 92, 255, 0.4)' } : undefined}
       >
-        {cards.length === 0 ? (
+        {cards.length === 0 && isOver ? (
           <div
-            className="flex flex-1 items-center justify-center rounded-[12px] border border-dashed px-3 py-6 text-center font-mono text-[10.5px] uppercase tracking-[0.14em] text-[color:var(--ink-3)]"
-            style={{ borderColor: 'rgba(20, 19, 26, 0.18)' }}
+            className="flex flex-1 items-center justify-center rounded-[12px] border border-dashed px-3 py-6 text-center font-mono text-[10.5px] uppercase tracking-[0.14em]"
+            style={{
+              borderColor: 'rgba(124, 92, 255, 0.45)',
+              color: 'var(--a-violet)',
+            }}
           >
             Drop here
+          </div>
+        ) : cards.length === 0 ? (
+          <div
+            className="flex flex-1 items-center justify-center px-3 py-6 text-center text-[18px] text-[color:var(--ink-4)]"
+            aria-hidden="true"
+          >
+            —
           </div>
         ) : (
           cards.map((card) => (
