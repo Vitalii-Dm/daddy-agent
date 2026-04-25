@@ -1,8 +1,9 @@
 import React from 'react';
 import { motion } from 'motion/react';
 
-import type { ResolvedTeamMember, TeamTaskWithKanban } from '@shared/types/team';
+import type { ResolvedTeamMember, TeamProviderId, TeamTaskWithKanban } from '@shared/types/team';
 
+import { ProviderBrandLogo } from '@renderer/components/common/ProviderBrandLogo';
 import { useStore } from '@renderer/store';
 
 import { LiquidGlass } from '../LiquidGlass';
@@ -16,6 +17,8 @@ interface AgentMember {
   currentTask: string;
   tasksDone: number;
   tasksTotal: number;
+  providerId?: TeamProviderId;
+  model?: string;
 }
 
 const APPLE_EASE = [0.22, 1, 0.36, 1] as const;
@@ -118,38 +121,46 @@ const RosterCard = ({
       <div className="flex items-start gap-3">
         <Mascot role={role} size={48} seed={member.name} status={member.status} />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <p className="truncate text-[13px] font-medium text-[color:var(--ink-1)]">
+          {/* Row 1 — name + send button + status */}
+          <div className="flex items-center gap-2">
+            <p className="min-w-0 flex-1 truncate text-[13px] font-medium leading-tight text-[color:var(--ink-1)]">
               {member.name}
             </p>
-            <div className="flex items-center gap-1">
-              {onSendMessage && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSendMessage(member.name);
-                  }}
-                  aria-label={`Send message to ${member.name}`}
-                  className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[color:var(--ink-3)] opacity-0 transition-opacity hover:bg-white/60 hover:text-[color:var(--ink-1)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)] group-hover:opacity-100"
+            {onSendMessage && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSendMessage(member.name);
+                }}
+                aria-label={`Send message to ${member.name}`}
+                className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[color:var(--ink-3)] opacity-0 transition-opacity hover:bg-white/60 hover:text-[color:var(--ink-1)] focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)] group-hover:opacity-100"
+              >
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                  aria-hidden="true"
                 >
-                  <svg
-                    width="11"
-                    height="11"
-                    viewBox="0 0 16 16"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path d="M2 2h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H9l-4 3v-3H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" />
-                  </svg>
-                </button>
-              )}
-              <StatusChip status={member.status} />
-            </div>
+                  <path d="M2 2h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H9l-4 3v-3H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" />
+                </svg>
+              </button>
+            )}
+            <StatusChip status={member.status} />
           </div>
-          <p className="truncate font-mono text-[10.5px] uppercase tracking-[0.14em] text-[color:var(--ink-3)]">
-            {member.role}
-          </p>
+
+          {/* Row 2 — role label + provider chip on the right */}
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <p className="min-w-0 truncate font-mono text-[10.5px] uppercase tracking-[0.14em] text-[color:var(--ink-3)]">
+              {member.role}
+            </p>
+            {member.providerId ? (
+              <ProviderChip providerId={member.providerId} model={member.model} />
+            ) : null}
+          </div>
+
+          {/* Row 3 — current task */}
           <p className="mt-1.5 line-clamp-2 text-[12px] text-[color:var(--ink-2)]">
             {member.currentTask}
           </p>
@@ -201,6 +212,41 @@ const STATUS_INK: Record<MascotStatus, string> = {
   waiting: '#9C6A0B',
 };
 
+const PROVIDER_LABEL: Record<TeamProviderId, string> = {
+  anthropic: 'Claude',
+  codex: 'Codex',
+  gemini: 'Gemini',
+};
+
+const PROVIDER_TINT: Record<TeamProviderId, string> = {
+  anthropic: 'rgba(217, 119, 87, 0.16)',
+  codex: 'rgba(20, 19, 26, 0.08)',
+  gemini: 'rgba(66, 133, 244, 0.18)',
+};
+
+const PROVIDER_INK: Record<TeamProviderId, string> = {
+  anthropic: '#A5552B',
+  codex: 'var(--ink-2)',
+  gemini: '#1A57C8',
+};
+
+const ProviderChip = ({
+  providerId,
+  model,
+}: {
+  providerId: TeamProviderId;
+  model?: string;
+}): React.JSX.Element => (
+  <span
+    className="inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none"
+    style={{ background: PROVIDER_TINT[providerId], color: PROVIDER_INK[providerId] }}
+    title={model ? `${PROVIDER_LABEL[providerId]} · ${model}` : PROVIDER_LABEL[providerId]}
+  >
+    <ProviderBrandLogo providerId={providerId} className="h-3 w-3" />
+    {PROVIDER_LABEL[providerId]}
+  </span>
+);
+
 const StatusChip = ({ status }: { status: MascotStatus }): React.JSX.Element => (
   <span
     className="inline-flex h-5 shrink-0 items-center gap-1 rounded-full px-1.5 text-[10px] font-medium uppercase tracking-[0.08em]"
@@ -230,5 +276,7 @@ function toAgentMember(member: ResolvedTeamMember, tasks: TeamTaskWithKanban[]):
         : 'Working',
     tasksDone,
     tasksTotal: total,
+    providerId: member.providerId,
+    model: member.model,
   };
 }

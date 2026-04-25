@@ -300,6 +300,33 @@
   --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --font-serif: 'Instrument Serif', 'Times New Roman', serif;
+
+  /* Legacy shadcn/ui color tokens — remap to Aurora paper so dialogs, popovers,
+     selects, inputs etc. inherit the light glass theme without per-component edits. */
+  --color-surface: rgba(255, 255, 255, 0.94);
+  --color-surface-raised: rgba(20, 19, 26, 0.06);
+  --color-surface-overlay: rgba(255, 255, 255, 0.94);
+  --color-surface-sidebar: var(--bg-elevated);
+  --color-surface-hover: rgba(20, 19, 26, 0.05);
+  --color-section-hover: rgba(20, 19, 26, 0.05);
+  --color-border: rgba(20, 19, 26, 0.08);
+  --color-border-subtle: rgba(20, 19, 26, 0.05);
+  --color-border-emphasis: rgba(20, 19, 26, 0.12);
+  --color-text: var(--ink-1);
+  --color-text-secondary: var(--ink-2);
+  --color-text-muted: var(--ink-3);
+  --color-accent: var(--a-violet);
+
+  --accent: rgba(124, 92, 255, 0.16);
+  --ring: rgba(124, 92, 255, 0.55);
+
+  --tool-item-name: var(--ink-1);
+  --tool-item-summary: var(--ink-2);
+  --tool-item-muted: var(--ink-3);
+  --tool-item-hover-bg: rgba(20, 19, 26, 0.04);
+
+  --inline-code-bg: rgba(20, 19, 26, 0.06);
+  --inline-code-text: var(--ink-1);
 }
 
 [data-theme='aurora'] body {

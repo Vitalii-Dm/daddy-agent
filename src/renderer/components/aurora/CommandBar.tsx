@@ -33,6 +33,7 @@ export const CommandBar = (): React.JSX.Element => {
   const reduceMotion = useReducedMotion();
   const { members, teamName } = useAuroraTeam();
   const seedDemoTeam = useStore((s) => s.seedDemoTeam);
+  const seedGeminiDemoTeam = useStore((s) => s.seedGeminiDemoTeam);
   const isDemoActive = isDemoTeamName(teamName);
 
   // Hotkey + custom-event open trigger (used by the hero secondary CTA)
@@ -133,6 +134,17 @@ export const CommandBar = (): React.JSX.Element => {
           scrollToAnchor('#dashboard');
         },
       });
+      list.push({
+        id: 'team-demo-gemini',
+        label: 'Try Gemini demo team',
+        group: 'Teams',
+        hint: 'gemini-cli',
+        perform: () => {
+          setOpen(false);
+          seedGeminiDemoTeam();
+          scrollToAnchor('#dashboard');
+        },
+      });
     }
 
     list.push({
@@ -167,6 +179,21 @@ export const CommandBar = (): React.JSX.Element => {
         label: `Switch view · ${view}`,
         group: 'View',
         perform: () => dispatchAndClose(new CustomEvent('aurora:set-view', { detail: view })),
+      });
+    }
+
+    if (teamName) {
+      list.push({
+        id: 'open-full-chat',
+        label: 'Open full chat',
+        group: 'Agents',
+        hint: 'fullscreen',
+        perform: () =>
+          dispatchAndClose(
+            new CustomEvent('aurora:open-chat', {
+              detail: { recipient: members[0]?.name ?? 'lead', fullscreen: true },
+            })
+          ),
       });
     }
 
@@ -208,7 +235,15 @@ export const CommandBar = (): React.JSX.Element => {
     });
 
     return list;
-  }, [navigate, dispatchAndClose, teamName, isDemoActive, seedDemoTeam, members]);
+  }, [
+    navigate,
+    dispatchAndClose,
+    teamName,
+    isDemoActive,
+    seedDemoTeam,
+    seedGeminiDemoTeam,
+    members,
+  ]);
 
   const recentMascots = members.slice(0, 3);
 

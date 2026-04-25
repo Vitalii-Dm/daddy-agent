@@ -14,6 +14,7 @@ import type {
   MemberFullStats,
   ResolvedTeamMember,
   TeamData,
+  TeamProviderId,
   TeamSummary,
   TeamTaskWithKanban,
 } from '@shared/types/team';
@@ -21,18 +22,86 @@ import type {
 export const DEMO_TEAM_NAME = 'demo-engineering';
 export const DEMO_TEAM_DISPLAY = 'Demo · Engineering';
 
+export const DEMO_GEMINI_TEAM_NAME = 'demo-gemini-engineering';
+export const DEMO_GEMINI_TEAM_DISPLAY = 'Demo · Gemini Engineering';
+
 interface DemoMemberSeed {
   name: string;
   role: 'reviewer' | 'developer' | 'designer';
   agentType: string;
   color: string;
+  providerId: TeamProviderId;
+  model: string;
 }
 
 const MEMBERS: DemoMemberSeed[] = [
-  { name: 'alice', role: 'reviewer', agentType: 'reviewer', color: 'violet' },
-  { name: 'tom', role: 'developer', agentType: 'developer', color: 'cyan' },
-  { name: 'bob', role: 'developer', agentType: 'developer', color: 'green' },
-  { name: 'jack', role: 'developer', agentType: 'developer', color: 'orange' },
+  {
+    name: 'alice',
+    role: 'reviewer',
+    agentType: 'reviewer',
+    color: 'violet',
+    providerId: 'anthropic',
+    model: 'claude-opus-4-7',
+  },
+  {
+    name: 'tom',
+    role: 'developer',
+    agentType: 'developer',
+    color: 'cyan',
+    providerId: 'anthropic',
+    model: 'claude-sonnet-4-6',
+  },
+  {
+    name: 'bob',
+    role: 'developer',
+    agentType: 'developer',
+    color: 'green',
+    providerId: 'gemini',
+    model: 'gemini-2.5-pro',
+  },
+  {
+    name: 'jack',
+    role: 'developer',
+    agentType: 'developer',
+    color: 'orange',
+    providerId: 'gemini',
+    model: 'gemini-2.5-flash',
+  },
+];
+
+const GEMINI_MEMBERS: DemoMemberSeed[] = [
+  {
+    name: 'nova',
+    role: 'reviewer',
+    agentType: 'reviewer',
+    color: 'violet',
+    providerId: 'gemini',
+    model: 'gemini-2.5-pro',
+  },
+  {
+    name: 'lyra',
+    role: 'developer',
+    agentType: 'developer',
+    color: 'cyan',
+    providerId: 'gemini',
+    model: 'gemini-2.5-pro',
+  },
+  {
+    name: 'orion',
+    role: 'developer',
+    agentType: 'developer',
+    color: 'green',
+    providerId: 'gemini',
+    model: 'gemini-2.5-flash',
+  },
+  {
+    name: 'rigel',
+    role: 'developer',
+    agentType: 'developer',
+    color: 'orange',
+    providerId: 'gemini',
+    model: 'gemini-2.5-flash',
+  },
 ];
 
 interface TaskSeed {
@@ -191,8 +260,8 @@ function isoMinutesAgo(now: number, minutes: number): string {
   return new Date(now - minutes * 60_000).toISOString();
 }
 
-function buildMembers(now: number): ResolvedTeamMember[] {
-  return MEMBERS.map((seed, idx) => {
+function buildMembers(now: number, seeds: DemoMemberSeed[] = MEMBERS): ResolvedTeamMember[] {
+  return seeds.map((seed, idx) => {
     const owned = TASKS.filter((t) => t.owner === seed.name);
     const inProgress = owned.find((t) => t.status === 'in_progress');
     return {
@@ -207,6 +276,8 @@ function buildMembers(now: number): ResolvedTeamMember[] {
       color: seed.color,
       agentType: seed.agentType,
       role: seed.role,
+      providerId: seed.providerId,
+      model: seed.model,
       workflow:
         seed.role === 'reviewer'
           ? 'Review every completed task. Approve or request changes with clear feedback.'
@@ -343,6 +414,71 @@ export function buildDemoTeamSummary(): TeamSummary {
   };
 }
 
+export function buildDemoGeminiTeamData(): TeamData {
+  const now = Date.now();
+  const members = buildMembers(now, GEMINI_MEMBERS);
+  // Reassign demo tasks to Gemini member names (alice → nova, tom → lyra, bob → orion, jack → rigel).
+  const ownerRemap: Record<string, string> = {
+    alice: 'nova',
+    tom: 'lyra',
+    bob: 'orion',
+    jack: 'rigel',
+  };
+  const tasks = buildTasks(now).map((t) => ({
+    ...t,
+    owner: ownerRemap[t.owner ?? ''] ?? t.owner,
+    createdBy: ownerRemap[t.createdBy ?? ''] ?? t.createdBy,
+    reviewer: ownerRemap[t.reviewer ?? ''] ?? t.reviewer ?? null,
+  }));
+  const messages = buildMessages(now).map((m) => ({
+    ...m,
+    from: m.from && ownerRemap[m.from] ? ownerRemap[m.from] : m.from,
+    to: m.to && ownerRemap[m.to] ? ownerRemap[m.to] : m.to,
+  }));
+  const kanban = buildKanbanState();
+  return {
+    teamName: DEMO_GEMINI_TEAM_NAME,
+    config: {
+      name: DEMO_GEMINI_TEAM_NAME,
+      description:
+        'Pre-seeded demo team running on Google Gemini CLI. Used to walk through multi-provider orchestration without a paid Claude session.',
+      color: 'cyan',
+      members: members.map((m) => ({
+        name: m.name,
+        role: m.role,
+        workflow: m.workflow,
+        providerId: m.providerId,
+        model: m.model,
+      })),
+    },
+    tasks,
+    members,
+    messages,
+    kanbanState: { ...kanban, teamName: DEMO_GEMINI_TEAM_NAME, reviewers: ['nova'] },
+    processes: [],
+    isAlive: true,
+    isDemo: true,
+  };
+}
+
+export function buildDemoGeminiTeamSummary(): TeamSummary {
+  return {
+    teamName: DEMO_GEMINI_TEAM_NAME,
+    displayName: DEMO_GEMINI_TEAM_DISPLAY,
+    description: 'Pre-seeded Gemini-powered demo team.',
+    color: 'cyan',
+    memberCount: GEMINI_MEMBERS.length,
+    members: GEMINI_MEMBERS.map((m) => ({ name: m.name, role: m.role })),
+    taskCount: TASKS.length,
+    lastActivity: new Date(Date.now() - 2 * 60_000).toISOString(),
+    teamLaunchState: 'clean_success',
+    confirmedCount: GEMINI_MEMBERS.length,
+    pendingCount: 0,
+    failedCount: 0,
+    isDemo: true,
+  };
+}
+
 const DEMO_STATS_BY_NAME: Record<string, MemberFullStats> = {
   alice: {
     linesAdded: 312,
@@ -423,10 +559,19 @@ const DEMO_STATS_BY_NAME: Record<string, MemberFullStats> = {
   },
 };
 
+// Map Gemini-team member names back to the canonical fixture member key so stats still resolve.
+const GEMINI_NAME_TO_BASE: Record<string, string> = {
+  nova: 'alice',
+  lyra: 'tom',
+  orion: 'bob',
+  rigel: 'jack',
+};
+
 export function getDemoMemberStats(memberName: string): MemberFullStats | null {
-  return DEMO_STATS_BY_NAME[memberName] ?? null;
+  const key = GEMINI_NAME_TO_BASE[memberName] ?? memberName;
+  return DEMO_STATS_BY_NAME[key] ?? null;
 }
 
 export function isDemoTeamName(name: string | null | undefined): boolean {
-  return name === DEMO_TEAM_NAME;
+  return name === DEMO_TEAM_NAME || name === DEMO_GEMINI_TEAM_NAME;
 }

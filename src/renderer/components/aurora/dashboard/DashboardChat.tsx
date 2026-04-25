@@ -23,11 +23,12 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
   const sendTeamMessage = useStore((s) => s.sendTeamMessage);
   const sendingMessage = useStore((s) => s.sendingMessage);
 
-  // Auto-scroll to bottom when messages change.
+  // Anchor the panel at the start of the chat (oldest messages visible first).
+  // The user scrolls down manually; we don't pin to the bottom on new messages.
   useEffect(() => {
     const el = listRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [messages.length]);
+    if (el) el.scrollTop = 0;
+  }, []);
 
   const handleSend = useCallback(() => {
     const trimmed = text.trim();
@@ -53,7 +54,7 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
   );
 
   return (
-    <LiquidGlass radius={26} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <LiquidGlass radius={26} className="flex flex-col overflow-hidden" style={{ maxHeight: 360 }}>
       {/* Header */}
       <div
         className="flex shrink-0 items-center justify-between border-b px-4 py-3"
@@ -78,11 +79,11 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
         </span>
       </div>
 
-      {/* Message list */}
+      {/* Message list — anchored at the start; scroll on hover via wheel. */}
       <div
         ref={listRef}
-        className="min-h-0 flex-1 overflow-y-auto px-4 py-3"
-        style={{ minHeight: '120px' }}
+        data-lenis-prevent
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3"
       >
         {messages.length === 0 ? (
           <p className="py-4 text-center text-[12px] text-[color:var(--ink-3)]">
@@ -90,7 +91,7 @@ export const DashboardChat = ({ teamName }: DashboardChatProps): React.JSX.Eleme
           </p>
         ) : (
           <ul className="flex flex-col gap-3">
-            {messages.slice(-60).map((msg, idx) => (
+            {messages.map((msg, idx) => (
               <ChatBubble key={msg.messageId ?? `msg-${idx}`} msg={msg} />
             ))}
           </ul>

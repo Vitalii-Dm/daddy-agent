@@ -17,6 +17,7 @@ import type { ResolvedTeamMember, TeamTaskWithKanban } from '@shared/types';
 
 import { ActivityStream } from '../dashboard/ActivityStream';
 import { AgentRoster } from '../dashboard/AgentRoster';
+import { AuroraReviewDiffDialog } from '../dashboard/AuroraReviewDiffDialog';
 import { DashboardChat } from '../dashboard/DashboardChat';
 import { KanbanGlass } from '../dashboard/KanbanGlass';
 import { LiquidGlass } from '../LiquidGlass';
@@ -85,6 +86,7 @@ export const DashboardSection = (): React.JSX.Element => {
   const [launchDialogOpen, setLaunchDialogOpen] = useState(false);
   const [createTeamOpen, setCreateTeamOpen] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
+  const [reviewDiff, setReviewDiff] = useState<{ taskId: string; filePath: string } | null>(null);
 
   const reduceMotion = useReducedMotion();
   const sectionRef = useRef<HTMLElement | null>(null);
@@ -249,7 +251,7 @@ export const DashboardSection = (): React.JSX.Element => {
               />
             </div>
 
-            <div className="flex flex-col gap-4 overflow-hidden lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-120px)] lg:pl-1">
+            <div className="flex min-h-0 flex-col gap-4 lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-120px)] lg:pl-1">
               <ActivityStream onSendMessage={handleSendMessageFromActivity} maxItems={4} />
               {teamName ? (
                 <div className="min-h-0 flex-1">
@@ -308,7 +310,20 @@ export const DashboardSection = (): React.JSX.Element => {
             taskMap={taskMap}
             members={members}
             onClose={() => setSelectedTask(null)}
+            onViewChanges={(taskId, filePath) => {
+              if (filePath) setReviewDiff({ taskId, filePath });
+            }}
           />
+
+          {reviewDiff ? (
+            <AuroraReviewDiffDialog
+              open
+              teamName={teamName}
+              taskId={reviewDiff.taskId}
+              filePath={reviewDiff.filePath}
+              onClose={() => setReviewDiff(null)}
+            />
+          ) : null}
 
           <MemberDetailDialog
             open={selectedMember !== null}
