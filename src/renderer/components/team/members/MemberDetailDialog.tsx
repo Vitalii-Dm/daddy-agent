@@ -6,6 +6,7 @@ import {
 } from '@features/agent-graph/renderer';
 import { Button } from '@renderer/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader } from '@renderer/components/ui/dialog';
+import { GlassButton } from '@renderer/components/ui/GlassButton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@renderer/components/ui/tabs';
 import { useMemberStats } from '@renderer/hooks/useMemberStats';
 import { isLeadMember } from '@shared/utils/leadDetection';
@@ -238,24 +239,25 @@ export const MemberDetailDialog = ({
             </span>
           ) : (
             <>
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={onSendMessage}>
-                <MessageSquare size={14} />
+              <GlassButton
+                variant="tertiary"
+                onClick={onSendMessage}
+                icon={<MessageSquare size={14} />}
+              >
                 Send Message
-              </Button>
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={onAssignTask}>
-                <ListPlus size={14} />
+              </GlassButton>
+              <GlassButton variant="primary" onClick={onAssignTask} icon={<ListPlus size={14} />}>
                 Assign Task
-              </Button>
+              </GlassButton>
               {onRemoveMember && !isLeadMember(member) && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                <GlassButton
+                  variant="tertiary"
                   onClick={onRemoveMember}
+                  className="!text-[color:var(--err)]"
+                  icon={<UserMinus size={14} />}
                 >
-                  <UserMinus size={14} />
                   Remove
-                </Button>
+                </GlassButton>
               )}
             </>
           )}
