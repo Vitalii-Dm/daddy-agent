@@ -70,6 +70,23 @@ main {
 }
 .search-results { margin-top: 1rem; display: flex; flex-direction: column; gap: 0.25rem; }
 
+.hidden-hubs { margin-top: 1.5rem; }
+.hidden-hubs h3 {
+  margin: 0 0 0.25rem; font-size: 0.75rem; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.hidden-hubs p { margin: 0 0 0.5rem; font-size: 0.75rem; }
+.hidden-hubs ul { list-style: none; padding: 0; margin: 0; }
+.hidden-hubs li {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 0.2rem 0; border-bottom: 1px dotted var(--border);
+  font-size: 0.8rem;
+}
+.hidden-hubs .hub-count {
+  color: var(--muted); font-variant-numeric: tabular-nums;
+  font-size: 0.7rem;
+}
+
 .graph {
   width: 100%; height: 100%; position: relative;
   background:

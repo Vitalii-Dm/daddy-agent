@@ -273,26 +273,29 @@ def create_app(
         # second pass builds the visible graph excluding them.
         "OPTIONAL MATCH (mh:Module)<-[:IMPORTS]-(fh:File) "
         "WITH mh, count(DISTINCT fh) AS m_indeg "
-        "WITH collect(CASE WHEN m_indeg > $hub_threshold THEN mh END) AS hub_nulls "
-        "WITH [h IN hub_nulls WHERE h IS NOT NULL] AS hubs "
+        "WITH collect(CASE WHEN m_indeg > $hub_threshold "
+        "             THEN { mod: mh, name: mh.name, fan_in: m_indeg } END) AS hub_recs "
+        "WITH [h IN hub_recs WHERE h IS NOT NULL] AS hub_recs "
+        "WITH hub_recs, [h IN hub_recs | h.mod] AS hubs "
         "MATCH (f:File) "
-        "WITH f, hubs LIMIT $limit "
+        "WITH f, hubs, hub_recs LIMIT $limit "
         "OPTIONAL MATCH (f)-[:IMPORTS]->(m:Module) "
         "WHERE NOT m IN hubs "
         "WITH collect(DISTINCT f) AS files, "
         "     collect(DISTINCT m) AS modules, "
-        "     hubs "
+        "     hubs, hub_recs "
         "UNWIND files AS f1 "
         "OPTIONAL MATCH (f1)-[r]->(o) "
         "WHERE type(r) IN ['IMPORTS','EXTENDS','IMPLEMENTS'] "
         "  AND (o:File OR o:Module OR o:Class) "
         "  AND NOT o IN hubs "
-        "WITH files, modules, hubs, "
+        "WITH files, modules, hubs, hub_recs, "
         "     collect(DISTINCT { source: f1, target: o, type: type(r) }) AS specs "
         "RETURN files + [m IN modules WHERE m IS NOT NULL] AS nodes, "
         "       [] AS others, "
         "       [e IN specs WHERE e.target IS NOT NULL] AS edge_specs, "
-        "       size(hubs) AS hidden_hubs"
+        "       size(hubs) AS hidden_hubs, "
+        "       [h IN hub_recs | { name: h.name, fan_in: h.fan_in }] AS hidden_hub_list"
     )
 
     DETAIL_VIEW_CYPHER_TEMPLATE = (
@@ -379,9 +382,19 @@ def create_app(
         nodes: dict[str, dict[str, Any]] = {}
         edges: list[dict[str, Any]] = []
         hidden_hubs = 0
+        hidden_hub_list: list[dict[str, Any]] = []
         for rec in records:
             if "hidden_hubs" in rec and rec.get("hidden_hubs") is not None:
                 hidden_hubs = int(rec["hidden_hubs"])
+            raw_hubs = rec.get("hidden_hub_list") or []
+            for h in raw_hubs:
+                if not h:
+                    continue
+                name = h.get("name") if hasattr(h, "get") else None
+                fan_in = h.get("fan_in") if hasattr(h, "get") else None
+                if name is None:
+                    continue
+                hidden_hub_list.append({"name": str(name), "fan_in": int(fan_in or 0)})
             for n in rec.get("nodes") or []:
                 sn = _node_to_sigma(n)
                 nodes[sn["id"]] = sn
@@ -417,11 +430,15 @@ def create_app(
                 )
 
         _annotate_with_degree(nodes, edges)
+        # Sort the hub list by fan-in desc so the UI legend has the most
+        # noisy modules at the top.
+        hidden_hub_list.sort(key=lambda h: -h["fan_in"])
         return {
             "nodes": list(nodes.values()),
             "edges": edges,
             "view": view,
             "hidden_hubs": hidden_hubs,
+            "hidden_hub_list": hidden_hub_list,
         }
 
     # ------------------------------------------------------------------
