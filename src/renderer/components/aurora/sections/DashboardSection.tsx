@@ -22,6 +22,7 @@ import { AgentRoster } from '../dashboard/AgentRoster';
 import { AuroraReviewDiffDialog } from '../dashboard/AuroraReviewDiffDialog';
 import { ChatColumn } from '../dashboard/ChatColumn';
 import { KanbanGlass } from '../dashboard/KanbanGlass';
+import { TeamSelectionGrid } from '../dashboard/TeamSelectionGrid';
 import { LiquidGlass } from '../LiquidGlass';
 import { useAuroraTeam } from '../hooks/useAuroraTeam';
 
@@ -245,53 +246,71 @@ export const DashboardSection = (): React.JSX.Element => {
             onTrash={teamName ? () => setTrashOpen(true) : undefined}
           />
 
-          {teamName && (
-            <div className="mt-6">
-              <TeamProvisioningPanel teamName={teamName} surface="raised" dismissible />
-            </div>
-          )}
-
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.15 }}
-            transition={{ duration: 0.65, ease: APPLE_EASE }}
-            className="mt-10 grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)] min-[1440px]:grid-cols-[480px_minmax(0,1fr)]"
-          >
-            {/* LEFT: chat column (sticky, fixed width) */}
-            <div
-              className="flex min-h-0 flex-col gap-4 lg:sticky lg:top-[88px]"
-              style={{ maxHeight: 'calc(100vh - 120px)' }}
+          {!teamName ? (
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.15 }}
+              transition={{ duration: 0.65, ease: APPLE_EASE }}
+              className="mt-10"
             >
-              {teamName ? (
-                <ChatColumn
-                  teamName={teamName}
-                  onSendMessageDialog={handleSendMessageFromActivity}
-                />
-              ) : (
-                <ActivityStream onSendMessage={handleSendMessageFromActivity} maxItems={6} />
-              )}
-            </div>
-
-            {/* RIGHT: roster band (top) + kanban (full width) */}
-            <div className="flex min-w-0 flex-col gap-5">
-              <AgentRoster
-                onMemberClick={handleMemberClick}
-                onSendMessage={(name) => {
-                  setSendDialogRecipient(name);
-                  setSendDialogOpen(true);
+              <TeamSelectionGrid
+                teams={teams}
+                onSelectTeam={(name) => {
+                  const t = teams.find((t) => t.teamName === name);
+                  openTeamTab(name, t?.projectPath);
+                }}
+                onCreateTeam={() => setCreateTeamOpen(true)}
+                onLaunchTeam={(name) => {
+                  const t = teams.find((t) => t.teamName === name);
+                  openTeamTab(name, t?.projectPath);
+                  setLaunchDialogOpen(true);
                 }}
               />
-              <div className="min-h-[60vh] min-w-0 flex-1">
-                <KanbanGlass
-                  filter={filter}
-                  view={view}
-                  onTaskClick={(task) => setSelectedTask(task)}
-                  onCreateTask={() => setCreateTaskOpen(true)}
-                />
+            </motion.div>
+          ) : (
+            <>
+              <div className="mt-6">
+                <TeamProvisioningPanel teamName={teamName} surface="raised" dismissible />
               </div>
-            </div>
-          </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.15 }}
+                transition={{ duration: 0.65, ease: APPLE_EASE }}
+                className="mt-10 grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)] min-[1440px]:grid-cols-[480px_minmax(0,1fr)]"
+              >
+                <div
+                  className="flex min-h-0 flex-col gap-4 lg:sticky lg:top-[88px]"
+                  style={{ maxHeight: 'calc(100vh - 120px)' }}
+                >
+                  <ChatColumn
+                    teamName={teamName}
+                    onSendMessageDialog={handleSendMessageFromActivity}
+                  />
+                </div>
+
+                <div className="flex min-w-0 flex-col gap-5">
+                  <AgentRoster
+                    onMemberClick={handleMemberClick}
+                    onSendMessage={(name) => {
+                      setSendDialogRecipient(name);
+                      setSendDialogOpen(true);
+                    }}
+                  />
+                  <div className="min-h-[60vh] min-w-0 flex-1">
+                    <KanbanGlass
+                      filter={filter}
+                      view={view}
+                      onTaskClick={(task) => setSelectedTask(task)}
+                      onCreateTask={() => setCreateTaskOpen(true)}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
         </motion.div>
       </section>
 
