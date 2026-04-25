@@ -825,6 +825,12 @@ async function initializeServices(): Promise<void> {
   teamDataService = new TeamDataService();
   teamDataService.setMemberRuntimeAdvisoryService(teamMemberRuntimeAdvisoryService);
   teamProvisioningService = new TeamProvisioningService();
+  // Kill orphaned claude-multimodel processes from previous sessions
+  void teamProvisioningService
+    .killOrphanProcesses()
+    .catch((error: unknown) =>
+      logger.warn(`[Init] orphan process cleanup failed: ${String(error)}`)
+    );
   // Startup GC: remove stale MCP config files from previous sessions (best-effort)
   void new TeamMcpConfigBuilder().gcStaleConfigs();
   void teamDataService

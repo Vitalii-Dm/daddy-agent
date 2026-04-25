@@ -4646,6 +4646,14 @@ export class TeamProvisioningService {
     );
     run.child = child;
     run.authRetryInProgress = false;
+    child.on('exit', (code, signal) => {
+      if (run.processKilled || run.cancelRequested) return; // expected kill
+      const reason = signal ? `signal ${signal}` : `exit code ${code}`;
+      logger.warn(`[${run.teamName}] CLI process exited unexpectedly: ${reason}`);
+      updateProgress(run, 'failed', `CLI process exited unexpectedly (${reason})`);
+      run.onProgress(run.progress);
+      this.cleanupRun(run);
+    });
 
     updateProgress(run, 'spawning', 'CLI respawned — sending prompt', {
       pid: child.pid ?? undefined,
@@ -5141,6 +5149,14 @@ export class TeamProvisioningService {
       });
       run.onProgress(run.progress);
       run.child = child;
+      child.on('exit', (code, signal) => {
+        if (run.processKilled || run.cancelRequested) return; // expected kill
+        const reason = signal ? `signal ${signal}` : `exit code ${code}`;
+        logger.warn(`[${run.teamName}] CLI process exited unexpectedly: ${reason}`);
+        updateProgress(run, 'failed', `CLI process exited unexpectedly (${reason})`);
+        run.onProgress(run.progress);
+        this.cleanupRun(run);
+      });
       run.spawnContext = {
         claudePath,
         args: spawnArgs,
@@ -5258,6 +5274,19 @@ export class TeamProvisioningService {
       const existingAliveRunId = this.getAliveRunId(request.teamName);
       if (existingAliveRunId) {
         const existingRun = this.runs.get(existingAliveRunId);
+        // Verify the tracked process is actually still alive at the OS level
+        if (existingRun?.child?.pid) {
+          try {
+            process.kill(existingRun.child.pid, 0); // signal 0 = existence check
+          } catch {
+            // Process is dead — clean up stale state and proceed with fresh launch
+            logger.info(
+              `[${request.teamName}] Stale run ${existingAliveRunId} — process PID=${existingRun.child.pid} no longer alive, cleaning up`
+            );
+            existingRun.processKilled = true; // mark dead so guards below fall through
+            this.cleanupRun(existingRun);
+          }
+        }
         const requestedCwd = path.resolve(request.cwd);
         const existingRunCwd = this.getRunTrackedCwd(existingRun) ?? configProjectPath;
         if (existingRun?.child && !existingRun.processKilled && !existingRun.cancelRequested) {
@@ -5712,6 +5741,14 @@ export class TeamProvisioningService {
       });
       run.onProgress(run.progress);
       run.child = child;
+      child.on('exit', (code, signal) => {
+        if (run.processKilled || run.cancelRequested) return; // expected kill
+        const reason = signal ? `signal ${signal}` : `exit code ${code}`;
+        logger.warn(`[${run.teamName}] CLI process exited unexpectedly: ${reason}`);
+        updateProgress(run, 'failed', `CLI process exited unexpectedly (${reason})`);
+        run.onProgress(run.progress);
+        this.cleanupRun(run);
+      });
       run.spawnContext = {
         claudePath,
         args: launchArgs,
@@ -5793,7 +5830,7 @@ export class TeamProvisioningService {
       throw new Error('Unknown runId');
     }
     if (
-      !['spawning', 'configuring', 'assembling', 'finalizing', 'verifying'].includes(
+      !['validating', 'spawning', 'configuring', 'assembling', 'finalizing', 'verifying'].includes(
         run.progress.state
       )
     ) {
@@ -7954,6 +7991,45 @@ export class TeamProvisioningService {
       for (const teamName of orphanOnly) {
         this.stopPersistentTeamMembers(teamName);
       }
+    }
+  }
+
+  /**
+   * Kill orphaned claude-multimodel processes from previous sessions.
+   * Call on app startup before any team launches.
+   */
+  async killOrphanProcesses(): Promise<void> {
+    if (process.platform === 'win32') return;
+    try {
+      const { execSync } = await import('child_process');
+      const psOutput = execSync('ps -ax -o pid,command', { encoding: 'utf-8', timeout: 5000 });
+      const lines = psOutput.split('\n');
+      const aliveTeams = this.getAliveTeams();
+      const alivePids = new Set<number>();
+      for (const teamName of aliveTeams) {
+        const runId = this.getAliveRunId(teamName);
+        if (runId) {
+          const run = this.runs.get(runId);
+          if (run?.child?.pid) alivePids.add(run.child.pid);
+        }
+      }
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.includes('claude-multimodel')) continue;
+        if (trimmed.includes('grep')) continue;
+        const pidMatch = trimmed.match(/^(\d+)/);
+        if (!pidMatch) continue;
+        const pid = parseInt(pidMatch[1], 10);
+        if (alivePids.has(pid)) continue;
+        try {
+          process.kill(pid, 'SIGKILL');
+          logger.info(`[startup] Killed orphaned claude-multimodel process PID=${pid}`);
+        } catch {
+          // Process already gone
+        }
+      }
+    } catch (error) {
+      logger.warn(`[startup] Failed to scan for orphan processes: ${error}`);
     }
   }
 
