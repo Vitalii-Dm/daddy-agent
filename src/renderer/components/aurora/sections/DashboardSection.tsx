@@ -17,11 +17,11 @@ import { useStore } from '@renderer/store';
 import type { TaskRef } from '@shared/types/team';
 import type { ResolvedTeamMember, TeamTaskWithKanban } from '@shared/types';
 
-import { ActivityStream } from '../dashboard/ActivityStream';
 import { AgentRoster } from '../dashboard/AgentRoster';
 import { AuroraReviewDiffDialog } from '../dashboard/AuroraReviewDiffDialog';
 import { ChatColumn } from '../dashboard/ChatColumn';
 import { KanbanGlass } from '../dashboard/KanbanGlass';
+import { TeamSelectionGrid } from '../dashboard/TeamSelectionGrid';
 import { LiquidGlass } from '../LiquidGlass';
 import { useAuroraTeam } from '../hooks/useAuroraTeam';
 
@@ -38,7 +38,9 @@ const APPLE_EASE = [0.22, 1, 0.36, 1] as const;
 // horizontal scrollbar at the document level. Side panels stick to top: 88px
 // once the user scrolls past the header.
 export const DashboardSection = (): React.JSX.Element => {
-  const { teamName, members, runningCount, totalCount, isAlive } = useAuroraTeam();
+  const { teamName: auroraTeamName, members, runningCount, totalCount, isAlive } = useAuroraTeam();
+  const selectedTeamName = useStore((s) => s.selectedTeamName);
+  const teamName = selectedTeamName ? auroraTeamName : null;
   const tasks = useStore((s) => s.selectedTeamData?.tasks ?? []);
   const messages = useStore((s) => s.selectedTeamData?.messages ?? []);
   const createTeamTask = useStore((s) => s.createTeamTask);
@@ -78,6 +80,10 @@ export const DashboardSection = (): React.JSX.Element => {
       selectTeam: s.selectTeam,
     }))
   );
+
+  const deselectTeam = useCallback(() => {
+    useStore.setState({ selectedTeamName: null, selectedTeamData: null });
+  }, []);
 
   const [view, setView] = useState<ViewTab>('Kanban');
   const [filter, setFilter] = useState<FilterChip>('All');
@@ -245,55 +251,78 @@ export const DashboardSection = (): React.JSX.Element => {
             onNewTeam={() => setCreateTeamOpen(true)}
             onSendMessage={() => setSendDialogOpen(true)}
             onTrash={teamName ? () => setTrashOpen(true) : undefined}
+            onDeselectTeam={deselectTeam}
           />
 
-          {teamName && (
-            <div className="mt-6">
-              <TeamProvisioningPanel teamName={teamName} surface="raised" dismissible />
-            </div>
-          )}
-
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.15 }}
-            transition={{ duration: 0.65, ease: APPLE_EASE }}
-            className="mt-10 grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)] min-[1440px]:grid-cols-[480px_minmax(0,1fr)]"
-          >
-            {/* LEFT: chat column (sticky, fixed width) */}
-            <div
-              className="flex min-h-0 flex-col gap-4 lg:sticky lg:top-[88px]"
-              style={{ maxHeight: 'calc(100vh - 120px)' }}
+          {!teamName ? (
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.15 }}
+              transition={{ duration: 0.65, ease: APPLE_EASE }}
+              className="mt-10"
             >
-              {teamName ? (
-                <ChatColumn
-                  teamName={teamName}
-                  onSendMessageDialog={handleSendMessageFromActivity}
-                />
-              ) : (
-                <ActivityStream onSendMessage={handleSendMessageFromActivity} maxItems={6} />
-              )}
-            </div>
-
-            {/* RIGHT: roster band (top) + kanban (full width) */}
-            <div className="flex min-w-0 flex-col gap-5">
-              <AgentRoster
-                onMemberClick={handleMemberClick}
-                onSendMessage={(name) => {
-                  setSendDialogRecipient(name);
-                  setSendDialogOpen(true);
+              <TeamSelectionGrid
+                teams={teams}
+                onSelectTeam={(name) => {
+                  const t = teams.find((t) => t.teamName === name);
+                  openTeamTab(name, t?.projectPath);
+                }}
+                onCreateTeam={() => setCreateTeamOpen(true)}
+                onLaunchTeam={(name) => {
+                  const t = teams.find((t) => t.teamName === name);
+                  openTeamTab(name, t?.projectPath);
+                  setLaunchDialogOpen(true);
                 }}
               />
-              <div className="min-h-[60vh] min-w-0 flex-1">
-                <KanbanGlass
-                  filter={filter}
-                  view={view}
-                  onTaskClick={(task) => setSelectedTask(task)}
-                  onCreateTask={() => setCreateTaskOpen(true)}
-                />
-              </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          ) : (
+            <>
+              {teamName && (
+                <div className="mt-6">
+                  <TeamProvisioningPanel teamName={teamName} surface="raised" dismissible />
+                </div>
+              )}
+
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.15 }}
+                transition={{ duration: 0.65, ease: APPLE_EASE }}
+                className="mt-10 grid gap-6 lg:grid-cols-[420px_minmax(0,1fr)] min-[1440px]:grid-cols-[480px_minmax(0,1fr)]"
+              >
+                {/* LEFT: chat column (sticky, fixed width) */}
+                <div
+                  className="flex min-h-0 flex-col gap-4 lg:sticky lg:top-[88px]"
+                  style={{ maxHeight: 'calc(100vh - 120px)' }}
+                >
+                  <ChatColumn
+                    teamName={teamName}
+                    onSendMessageDialog={handleSendMessageFromActivity}
+                  />
+                </div>
+
+                {/* RIGHT: roster band (top) + kanban (full width) */}
+                <div className="flex min-w-0 flex-col gap-5">
+                  <AgentRoster
+                    onMemberClick={handleMemberClick}
+                    onSendMessage={(name) => {
+                      setSendDialogRecipient(name);
+                      setSendDialogOpen(true);
+                    }}
+                  />
+                  <div className="min-h-[60vh] min-w-0 flex-1">
+                    <KanbanGlass
+                      filter={filter}
+                      view={view}
+                      onTaskClick={(task) => setSelectedTask(task)}
+                      onCreateTask={() => setCreateTaskOpen(true)}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
         </motion.div>
       </section>
 
@@ -459,6 +488,7 @@ interface DashboardHeaderProps {
   onNewTeam: () => void;
   onSendMessage: () => void;
   onTrash?: () => void;
+  onDeselectTeam?: () => void;
 }
 
 const DashboardHeader = ({
@@ -477,12 +507,31 @@ const DashboardHeader = ({
   onNewTeam,
   onSendMessage,
   onTrash,
+  onDeselectTeam,
 }: DashboardHeaderProps): React.JSX.Element => (
   <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
     <div className="min-w-0 max-w-[640px]">
-      <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-[color:var(--ink-3)]">
-        {teamName ?? 'No team selected'}
-      </p>
+      {onDeselectTeam ? (
+        <button
+          type="button"
+          onClick={onDeselectTeam}
+          className="font-mono text-[11px] uppercase tracking-[0.32em] text-[color:var(--ink-3)] transition-colors hover:text-[color:var(--ink-1)] focus-visible:outline-none"
+        >
+          {teamName ? (
+            <>
+              <span className="opacity-50">Teams</span>
+              <span className="mx-1.5 opacity-30">/</span>
+              <span>{teamName}</span>
+            </>
+          ) : (
+            'Select a team'
+          )}
+        </button>
+      ) : (
+        <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-[color:var(--ink-3)]">
+          {teamName ?? 'No team selected'}
+        </p>
+      )}
       <h2
         className="mt-3 whitespace-normal break-words font-serif font-normal text-[color:var(--ink-1)]"
         style={{
