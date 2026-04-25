@@ -3699,14 +3699,7 @@ export class TeamProvisioningService {
       const cached = this.getFreshCachedProbeResult(targetCwdForValidation, providerId);
       const probeResult = cached ?? (await this.getCachedOrProbeResult(targetCwd, providerId));
       if (!probeResult?.claudePath) {
-        // Demo build: don't throw, log a warning and continue. The actual
-        // launch step will surface a clearer error if the CLI is truly
-        // unreachable, and skipping the throw lets the renderer pre-flight
-        // UI report success when only the orchestrator binary is missing.
-        warnings.push(
-          `Claude CLI not found for ${getTeamProviderLabel(providerId) ?? providerId}; relying on PATH at launch time.`
-        );
-        continue;
+        throw new Error('Claude CLI not found; install it or provide a valid path');
       }
 
       const providerLabel = getTeamProviderLabel(providerId);
@@ -5111,10 +5104,7 @@ export class TeamProvisioningService {
             providerId: normalizeOptionalTeamProviderId(m.providerId),
             model: m.model?.trim() || undefined,
             effort:
-              m.effort === 'low' ||
-              m.effort === 'medium' ||
-              m.effort === 'high' ||
-              m.effort === 'extra-high'
+              m.effort === 'low' || m.effort === 'medium' || m.effort === 'high'
                 ? m.effort
                 : undefined,
             agentType: 'general-purpose' as const,
@@ -11253,10 +11243,7 @@ export class TeamProvisioningService {
         }
 
         const effort =
-          state.effort === 'low' ||
-          state.effort === 'medium' ||
-          state.effort === 'high' ||
-          state.effort === 'extra-high'
+          state.effort === 'low' || state.effort === 'medium' || state.effort === 'high'
             ? state.effort
             : undefined;
         if (effort) {
@@ -11894,10 +11881,7 @@ export class TeamProvisioningService {
           providerId: normalizeOptionalTeamProviderId(member.providerId),
           model: member.model?.trim() || undefined,
           effort:
-            member.effort === 'low' ||
-            member.effort === 'medium' ||
-            member.effort === 'high' ||
-            member.effort === 'extra-high'
+            member.effort === 'low' || member.effort === 'medium' || member.effort === 'high'
               ? member.effort
               : undefined,
           agentType: 'general-purpose',
@@ -11941,10 +11925,7 @@ export class TeamProvisioningService {
         const model =
           typeof member.model === 'string' ? member.model.trim() || undefined : undefined;
         const effort =
-          member.effort === 'low' ||
-          member.effort === 'medium' ||
-          member.effort === 'high' ||
-          member.effort === 'extra-high'
+          member.effort === 'low' || member.effort === 'medium' || member.effort === 'high'
             ? member.effort
             : undefined;
         const prev = byName.get(name);
@@ -12109,10 +12090,7 @@ export class TeamProvisioningService {
           providerId: normalizeTeamMemberProviderId(member.providerId ?? member.provider),
           model: typeof member.model === 'string' ? member.model.trim() || undefined : undefined,
           effort:
-            member.effort === 'low' ||
-            member.effort === 'medium' ||
-            member.effort === 'high' ||
-            member.effort === 'extra-high'
+            member.effort === 'low' || member.effort === 'medium' || member.effort === 'high'
               ? member.effort
               : undefined,
         });
