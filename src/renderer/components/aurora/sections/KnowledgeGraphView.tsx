@@ -835,8 +835,68 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
   const isEmptyAfterFetch =
     state.kind === 'ready' && (merged?.nodes.length ?? 0) === 0 && !needsProjectPick;
 
+  // Control bar: always visible so the user can switch tabs/projects even when empty
+  const controlBar = (
+    <div className="absolute left-3 right-3 top-3 z-20 flex items-start gap-2">
+      <div className="inline-flex overflow-hidden rounded-full bg-white/65 p-0.5 font-mono text-[11px] shadow-sm backdrop-blur-sm">
+        {(['codebase', 'memory'] as const).map((db) => (
+          <button
+            key={db}
+            type="button"
+            onClick={(): void => setDatabase(db)}
+            aria-pressed={database === db}
+            className={`rounded-full px-3 py-1 transition ${
+              database === db
+                ? 'bg-[color:var(--ink-1)] text-white'
+                : 'text-[color:var(--ink-2)] hover:bg-white/70'
+            }`}
+          >
+            {db}
+          </button>
+        ))}
+      </div>
+      {database === 'codebase' && projectRoot && allProjects.length > 1 && (
+        <div className="group relative">
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 rounded-full bg-white/65 px-3 py-1 font-mono text-[11px] text-[color:var(--ink-2)] shadow-sm backdrop-blur-sm transition hover:bg-white/80"
+          >
+            <span className="max-w-[140px] truncate">
+              {activeProject?.name || projectRoot.split('/').pop()}
+            </span>
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" aria-hidden="true">
+              <path d="M1.5 3 4 5.5 6.5 3" />
+            </svg>
+          </button>
+          <ul className="invisible absolute left-0 top-full z-10 mt-1 max-h-[200px] w-64 overflow-auto rounded-lg bg-white/95 py-1 font-mono text-[11px] shadow-lg ring-1 ring-black/5 group-hover:visible">
+            {allProjects.map((p) => (
+              <li key={p.id}>
+                <button
+                  type="button"
+                  onClick={() => selectProject(p.id)}
+                  className={
+                    'block w-full truncate px-3 py-1.5 text-left hover:bg-black/5' +
+                    (p.id === activeProject?.id
+                      ? ' font-semibold text-[color:var(--a-violet)]'
+                      : '')
+                  }
+                >
+                  {p.name || p.path.split('/').pop()}
+                  <span className="ml-1 opacity-40">
+                    {p.path.replace(/^\/Users\/[^/]+\//, '~/')}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div ref={containerRef} className="relative h-full w-full">
+      {controlBar}
       {needsProjectPick ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 text-center">
           <p className="font-serif text-[18px] text-[color:var(--ink-1)]">
@@ -982,67 +1042,10 @@ export const KnowledgeGraphView = (): React.JSX.Element => {
             </g>
           </svg>
 
-          {/* Top control row: DB selector + view toggle + search */}
-          <div className="absolute left-3 right-3 top-3 flex items-start gap-2">
-            <div className="inline-flex overflow-hidden rounded-full bg-white/65 p-0.5 font-mono text-[11px] shadow-sm backdrop-blur-sm">
-              {(['codebase', 'memory'] as const).map((db) => (
-                <button
-                  key={db}
-                  type="button"
-                  onClick={(): void => setDatabase(db)}
-                  aria-pressed={database === db}
-                  className={`rounded-full px-3 py-1 transition ${
-                    database === db
-                      ? 'bg-[color:var(--ink-1)] text-white'
-                      : 'text-[color:var(--ink-2)] hover:bg-white/70'
-                  }`}
-                >
-                  {db}
-                </button>
-              ))}
-            </div>
-            {database === 'codebase' && projectRoot && allProjects.length > 1 && (
-              <div className="group relative">
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-white/65 px-3 py-1 font-mono text-[11px] text-[color:var(--ink-2)] shadow-sm backdrop-blur-sm transition hover:bg-white/80"
-                >
-                  <span className="max-w-[140px] truncate">
-                    {activeProject?.name || projectRoot.split('/').pop()}
-                  </span>
-                  <svg
-                    width="8"
-                    height="8"
-                    viewBox="0 0 8 8"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path d="M1.5 3 4 5.5 6.5 3" />
-                  </svg>
-                </button>
-                <ul className="invisible absolute left-0 top-full z-10 mt-1 max-h-[200px] w-64 overflow-auto rounded-lg bg-white/95 py-1 font-mono text-[11px] shadow-lg ring-1 ring-black/5 group-hover:visible">
-                  {allProjects.map((p) => (
-                    <li key={p.id}>
-                      <button
-                        type="button"
-                        onClick={() => selectProject(p.id)}
-                        className={
-                          'block w-full truncate px-3 py-1.5 text-left hover:bg-black/5' +
-                          (p.id === activeProject?.id
-                            ? ' font-semibold text-[color:var(--a-violet)]'
-                            : '')
-                        }
-                      >
-                        {p.name || p.path.split('/').pop()}
-                        <span className="ml-1 opacity-40">
-                          {p.path.replace(/^\/Users\/[^/]+\//, '~/')}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+          {/* View toggle + search (db selector is in the always-visible controlBar) */}
+          <div className="absolute left-3 right-3 top-3 z-10 flex items-start gap-2">
+            {/* spacer to push view toggle past the controlBar tabs */}
+            <div style={{ minWidth: 180 }} />
             <div className="inline-flex overflow-hidden rounded-full bg-white/65 p-0.5 font-mono text-[11px] shadow-sm backdrop-blur-sm">
               {(['summary', 'detail'] as const).map((v) => (
                 <button
