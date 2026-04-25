@@ -2,10 +2,13 @@ import { api } from '@renderer/api';
 import {
   DEMO_GEMINI_TEAM_NAME,
   DEMO_TEAM_NAME,
+  DEMO_TRADERS_TEAM_NAME,
   buildDemoGeminiTeamData,
   buildDemoGeminiTeamSummary,
   buildDemoTeamData,
   buildDemoTeamSummary,
+  buildDemoTradersTeamData,
+  buildDemoTradersTeamSummary,
 } from '@renderer/utils/demoTeamFixture';
 import { normalizePath } from '@renderer/utils/pathNormalize';
 import {
@@ -1370,6 +1373,7 @@ export interface TeamSlice {
   // Never persisted, never round-tripped through IPC.
   seedDemoTeam: () => void;
   seedGeminiDemoTeam: () => void;
+  seedTradersDemoTeam: () => void;
   appendDemoTask: (task: TeamTaskWithKanban) => void;
   appendDemoMessage: (message: InboxMessage) => void;
 }
@@ -1677,6 +1681,23 @@ export const createTeamSlice: StateCreator<AppState, [], [], TeamSlice> = (set, 
   seedGeminiDemoTeam: () => {
     const teamData = buildDemoGeminiTeamData();
     const summary = buildDemoGeminiTeamSummary();
+    set((state) => {
+      const teamsWithoutDemo = state.teams.filter((t) => t.teamName !== summary.teamName);
+      return {
+        teams: [...teamsWithoutDemo, summary],
+        teamByName: { ...state.teamByName, [summary.teamName]: summary },
+        teamDataCacheByName: { ...state.teamDataCacheByName, [teamData.teamName]: teamData },
+        selectedTeamName: teamData.teamName,
+        selectedTeamData: teamData,
+        selectedTeamLoading: false,
+        selectedTeamError: null,
+      };
+    });
+  },
+
+  seedTradersDemoTeam: () => {
+    const teamData = buildDemoTradersTeamData();
+    const summary = buildDemoTradersTeamSummary();
     set((state) => {
       const teamsWithoutDemo = state.teams.filter((t) => t.teamName !== summary.teamName);
       return {
@@ -2407,6 +2428,25 @@ export const createTeamSlice: StateCreator<AppState, [], [], TeamSlice> = (set, 
   },
 
   selectTeam: async (teamName: string, opts) => {
+    // Demo teams are renderer-only fixtures — point selectedTeamName at the
+    // cached fixture without hitting IPC. Without this, switching to a demo
+    // team errors out (no on-disk team file).
+    if (
+      teamName === DEMO_TEAM_NAME ||
+      teamName === DEMO_GEMINI_TEAM_NAME ||
+      teamName === DEMO_TRADERS_TEAM_NAME
+    ) {
+      set((state) => {
+        const cached = state.teamDataCacheByName[teamName] ?? null;
+        return {
+          selectedTeamName: teamName,
+          selectedTeamData: cached,
+          selectedTeamLoading: false,
+          selectedTeamError: null,
+        };
+      });
+      return;
+    }
     const startedAt = performance.now();
     const allowReloadWhileProvisioning = opts?.allowReloadWhileProvisioning === true;
     // Guard: prevent duplicate in-flight fetches for the same team.
@@ -2765,7 +2805,11 @@ export const createTeamSlice: StateCreator<AppState, [], [], TeamSlice> = (set, 
   sendTeamMessage: async (teamName: string, request: SendMessageRequest) => {
     // Demo team — append the message in-memory and synthesize an agent reply.
     // No IPC: there is no backing CLI process for the fixture team.
-    if (teamName === DEMO_TEAM_NAME || teamName === DEMO_GEMINI_TEAM_NAME) {
+    if (
+      teamName === DEMO_TEAM_NAME ||
+      teamName === DEMO_GEMINI_TEAM_NAME ||
+      teamName === DEMO_TRADERS_TEAM_NAME
+    ) {
       const messageId = `demo-msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const userMessage: InboxMessage = {
         from: request.from ?? 'user',
@@ -2904,7 +2948,11 @@ export const createTeamSlice: StateCreator<AppState, [], [], TeamSlice> = (set, 
   },
 
   createTeamTask: async (teamName: string, request: CreateTaskRequest) => {
-    if (teamName === DEMO_TEAM_NAME || teamName === DEMO_GEMINI_TEAM_NAME) {
+    if (
+      teamName === DEMO_TEAM_NAME ||
+      teamName === DEMO_GEMINI_TEAM_NAME ||
+      teamName === DEMO_TRADERS_TEAM_NAME
+    ) {
       const id = `demo-task-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
       const now = nowIso();
       const task: TeamTaskWithKanban = {
@@ -3076,27 +3124,46 @@ export const createTeamSlice: StateCreator<AppState, [], [], TeamSlice> = (set, 
   },
 
   deleteTeam: async (teamName: string) => {
-    await unwrapIpc('team:deleteTeam', () => api.teams.deleteTeam(teamName));
+    // Demo teams are renderer-only fixtures — skip IPC and just drop them
+    // from local state. Calling IPC would 404 because they have no on-disk
+    // counterpart.
+    const isDemo =
+      teamName === DEMO_TEAM_NAME ||
+      teamName === DEMO_GEMINI_TEAM_NAME ||
+      teamName === DEMO_TRADERS_TEAM_NAME;
+    if (!isDemo) {
+      await unwrapIpc('team:deleteTeam', () => api.teams.deleteTeam(teamName));
+    }
     set((state) => {
+      const nextTeams = state.teams.filter((t) => t.teamName !== teamName);
+      const nextTeamByName = { ...state.teamByName };
+      delete nextTeamByName[teamName];
       const nextCache = state.teamDataCacheByName[teamName]
         ? { ...state.teamDataCacheByName }
         : null;
       if (nextCache) {
         delete nextCache[teamName];
       }
+      const baseUpdate = {
+        teams: nextTeams,
+        teamByName: nextTeamByName,
+        ...(nextCache ? { teamDataCacheByName: nextCache } : {}),
+      };
       if (state.selectedTeamName === teamName) {
         return {
+          ...baseUpdate,
           selectedTeamName: null,
           selectedTeamData: null,
           selectedTeamLoading: false,
           selectedTeamError: null,
-          ...(nextCache ? { teamDataCacheByName: nextCache } : {}),
         };
       }
-      return nextCache ? { teamDataCacheByName: nextCache } : {};
+      return baseUpdate;
     });
-    await get().fetchTeams();
-    await get().fetchAllTasks();
+    if (!isDemo) {
+      await get().fetchTeams();
+      await get().fetchAllTasks();
+    }
   },
 
   restoreTeam: async (teamName: string) => {

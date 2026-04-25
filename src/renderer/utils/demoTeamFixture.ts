@@ -25,9 +25,12 @@ export const DEMO_TEAM_DISPLAY = 'Demo · Engineering';
 export const DEMO_GEMINI_TEAM_NAME = 'demo-gemini-engineering';
 export const DEMO_GEMINI_TEAM_DISPLAY = 'Demo · Gemini Engineering';
 
+export const DEMO_TRADERS_TEAM_NAME = 'demo-solana-traders';
+export const DEMO_TRADERS_TEAM_DISPLAY = 'Demo · Solana Traders';
+
 interface DemoMemberSeed {
   name: string;
-  role: 'reviewer' | 'developer' | 'designer';
+  role: 'reviewer' | 'developer' | 'designer' | 'researcher' | 'auditor';
   agentType: string;
   color: string;
   providerId: TeamProviderId;
@@ -461,6 +464,88 @@ export function buildDemoGeminiTeamData(): TeamData {
   };
 }
 
+const TRADERS_MEMBERS: DemoMemberSeed[] = [
+  {
+    name: 'satoshi',
+    role: 'researcher',
+    agentType: 'researcher',
+    color: 'orange',
+    providerId: 'anthropic',
+    model: 'claude-opus-4-7',
+  },
+  {
+    name: 'vitalik',
+    role: 'developer',
+    agentType: 'developer',
+    color: 'cyan',
+    providerId: 'anthropic',
+    model: 'claude-sonnet-4-6',
+  },
+  {
+    name: 'hayek',
+    role: 'developer',
+    agentType: 'developer',
+    color: 'violet',
+    providerId: 'gemini',
+    model: 'gemini-2.5-pro',
+  },
+  {
+    name: 'taleb',
+    role: 'auditor',
+    agentType: 'auditor',
+    color: 'green',
+    providerId: 'anthropic',
+    model: 'claude-opus-4-7',
+  },
+];
+
+export function buildDemoTradersTeamData(): TeamData {
+  const now = Date.now();
+  const members = buildMembers(now, TRADERS_MEMBERS);
+  const kanban = buildKanbanState();
+  return {
+    teamName: DEMO_TRADERS_TEAM_NAME,
+    config: {
+      name: DEMO_TRADERS_TEAM_NAME,
+      description:
+        'Solana on-chain trading desk: research (satoshi), execution (vitalik & hayek), risk audit (taleb).',
+      color: 'orange',
+      members: members.map((m) => ({
+        name: m.name,
+        role: m.role,
+        workflow: m.workflow,
+        providerId: m.providerId,
+        model: m.model,
+      })),
+    },
+    tasks: [],
+    members,
+    messages: [],
+    kanbanState: { ...kanban, teamName: DEMO_TRADERS_TEAM_NAME, reviewers: ['taleb'] },
+    processes: [],
+    isAlive: true,
+    isDemo: true,
+  };
+}
+
+export function buildDemoTradersTeamSummary(): TeamSummary {
+  return {
+    teamName: DEMO_TRADERS_TEAM_NAME,
+    displayName: DEMO_TRADERS_TEAM_DISPLAY,
+    description: 'Solana trading desk demo with live Jupiter / CoinGecko price feed.',
+    color: 'orange',
+    memberCount: TRADERS_MEMBERS.length,
+    members: TRADERS_MEMBERS.map((m) => ({ name: m.name, role: m.role })),
+    taskCount: 0,
+    lastActivity: new Date(Date.now() - 60_000).toISOString(),
+    teamLaunchState: 'clean_success',
+    confirmedCount: TRADERS_MEMBERS.length,
+    pendingCount: 0,
+    failedCount: 0,
+    isDemo: true,
+  };
+}
+
 export function buildDemoGeminiTeamSummary(): TeamSummary {
   return {
     teamName: DEMO_GEMINI_TEAM_NAME,
@@ -573,5 +658,7 @@ export function getDemoMemberStats(memberName: string): MemberFullStats | null {
 }
 
 export function isDemoTeamName(name: string | null | undefined): boolean {
-  return name === DEMO_TEAM_NAME || name === DEMO_GEMINI_TEAM_NAME;
+  return (
+    name === DEMO_TEAM_NAME || name === DEMO_GEMINI_TEAM_NAME || name === DEMO_TRADERS_TEAM_NAME
+  );
 }

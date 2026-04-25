@@ -364,6 +364,10 @@ export class ClaudeMultimodelBridgeService {
     const provider = createDefaultProviderStatus('gemini');
     const { env } = await this.buildProviderCliEnv(binaryPath, 'gemini');
 
+    // Upstream Claude CLI (the public Anthropic build) doesn't accept
+    // `model list --json --provider all` — that flag set is only on the
+    // Agent Teams orchestrator fork. Probe quietly: if the command fails,
+    // we fall back to the static catalog (renderer side already does this).
     try {
       const { stdout } = await execCli(
         binaryPath,
@@ -384,10 +388,9 @@ export class ClaudeMultimodelBridgeService {
           extensions: createDefaultCliExtensionCapabilities(),
         };
       }
-    } catch (error) {
-      logger.warn(
-        `Gemini model list unavailable: ${error instanceof Error ? error.message : String(error)}`
-      );
+    } catch {
+      // Silent — the upstream CLI lacks `--json`; renderer falls back to
+      // the static model catalog so the user still sees the full picker.
     }
 
     const authState = await resolveGeminiRuntimeAuth(env);

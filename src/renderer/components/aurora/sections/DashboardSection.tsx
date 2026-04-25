@@ -22,6 +22,7 @@ import { AgentRoster } from '../dashboard/AgentRoster';
 import { AuroraReviewDiffDialog } from '../dashboard/AuroraReviewDiffDialog';
 import { DashboardChat } from '../dashboard/DashboardChat';
 import { KanbanGlass } from '../dashboard/KanbanGlass';
+import { isTradersTeam, TradersDashboard } from '../dashboard/TradersDashboard';
 import { LiquidGlass } from '../LiquidGlass';
 import { useAuroraTeam } from '../hooks/useAuroraTeam';
 
@@ -253,12 +254,16 @@ export const DashboardSection = (): React.JSX.Element => {
             </div>
 
             <div className="min-w-0">
-              <KanbanGlass
-                filter={filter}
-                view={view}
-                onTaskClick={(task) => setSelectedTask(task)}
-                onCreateTask={() => setCreateTaskOpen(true)}
-              />
+              {isTradersTeam(teamName, members) ? (
+                <TradersDashboard members={members} />
+              ) : (
+                <KanbanGlass
+                  filter={filter}
+                  view={view}
+                  onTaskClick={(task) => setSelectedTask(task)}
+                  onCreateTask={() => setCreateTaskOpen(true)}
+                />
+              )}
             </div>
 
             <div className="flex min-h-0 flex-col gap-4 lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-120px)] lg:pl-1">

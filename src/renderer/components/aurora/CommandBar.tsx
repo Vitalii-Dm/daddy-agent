@@ -34,6 +34,10 @@ export const CommandBar = (): React.JSX.Element => {
   const { members, teamName } = useAuroraTeam();
   const seedDemoTeam = useStore((s) => s.seedDemoTeam);
   const seedGeminiDemoTeam = useStore((s) => s.seedGeminiDemoTeam);
+  const seedTradersDemoTeam = useStore((s) => s.seedTradersDemoTeam);
+  const teams = useStore((s) => s.teams);
+  const selectTeam = useStore((s) => s.selectTeam);
+  const deleteTeam = useStore((s) => s.deleteTeam);
   const isDemoActive = isDemoTeamName(teamName);
 
   // Hotkey + custom-event open trigger (used by the hero secondary CTA)
@@ -143,6 +147,49 @@ export const CommandBar = (): React.JSX.Element => {
           setOpen(false);
           seedGeminiDemoTeam();
           scrollToAnchor('#dashboard');
+        },
+      });
+      list.push({
+        id: 'team-demo-traders',
+        label: 'Try Solana traders demo',
+        group: 'Teams',
+        hint: 'live prices',
+        perform: () => {
+          setOpen(false);
+          seedTradersDemoTeam();
+          scrollToAnchor('#dashboard');
+        },
+      });
+    }
+
+    // One Switch + one Delete entry per known team so the user can swap or
+    // remove teams without leaving the command bar.
+    for (const t of teams) {
+      const name = t.teamName;
+      if (name === teamName) continue;
+      list.push({
+        id: `team-switch-${name}`,
+        label: `Switch to ${t.displayName ?? name}`,
+        group: 'Teams',
+        hint: name,
+        perform: () => {
+          setOpen(false);
+          void selectTeam(name).then(() => scrollToAnchor('#dashboard'));
+        },
+      });
+    }
+    for (const t of teams) {
+      const name = t.teamName;
+      list.push({
+        id: `team-delete-${name}`,
+        label: `Delete ${t.displayName ?? name}`,
+        group: 'Teams',
+        hint: 'careful',
+        perform: () => {
+          setOpen(false);
+          if (window.confirm(`Delete team "${t.displayName ?? name}"? This can't be undone.`)) {
+            void deleteTeam(name);
+          }
         },
       });
     }
