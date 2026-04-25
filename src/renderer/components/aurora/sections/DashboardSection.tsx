@@ -433,19 +433,19 @@ const DashboardHeader = ({
   onTrash,
 }: DashboardHeaderProps): React.JSX.Element => (
   <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-    <div className="min-w-0">
+    <div className="min-w-0 max-w-[640px]">
       <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-[color:var(--ink-3)]">
         {teamName ?? 'No team selected'}
       </p>
       <h2
-        className="mt-3 truncate font-serif font-normal text-[color:var(--ink-1)]"
+        className="mt-3 whitespace-normal break-words font-serif font-normal text-[color:var(--ink-1)]"
         style={{
           fontSize: 'clamp(36px, 4vw, 56px)',
           lineHeight: 1.05,
           letterSpacing: '-0.025em',
         }}
       >
-        Your agents, right now.
+        Your agents, <em className="italic">right now</em>.
       </h2>
       <p className="mt-2 text-[14px] text-[color:var(--ink-2)]">
         {totalCount === 0
