@@ -3,6 +3,7 @@ import { motion, useReducedMotion, useScroll, useTransform } from 'motion/react'
 import { useShallow } from 'zustand/react/shallow';
 
 import { isElectronMode } from '@renderer/api';
+import { GlassButton } from '@renderer/components/ui/GlassButton';
 import { CreateTaskDialog } from '@renderer/components/team/dialogs/CreateTaskDialog';
 import { CreateTeamDialog } from '@renderer/components/team/dialogs/CreateTeamDialog';
 import { LaunchTeamDialog } from '@renderer/components/team/dialogs/LaunchTeamDialog';
@@ -432,19 +433,19 @@ const DashboardHeader = ({
   onTrash,
 }: DashboardHeaderProps): React.JSX.Element => (
   <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-    <div className="min-w-0">
+    <div className="min-w-0 max-w-[640px]">
       <p className="font-mono text-[11px] uppercase tracking-[0.32em] text-[color:var(--ink-3)]">
         {teamName ?? 'No team selected'}
       </p>
       <h2
-        className="mt-3 truncate font-serif font-normal text-[color:var(--ink-1)]"
+        className="mt-3 whitespace-normal break-words font-serif font-normal text-[color:var(--ink-1)]"
         style={{
           fontSize: 'clamp(36px, 4vw, 56px)',
           lineHeight: 1.05,
           letterSpacing: '-0.025em',
         }}
       >
-        Your agents, right now.
+        Your agents, <em className="italic">right now</em>.
       </h2>
       <p className="mt-2 text-[14px] text-[color:var(--ink-2)]">
         {totalCount === 0
@@ -456,43 +457,26 @@ const DashboardHeader = ({
     <div className="flex flex-wrap items-center gap-3">
       <FilterChips value={filter} onChange={onFilterChange} />
       <ViewTabs value={view} onChange={onViewChange} />
-      <button
-        type="button"
+      <GlassButton
+        variant="primary"
         onClick={onCreateTask}
-        className="inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-[12px] font-medium text-white transition-transform duration-300 hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bg-base)]"
-        style={{
-          background: 'linear-gradient(135deg, var(--a-violet) 0%, var(--a-cyan) 100%)',
-          boxShadow: '0 8px 22px -10px rgba(124, 92, 255, 0.5)',
-        }}
+        icon={
+          <span aria-hidden="true" className="text-[16px] leading-none">
+            +
+          </span>
+        }
       >
-        <span aria-hidden="true">+</span>
-        <span>New Task</span>
-      </button>
-      <button
-        type="button"
-        onClick={onLaunchTeam}
-        className="inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-[12px] font-medium text-white transition-transform duration-300 hover:-translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bg-base)]"
-        style={{
-          background: 'linear-gradient(135deg, var(--a-cyan) 0%, var(--a-violet) 100%)',
-          boxShadow: '0 8px 22px -10px rgba(61, 198, 255, 0.4)',
-        }}
-      >
-        <span>Launch Team</span>
-      </button>
-      <button
-        type="button"
-        onClick={onNewTeam}
-        className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[color:var(--glass-shade)] bg-white/40 px-4 text-[12px] font-medium text-[color:var(--ink-1)] transition-colors hover:bg-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)]"
-      >
-        <span>New Team</span>
-      </button>
-      <button
-        type="button"
-        onClick={onSendMessage}
-        className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[color:var(--glass-shade)] bg-white/40 px-4 text-[12px] font-medium text-[color:var(--ink-1)] transition-colors hover:bg-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--a-violet)]"
-      >
-        <span>Send Message</span>
-      </button>
+        New Task
+      </GlassButton>
+      <GlassButton variant="secondary" onClick={onLaunchTeam}>
+        Launch Team
+      </GlassButton>
+      <GlassButton variant="tertiary" onClick={onNewTeam}>
+        New Team
+      </GlassButton>
+      <GlassButton variant="mono" onClick={onSendMessage}>
+        Send Message
+      </GlassButton>
       {onTrash && (
         <button
           type="button"

@@ -44,6 +44,8 @@ const TEAM_MODEL_LABEL_OVERRIDES: Record<string, string> = {
   opus: 'Opus 4.6',
   sonnet: 'Sonnet 4.6',
   haiku: 'Haiku 4.5',
+  'claude-opus-4-7': 'Opus 4.7',
+  'claude-opus-4-7[1m]': 'Opus 4.7 (1M)',
   'claude-sonnet-4-6': 'Sonnet 4.6',
   'claude-sonnet-4-6[1m]': 'Sonnet 4.6 (1M)',
   'claude-opus-4-6': 'Opus 4.6',
@@ -66,6 +68,8 @@ const TEAM_PROVIDER_MODEL_OPTIONS: Record<SupportedProviderId, readonly TeamProv
   {
     anthropic: [
       { value: '', label: 'Default', badgeLabel: 'Default' },
+      { value: 'claude-opus-4-7', label: 'Opus 4.7', badgeLabel: 'Opus 4.7' },
+      { value: 'claude-opus-4-7[1m]', label: 'Opus 4.7 (1M)', badgeLabel: 'Opus 4.7 (1M)' },
       { value: 'opus', label: 'Opus 4.6', badgeLabel: 'Opus 4.6' },
       { value: 'sonnet', label: 'Sonnet 4.6', badgeLabel: 'Sonnet 4.6' },
       { value: 'haiku', label: 'Haiku 4.5', badgeLabel: 'Haiku 4.5' },
