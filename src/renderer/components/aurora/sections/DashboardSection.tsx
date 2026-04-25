@@ -19,7 +19,7 @@ import type { ResolvedTeamMember, TeamTaskWithKanban } from '@shared/types';
 import { ActivityStream } from '../dashboard/ActivityStream';
 import { AgentRoster } from '../dashboard/AgentRoster';
 import { AuroraReviewDiffDialog } from '../dashboard/AuroraReviewDiffDialog';
-import { DashboardChat } from '../dashboard/DashboardChat';
+import { ChatColumn } from '../dashboard/ChatColumn';
 import { KanbanGlass } from '../dashboard/KanbanGlass';
 import { LiquidGlass } from '../LiquidGlass';
 import { useAuroraTeam } from '../hooks/useAuroraTeam';
@@ -231,9 +231,25 @@ export const DashboardSection = (): React.JSX.Element => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.15 }}
             transition={{ duration: 0.65, ease: APPLE_EASE }}
-            className="mt-10 grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)_320px]"
+            className="mt-10 grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]"
           >
-            <div className="lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-120px)] lg:overflow-y-auto lg:pr-1">
+            {/* LEFT: chat column (sticky, fixed width) */}
+            <div
+              className="flex min-h-0 flex-col gap-4 lg:sticky lg:top-[88px]"
+              style={{ maxHeight: 'calc(100vh - 120px)' }}
+            >
+              {teamName ? (
+                <ChatColumn
+                  teamName={teamName}
+                  onSendMessageDialog={handleSendMessageFromActivity}
+                />
+              ) : (
+                <ActivityStream onSendMessage={handleSendMessageFromActivity} maxItems={6} />
+              )}
+            </div>
+
+            {/* RIGHT: roster band (top) + kanban (full width) */}
+            <div className="flex min-w-0 flex-col gap-5">
               <AgentRoster
                 onMemberClick={handleMemberClick}
                 onSendMessage={(name) => {
@@ -241,24 +257,14 @@ export const DashboardSection = (): React.JSX.Element => {
                   setSendDialogOpen(true);
                 }}
               />
-            </div>
-
-            <div className="min-w-0">
-              <KanbanGlass
-                filter={filter}
-                view={view}
-                onTaskClick={(task) => setSelectedTask(task)}
-                onCreateTask={() => setCreateTaskOpen(true)}
-              />
-            </div>
-
-            <div className="flex min-h-0 flex-col gap-4 lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-120px)] lg:pl-1">
-              <ActivityStream onSendMessage={handleSendMessageFromActivity} maxItems={4} />
-              {teamName ? (
-                <div className="min-h-0 flex-1">
-                  <DashboardChat teamName={teamName} />
-                </div>
-              ) : null}
+              <div className="min-h-[60vh] min-w-0 flex-1">
+                <KanbanGlass
+                  filter={filter}
+                  view={view}
+                  onTaskClick={(task) => setSelectedTask(task)}
+                  onCreateTask={() => setCreateTaskOpen(true)}
+                />
+              </div>
             </div>
           </motion.div>
         </motion.div>

@@ -22,7 +22,7 @@ import { LiquidGlass } from '../LiquidGlass';
 import { Mascot, inferMascotRole } from '../Mascot';
 import { useAuroraTeam } from '../hooks/useAuroraTeam';
 
-type ColumnId = 'todo' | 'in_progress' | 'review' | 'done';
+type ColumnId = 'todo' | 'in_progress' | 'review' | 'blocked' | 'done';
 
 interface ColumnDef {
   id: ColumnId;
@@ -35,6 +35,7 @@ const COLUMNS: ColumnDef[] = [
   { id: 'todo', title: 'Backlog', hint: 'Queued', accent: 'var(--ink-3)' },
   { id: 'in_progress', title: 'In progress', hint: 'Active', accent: 'var(--a-violet)' },
   { id: 'review', title: 'Review', hint: 'Awaiting sign-off', accent: 'var(--a-cyan)' },
+  { id: 'blocked', title: 'Blocked', hint: 'Waiting', accent: 'var(--err)' },
   { id: 'done', title: 'Done', hint: 'Shipped', accent: 'var(--ok)' },
 ];
 
@@ -94,7 +95,13 @@ export const KanbanGlass = ({
   }, [overrides, overridesStorageKey]);
 
   const grouped = useMemo<Record<ColumnId, CardItem[]>>(() => {
-    const acc: Record<ColumnId, CardItem[]> = { todo: [], in_progress: [], review: [], done: [] };
+    const acc: Record<ColumnId, CardItem[]> = {
+      todo: [],
+      in_progress: [],
+      review: [],
+      blocked: [],
+      done: [],
+    };
     for (const task of realTasks) {
       const baseCol = mapTaskToColumn(task);
       const col = overrides[task.id] ?? baseCol;
@@ -150,10 +157,7 @@ export const KanbanGlass = ({
             No tasks yet. Create a task to get started.
           </p>
         )}
-        <div
-          className="glass-scroll flex min-h-0 w-full snap-x gap-4 overflow-x-auto pb-2"
-          style={{ scrollSnapType: 'x mandatory', overscrollBehavior: 'contain' }}
-        >
+        <div className="flex min-h-0 w-full gap-3 pb-2" style={{ overscrollBehavior: 'contain' }}>
           {COLUMNS.map((col) => (
             <Column
               key={col.id}
@@ -196,8 +200,8 @@ const Column = ({
   return (
     <div
       ref={setNodeRef}
-      className="relative flex h-full w-[300px] shrink-0 snap-start flex-col rounded-[20px] border border-white/55 bg-white/35 p-3"
-      style={{ scrollSnapAlign: 'start', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.85)' }}
+      className="relative flex min-h-0 min-w-0 flex-1 flex-col rounded-[20px] border border-white/55 bg-white/35 p-3"
+      style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.85)' }}
     >
       <header className="mb-3 flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
@@ -456,7 +460,13 @@ const GraphView = (): React.JSX.Element => (
 );
 
 function isColumnId(value: string): value is ColumnId {
-  return value === 'todo' || value === 'in_progress' || value === 'review' || value === 'done';
+  return (
+    value === 'todo' ||
+    value === 'in_progress' ||
+    value === 'review' ||
+    value === 'blocked' ||
+    value === 'done'
+  );
 }
 
 function loadOverridesFromStorage(key: string | null): Record<string, ColumnId> {
@@ -477,8 +487,9 @@ function loadOverridesFromStorage(key: string | null): Record<string, ColumnId> 
 }
 
 function mapTaskToColumn(task: TeamTaskWithKanban): ColumnId {
-  if (task.kanbanColumn === 'review') return 'review';
   if (task.kanbanColumn === 'approved' || task.status === 'completed') return 'done';
+  if (task.kanbanColumn === 'review') return 'review';
+  if (task.blockedBy && task.blockedBy.length > 0) return 'blocked';
   if (task.status === 'in_progress') return 'in_progress';
   return 'todo';
 }
@@ -493,19 +504,22 @@ function filterCards(
   acc: Record<ColumnId, CardItem[]>,
   filter: string
 ): Record<ColumnId, CardItem[]> {
+  const empty = (): Record<ColumnId, CardItem[]> => ({
+    todo: [],
+    in_progress: [],
+    review: [],
+    blocked: [],
+    done: [],
+  });
   if (filter === 'All') return acc;
   if (filter === 'In progress') {
-    return { todo: [], in_progress: acc.in_progress, review: [], done: [] };
+    return { ...empty(), in_progress: acc.in_progress };
   }
   if (filter === 'Review') {
-    return { todo: [], in_progress: [], review: acc.review, done: [] };
+    return { ...empty(), review: acc.review };
   }
   if (filter === 'Blocked') {
-    const out: Record<ColumnId, CardItem[]> = { todo: [], in_progress: [], review: [], done: [] };
-    for (const col of Object.keys(acc) as ColumnId[]) {
-      out[col] = acc[col].filter((c) => c.blockedBy && c.blockedBy.length > 0);
-    }
-    return out;
+    return { ...empty(), blocked: acc.blocked };
   }
   return acc;
 }
